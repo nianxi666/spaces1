@@ -1,0 +1,1 @@
+modal token set --token-id FAKE_TOKEN_ID --token-secret FAKE_TOKEN_SECRET

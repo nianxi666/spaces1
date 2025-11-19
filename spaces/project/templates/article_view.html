@@ -1,0 +1,133 @@
+﻿{% extends "layout.html" %}
+
+{% block title %}{{ article.title }} - 南瓜AI{% endblock %}
+
+{% block meta_description %}
+<meta name="description" content="{{ (article.content | striptags | truncate(160, True)) }}">
+{% if article.tags %}
+<meta name="keywords" content="{{ article.tags | join(', ') }}">
+{% endif %}
+{% endblock %}
+
+{% block hreflang_tags %}
+  {% for link in hreflang_links %}
+    <link rel="alternate" hreflang="{{ link.lang }}" href="{{ link.url }}">
+  {% endfor %}
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin: 2rem auto;">
+    <article class="card" style="padding: 2rem 3rem;">
+        <header style="margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--separator-color); text-align: center;">
+            <h1 style="font-size: 2.5em; margin-bottom: 0.5rem; color: var(--primary-text);">{{ article.title }}</h1>
+            <p class="article-meta" style="color: var(--secondary-text); font-size: 0.9em;">
+                由 {{ article.author }} 发布于 {{ article.created_at | format_datetime }}
+            </p>
+        </header>
+
+        <div class="article-content" style="line-height: 1.8; font-size: 1.1em; color: var(--primary-text);">
+            {{ article.content | markdown }}
+        </div>
+    </article>
+
+    <footer style="margin-top: 2rem; text-align: center;">
+        <a href="{{ url_for('main.article_list') }}" class="btn">← 返回文章列表</a>
+    </footer>
+</div>
+
+<style>
+/* Add some basic styling for rendered markdown elements */
+.article-content {
+    color: var(--primary-text) !important;
+}
+
+.article-content * {
+    color: var(--primary-text);
+}
+
+.article-content h2 {
+    font-size: 1.8em;
+    margin-top: 2em;
+    margin-bottom: 1em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--separator-color);
+    color: var(--primary-text);
+}
+.article-content h3 {
+    font-size: 1.5em;
+    margin-top: 1.5em;
+    margin-bottom: 1em;
+    color: var(--primary-text);
+}
+.article-content p {
+    margin-bottom: 1.2em;
+    color: var(--primary-text);
+}
+.article-content ul, .article-content ol {
+    margin-bottom: 1.2em;
+    padding-left: 2em;
+    color: var(--primary-text);
+}
+.article-content li {
+    color: var(--primary-text);
+}
+.article-content blockquote {
+    border-left: 4px solid var(--separator-color);
+    padding-left: 1em;
+    margin-left: 0;
+    margin-bottom: 1.2em;
+    color: var(--secondary-text);
+    font-style: italic;
+}
+.article-content pre {
+    background-color: var(--system-background-secondary);
+    padding: 1em;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin-bottom: 1.2em;
+}
+.article-content code {
+    font-family: monospace;
+    background-color: var(--system-background-secondary);
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    color: var(--primary-text);
+}
+.article-content pre code {
+    background-color: transparent;
+    padding: 0;
+}
+.article-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    display: block;
+    margin: 1em 0;
+}
+.article-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.2em;
+}
+.article-content th, .article-content td {
+    border: 1px solid var(--separator-color);
+    padding: 0.5em 1em;
+    color: var(--primary-text);
+}
+.article-content th {
+    background-color: var(--system-background-secondary);
+}
+.article-content a {
+    color: var(--link-color);
+    text-decoration: underline;
+}
+.article-content strong, .article-content b {
+    color: var(--primary-text);
+    font-weight: bold;
+}
+.article-content em, .article-content i {
+    color: var(--primary-text);
+    font-style: italic;
+}
+</style>
+{% endblock %}
