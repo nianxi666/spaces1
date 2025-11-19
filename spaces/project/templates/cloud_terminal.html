@@ -32,6 +32,8 @@
             <p class="token-hint" id="token-hint">密钥会保存在本地浏览器的 LocalStorage 中。</p>
 
             <div class="divider"></div>
+            <h3>终端命令</h3>
+            <label class="field-label">运行环境</label>
             <div id="cloud-target-wrapper">
                 {% if terminal_targets %}
                 <div class="mode-toggle-group" role="group" aria-label="终端资源选择">
@@ -42,8 +44,11 @@
                     </button>
                     {% endfor %}
                 </div>
+                {% else %}
+                <p class="subtitle no-targets-placeholder" style="color:#c0392b;">尚未配置任何云终端端点，请在下方部署或手动配置 URL。</p>
                 {% endif %}
             </div>
+            <label class="field-label" for="cloud-terminal-command">命令</label>
             <textarea id="cloud-terminal-command" rows="3" placeholder="例如：cerebrium app ls"></textarea>
             <div class="command-actions">
                 <button type="button" class="btn btn-primary" id="run-terminal-command">
@@ -121,40 +126,11 @@
             </button>
             {% endfor %}
         </div>
-        <p class="deploy-note">部署完成后可通过上方命令面板管理新应用，或在下方输入名称直接删除。</p>
+        <p class="deploy-note">部署完成后可通过上方命令面板管理新应用。</p>
         <button type="button" class="btn btn-primary deploy-btn" id="deploy-submit-button">
             <span class="spinner" id="deploy-spinner" aria-hidden="true"></span>
             部署 / 更新应用
         </button>
-    </section>
-
-    <section class="card danger-zone">
-        <h3>运行环境一键删除</h3>
-        <p class="subtitle">输入任意应用名称，即可触发 <code>cerebrium app delete &lt;name&gt; --force</code>。适合清理多容器 / 多环境部署，操作不可逆。</p>
-        <div class="danger-input-group">
-            <label class="field-label" for="danger-app-name">应用名称</label>
-            <div class="danger-input-row">
-                <input type="text" id="danger-app-name" placeholder="例如：cloud-terminal" value="cloud-terminal">
-                <button type="button" class="danger-btn" id="danger-delete-button">
-                    删除该应用
-                </button>
-            </div>
-        </div>
-        <div class="danger-suggestions" id="danger-suggestions">
-            <span class="suggestion-title">快捷选择：</span>
-            <button type="button" class="danger-suggestion" data-app="cloud-terminal">
-                cloud-terminal
-            </button>
-            {% if has_gpu_endpoint %}
-            <button type="button" class="danger-suggestion" data-app="cloud-terminal-gpu">
-                cloud-terminal-gpu
-            </button>
-            {% endif %}
-            <button type="button" class="danger-suggestion" data-app="cloud-terminal-stage">
-                cloud-terminal-stage
-            </button>
-        </div>
-        <p class="danger-note">执行前请确认 Service Account Token 已填写，系统将调用当前所选运行环境代理命令。</p>
     </section>
 
     <section class="card terminal-tips">
@@ -474,75 +450,15 @@
     margin: 12px 0;
 }
 .deploy-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-#deploy-spinner {
-    display: none;
-    border-color: rgba(255,255,255,0.3);
-}
-.danger-zone {
-    border: 1px solid rgba(192, 57, 43, 0.3);
-    background: #fff5f5;
-}
-.danger-input-group {
-    margin: 16px 0;
-}
-.danger-input-row {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-.danger-input-row input {
-    flex: 1;
-    min-width: 200px;
-    border-radius: 10px;
-    border: 1px solid rgba(192, 57, 43, 0.6);
-    padding: 12px 14px;
-    font-family: inherit;
-    background: #fff;
-}
-.danger-btn {
-    min-width: 160px;
-    padding: 12px 18px;
-    border-radius: 10px;
-    border: 1px solid rgba(192, 57, 43, 0.4);
-    background: linear-gradient(135deg, #f0483e, #c0392b);
-    color: #fff;
-    font-weight: 600;
-    cursor: pointer;
-}
-.danger-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 20px rgba(192, 57, 43, 0.3);
-}
-.danger-suggestions {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-.danger-suggestion {
-    border-radius: 20px;
-    padding: 6px 12px;
-    border: 1px solid rgba(192, 57, 43, 0.25);
-    background: rgba(192, 57, 43, 0.08);
-    cursor: pointer;
-    font-size: 14px;
-    color: #c0392b;
-}
-.suggestion-title {
-    font-size: 13px;
-    color: #c0392b;
-    font-weight: 600;
-}
-.danger-note {
-    color: #c0392b;
-    font-size: 13px;
-    margin-top: 10px;
-}
-.terminal-tips ul {
+     display: inline-flex;
+     align-items: center;
+     gap: 8px;
+ }
+ #deploy-spinner {
+     display: none;
+     border-color: rgba(255,255,255,0.3);
+ }
+ .terminal-tips ul {
     margin: 12px 0 0;
     padding-left: 20px;
     line-height: 1.6;
@@ -602,7 +518,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const deploySpinner = document.getElementById('deploy-spinner');
     const deployAppInput = document.getElementById('deploy-app-name');
     const targetWrapper = document.getElementById('cloud-target-wrapper');
-    const dangerSuggestions = document.getElementById('danger-suggestions');
 
     let currentTarget = terminalTargets.length ? terminalTargets[0].name : '';
     let selectedHardware = hardwarePresets.length ? hardwarePresets[0].key : '';
@@ -677,14 +592,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 group.appendChild(btn);
             }
         }
-        if (dangerSuggestions && !dangerSuggestions.querySelector(`[data-app="${name}"]`)) {
-            const suggestionBtn = document.createElement('button');
-            suggestionBtn.type = 'button';
-            suggestionBtn.className = 'danger-suggestion';
-            suggestionBtn.dataset.app = name;
-            suggestionBtn.textContent = name;
-            dangerSuggestions.appendChild(suggestionBtn);
-        }
         setTarget(name);
     }
 
@@ -698,11 +605,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btn && btn.parentElement) {
             btn.parentElement.removeChild(btn);
         }
-        document.querySelectorAll(`.danger-suggestion[data-app="${targetName}"]`).forEach(el => {
-            if (el.parentElement) {
-                el.parentElement.removeChild(el);
-            }
-        });
         if (currentTarget === targetName) {
             currentTarget = terminalTargets.length ? terminalTargets[0].name : '';
         }
@@ -1011,85 +913,6 @@ document.addEventListener('DOMContentLoaded', () => {
             executeCommand();
         }
     });
-
-    const dangerInput = document.getElementById('danger-app-name');
-    const dangerDeleteButton = document.getElementById('danger-delete-button');
-
-    if (dangerSuggestions && dangerInput) {
-        dangerSuggestions.addEventListener('click', (event) => {
-            const button = event.target.closest('.danger-suggestion');
-            if (!button) return;
-            const appName = button.dataset.app;
-            if (appName) {
-                dangerInput.value = appName;
-            }
-        });
-    }
-
-    if (dangerDeleteButton && dangerInput) {
-        dangerDeleteButton.addEventListener('click', () => {
-            const appName = dangerInput.value.trim();
-            if (!appName) {
-                metaEl.textContent = '请输入要删除的应用名称。';
-                updateBadge('失败');
-                return;
-            }
-            if (!confirm(`确定删除 ${appName} 吗？该操作不可撤销。`)) {
-                return;
-            }
-            if (!tokenInput.value.trim()) {
-                metaEl.textContent = '请输入 Service Account Token。';
-                updateBadge('失败');
-                return;
-            }
-            runButton.disabled = true;
-            spinner.style.display = 'inline-block';
-            updateBadge('运行中');
-            metaEl.textContent = `正在删除 ${appName} ...`;
-            fetch('{{ url_for("api.delete_cloud_app") }}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token: tokenInput.value.trim(),
-                    app_name: appName
-                })
-            })
-            .then(res => res.json().then(body => ({ ok: res.ok, status: res.status, body })))
-            .then(({ ok, status, body }) => {
-                const log = (body.stdout || '') + (body.stderr ? `\nstderr:\n${body.stderr}` : '');
-                outputEl.textContent = log || JSON.stringify(body, null, 2);
-                detailCommand.textContent = `cerebrium app delete ${appName}`;
-                detailRunId.textContent = '-';
-                detailRuntime.textContent = '-';
-                detailProxy.textContent = '-';
-                appendHistory({
-                    command: `delete ${appName}`,
-                    time: new Date().toLocaleTimeString(),
-                    variant: 'cli',
-                    success: ok && body.success,
-                    returncode: body.returncode,
-                    summary: body.success ? '删除请求已执行' : (body.error || '删除失败')
-                });
-                if (ok && body.success) {
-                    metaEl.textContent = `删除 ${appName} 完成。`;
-                    updateBadge('成功');
-                    removeTargetFromUI(appName);
-                } else {
-                    metaEl.textContent = body.error || `删除失败 (HTTP ${status})`;
-                    updateBadge('失败');
-                }
-            })
-            .catch(err => {
-                outputEl.textContent = err.stack || err.message;
-                metaEl.textContent = '删除请求失败';
-                updateBadge('失败');
-            })
-            .finally(() => {
-                spinner.style.display = 'none';
-                runButton.disabled = false;
-            });
-        });
-    }
-});
-</script>
+ });
+ </script>
 {% endblock %}
