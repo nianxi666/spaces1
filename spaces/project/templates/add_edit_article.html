@@ -1,0 +1,102 @@
+{% extends "layout.html" %}
+{% block title %}{{ '编辑' if article else '创建' }}文章 - 管理面板{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 960px; margin: 2rem auto;">
+    <h1>{{ '编辑' if article else '创建' }}文章</h1>
+    <p>在这里撰写您的新想法。内容支持 Markdown 语法。</p>
+
+    <form method="POST" class="card" style="padding: 2rem; margin-top: 2rem;">
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label for="title" style="display: block; font-weight: 600; margin-bottom: 0.5rem;">标题</label>
+            <input type="text" name="title" id="title" class="form-control" value="{{ article.title if article else '' }}" required style="width: 100%; padding: 0.75rem; border: 1px solid var(--separator-color); border-radius: 4px;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label for="content" style="display: block; font-weight: 600; margin-bottom: 0.5rem;">内容 (支持 Markdown)</label>
+            <textarea name="content" id="content" rows="15" required style="width: 100%; padding: 0.75rem; border: 1px solid var(--separator-color); border-radius: 4px; font-family: monospace;">{{ article.content if article else '' }}</textarea>
+            <small style="display: block; margin-top: 0.5rem; color: var(--secondary-text);">我们推荐使用 <a href="https://markdown.com.cn/basic-syntax/" target="_blank">Markdown</a> 来格式化您的文章。</small>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label for="tags" style="display: block; font-weight: 600; margin-bottom: 0.5rem;">标签 (用逗号分隔)</label>
+            <input type="text" name="tags" id="tags" class="form-control" value="{{ article.tags|join(', ') if article and article.tags else '' }}" style="width: 100%; padding: 0.75rem; border: 1px solid var(--separator-color); border-radius: 4px;">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label for="slug" style="display: block; font-weight: 600; margin-bottom: 0.5rem;">URL Slug (可选)</label>
+            <input type="text" name="slug" id="slug" class="form-control" value="{{ article.slug if article else '' }}" style="width: 100%; padding: 0.75rem; border: 1px solid var(--separator-color); border-radius: 4px;">
+            <small style="display: block; margin-top: 0.5rem; color: var(--secondary-text);">此部分将用于URL。留空则根据标题自动生成。只应包含小写字母、数字和连字符。</small>
+        </div>
+
+        <div class="form-group">
+            <label for="image-upload" style="display: block; font-weight: 600; margin-bottom: 0.5rem;">插入图片</label>
+            <input type="file" id="image-upload" accept="image/*" class="form-control" style="width: 100%; padding: 0.75rem; border: 1px solid var(--separator-color); border-radius: 4px;">
+            <button type="button" id="upload-btn" class="btn" style="margin-top: 0.5rem;">上传并插入</button>
+            <small id="upload-status" style="display: block; margin-top: 0.5rem; color: var(--secondary-text);"></small>
+        </div>
+
+        <div class="form-actions" style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+            <button type="submit" class="btn btn-primary">保存文章</button>
+            <a href="{{ url_for('admin.manage_articles') }}" class="btn">取消</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('upload-btn').addEventListener('click', async () => {
+    const fileInput = document.getElementById('image-upload');
+    const statusEl = document.getElementById('upload-status');
+    const contentTextArea = document.getElementById('content');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        statusEl.textContent = '请先选择一个图片文件。';
+        return;
+    }
+
+    statusEl.textContent = '正在获取上传URL...';
+
+    try {
+        // 1. Get presigned URL from our server
+        const response = await fetch(`/api/generate-upload-url?fileName=${encodeURIComponent(file.name)}`);
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || '无法获取上传URL。');
+        }
+
+        statusEl.textContent = '正在上传...';
+
+        const presignedUrl = data.presigned_url;
+        const finalUrl = data.final_url; // Use the final URL directly from the API response
+
+        // 2. Upload the file directly to S3
+        const uploadResponse = await fetch(presignedUrl, {
+            method: 'PUT',
+            body: file,
+            headers: {
+                'Content-Type': file.type,
+            }
+        });
+
+        if (!uploadResponse.ok) {
+            throw new Error('上传到S3失败。');
+        }
+
+        statusEl.textContent = '上传成功！正在插入图片...';
+
+        // 3. Insert the Markdown image tag into the textarea
+        const markdownImage = `\n![${file.name}](${finalUrl})\n`;
+        contentTextArea.value += markdownImage;
+
+        statusEl.textContent = '图片已插入。';
+        fileInput.value = ''; // Clear the file input
+
+    } catch (error) {
+        console.error('Upload failed:', error);
+        statusEl.textContent = `上传失败: ${error.message}`;
+    }
+});
+</script>
+{% endblock %}

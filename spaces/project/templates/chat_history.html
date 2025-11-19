@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+{% block title %}聊天历史 - 南瓜AI{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>聊天历史</h2>
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>用户</th>
+                        <th>消息</th>
+                        <th>时间</th>
+                    </tr>
+                </thead>
+                <tbody id="history-table-body">
+                    <!-- History will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tableBody = document.getElementById('history-table-body');
+
+    const fetchHistory = async () => {
+        try {
+            const response = await fetch("{{ url_for('api.get_chat_history') }}");
+            const data = await response.json();
+            if (data.success) {
+                renderHistory(data.history);
+            } else {
+                console.error('Failed to fetch history:', data.error);
+            }
+        } catch (error) {
+            console.error('Error fetching history:', error);
+        }
+    };
+
+    const renderHistory = (history) => {
+        tableBody.innerHTML = '';
+        history.forEach(msg => {
+            const row = document.createElement('tr');
+            const timestamp = new Date(msg.timestamp * 1000).toLocaleString();
+            row.innerHTML = `
+                <td>${msg.username}</td>
+                <td>${msg.content}</td>
+                <td>${timestamp}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+    };
+
+    fetchHistory();
+});
+</script>
+{% endblock %}

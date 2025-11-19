@@ -1,0 +1,1085 @@
+{% extends "layout.html" %}
+{% block title %}云终端 · 南瓜AI{% endblock %}
+{% block content %}
+<div class="cloud-terminal-page">
+    <div class="terminal-hero card">
+        <div>
+            <p class="eyebrow">Cerebrium Cloud Terminal</p>
+            <h2>一键打开漂亮的云端 SSH 面板</h2>
+            <p class="subtitle">
+                使用 Service Account Token 即可远程执行 <code>cerebrium</code> 命令，部署 / 查询 cloud-terminal 和 cloud-terminal-gpu 的状态。
+                密钥可选择保存到浏览器，服务器仅在执行命令时帮你代理转发，不会持久化。
+            </p>
+        </div>
+        <div class="hero-actions">
+            <a class="btn-outline" href="https://github.com/nianxi666/cerebrium/tree/feat/deploy-cloud-terminal-no-model-cli-output" target="_blank" rel="noopener">查看部署教程</a>
+            <button class="btn-text" id="prefill-example">填入示例命令</button>
+        </div>
+    </div>
+
+    <div class="terminal-grid">
+        <section class="card terminal-form">
+            <h3>认证信息</h3>
+            <label class="field-label" for="cloud-terminal-token">Service Account Token</label>
+            <div class="token-input">
+                <input type="password" id="cloud-terminal-token" placeholder="粘贴以 eyJhbGci... 开头的密钥" autocomplete="off">
+                <button type="button" class="ghost-btn" id="toggle-token-visibility">显示</button>
+            </div>
+            <div class="token-actions">
+                <button type="button" class="btn-sm" id="remember-token">保存到浏览器</button>
+                <button type="button" class="btn-sm secondary" id="forget-token">清除缓存</button>
+            </div>
+            <p class="token-hint" id="token-hint">密钥会保存在本地浏览器的 LocalStorage 中。</p>
+
+            <div class="divider"></div>
+            <h3>终端命令</h3>
+            <label class="field-label">运行环境</label>
+            <div id="cloud-target-wrapper">
+                {% if terminal_targets %}
+                <div class="mode-toggle-group" role="group" aria-label="终端资源选择">
+                    {% for target in terminal_targets %}
+                    <button type="button" class="mode-toggle {% if loop.first %}active{% endif %}" data-target="{{ target.name }}">
+                        <span>{{ target.name }}</span>
+                        <small>{{ target.url }}</small>
+                    </button>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="subtitle no-targets-placeholder" style="color:#c0392b;">尚未配置任何云终端端点，请在下方部署或手动配置 URL。</p>
+                {% endif %}
+            </div>
+            <label class="field-label" for="cloud-terminal-command">命令</label>
+            <textarea id="cloud-terminal-command" rows="3" placeholder="例如：cerebrium app ls"></textarea>
+            <div class="command-actions">
+                <button type="button" class="btn btn-primary" id="run-terminal-command">
+                    <span class="spinner" aria-hidden="true"></span>
+                    执行命令 (⌘ / Ctrl + Enter)
+                </button>
+                <button type="button" class="btn secondary" id="clear-terminal-output">清空输出</button>
+            </div>
+        </section>
+
+        <section class="card terminal-output">
+            <div class="terminal-output-header">
+                <div>
+                    <h3>实时输出</h3>
+                    <p class="subtitle" id="terminal-meta">尚未执行任何命令</p>
+                </div>
+                <div class="badge" id="terminal-status-badge">待机</div>
+            </div>
+            <pre id="cloud-terminal-output" class="terminal-screen" aria-live="polite"><code>等待执行命令…</code></pre>
+            <dl class="terminal-details">
+                <div>
+                    <dt>命令</dt>
+                    <dd id="detail-command">-</dd>
+                </div>
+                <div>
+                    <dt>运行 ID</dt>
+                    <dd id="detail-run-id">-</dd>
+                </div>
+                <div>
+                    <dt>耗时</dt>
+                    <dd id="detail-runtime">-</dd>
+                </div>
+                <div>
+                    <dt>代理耗时</dt>
+                    <dd id="detail-proxy">-</dd>
+                </div>
+            </dl>
+        </section>
+
+    <section class="card quick-commands">
+        <div class="section-head">
+            <h3>快速命令</h3>
+            <p class="subtitle">常用的部署 / 诊断操作，点击即可填入命令框。</p>
+        </div>
+        {% if quick_commands %}
+        <div class="chips" id="quick-command-container">
+            {% for command in quick_commands %}
+            <button type="button"
+                    class="chip"
+                    data-command="{{ command.command }}"
+                    {% if command.target %}data-target="{{ command.target }}"{% endif %}>
+                {{ command.label }}
+            </button>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="history" id="cloud-terminal-history" aria-live="polite" aria-label="执行历史"></div>
+    </section>
+</div>
+
+    <section class="card deploy-card">
+        <div class="section-head">
+            <h3>一键部署云终端</h3>
+            <p class="subtitle">通过 VPS 执行 <code>cerebrium deploy</code>，支持覆盖同名应用。选择 H100 或 L40S 即可。</p>
+        </div>
+        <label class="field-label" for="deploy-app-name">应用名称（可选）</label>
+        <input type="text" id="deploy-app-name" placeholder="留空使用默认名称">
+
+        <label class="field-label">运行硬件</label>
+        <div class="hardware-options" id="deploy-hardware-options">
+            {% for preset in hardware_presets %}
+            <button type="button" class="hardware-btn {% if loop.first %}active{% endif %}" data-hardware="{{ preset.key }}">
+                <strong>{{ preset.label }}</strong>
+                <small>{{ preset.description }}</small>
+            </button>
+            {% endfor %}
+        </div>
+        <p class="deploy-note">部署完成后可通过上方命令面板管理新应用，或在下方输入名称直接删除。</p>
+        <button type="button" class="btn btn-primary deploy-btn" id="deploy-submit-button">
+            <span class="spinner" id="deploy-spinner" aria-hidden="true"></span>
+            部署 / 更新应用
+        </button>
+    </section>
+
+    <section class="card danger-zone">
+        <h3>运行环境一键删除</h3>
+        <p class="subtitle">输入任意应用名称，即可触发 <code>cerebrium app delete &lt;name&gt; --force</code>。适合清理多容器 / 多环境部署，操作不可逆。</p>
+        <div class="danger-input-group">
+            <label class="field-label" for="danger-app-name">应用名称</label>
+            <div class="danger-input-row">
+                <input type="text" id="danger-app-name" placeholder="例如：cloud-terminal" value="cloud-terminal">
+                <button type="button" class="danger-btn" id="danger-delete-button">
+                    删除该应用
+                </button>
+            </div>
+        </div>
+        <div class="danger-suggestions" id="danger-suggestions">
+            <span class="suggestion-title">快捷选择：</span>
+            <button type="button" class="danger-suggestion" data-app="cloud-terminal">
+                cloud-terminal
+            </button>
+            {% if has_gpu_endpoint %}
+            <button type="button" class="danger-suggestion" data-app="cloud-terminal-gpu">
+                cloud-terminal-gpu
+            </button>
+            {% endif %}
+            <button type="button" class="danger-suggestion" data-app="cloud-terminal-stage">
+                cloud-terminal-stage
+            </button>
+        </div>
+        <p class="danger-note">执行前请确认 Service Account Token 已填写，系统将调用当前所选运行环境代理命令。</p>
+    </section>
+</div>
+
+<style>
+.cloud-terminal-page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.card {
+    background: var(--system-background);
+    border: 1px solid var(--separator-color);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.04);
+}
+.terminal-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    background: linear-gradient(135deg, #111 0%, #1f1f1f 60%, #2a2a2a 100%);
+    color: #f8f8f8;
+}
+.terminal-hero .eyebrow {
+    text-transform: uppercase;
+    color: #888;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+}
+.terminal-hero h2 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 600;
+}
+.terminal-hero .subtitle {
+    margin-top: 10px;
+    color: #c6c6c6;
+}
+.hero-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.btn-outline {
+    border: 1px solid rgba(255,255,255,0.3);
+    background: transparent;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    text-decoration: none;
+    text-align: center;
+}
+.btn-text {
+    background: none;
+    border: none;
+    color: #ffb366;
+    cursor: pointer;
+}
+.terminal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+}
+.terminal-form textarea {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid var(--separator-color);
+    padding: 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    resize: vertical;
+}
+.field-label {
+    font-weight: 600;
+    margin: 18px 0 8px;
+    display: block;
+}
+.token-input {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+.token-input input {
+    flex: 1;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--separator-color);
+    font-family: inherit;
+}
+.ghost-btn {
+    border: 1px solid var(--separator-color);
+    background: transparent;
+    padding: 10px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+.btn-sm {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    background: #ff7518;
+    color: #fff;
+    cursor: pointer;
+}
+.btn-sm.secondary {
+    background: #f2f2f2;
+    color: #444;
+}
+.token-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+.token-hint {
+    color: var(--secondary-text);
+    margin-top: 4px;
+    font-size: 13px;
+}
+.mode-toggle-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.mode-toggle {
+    flex: 1;
+    min-width: 140px;
+    border-radius: 12px;
+    border: 1px solid var(--separator-color);
+    background: var(--system-background-secondary);
+    padding: 12px 16px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+}
+.mode-toggle.active {
+    border-color: #ff7518;
+    background: rgba(255,117,24,0.08);
+    color: #ff7518;
+}
+.command-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+.command-actions .btn.secondary {
+    background: #f3f3f3;
+    color: var(--primary-text);
+}
+.spinner {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+    display: none;
+}
+.terminal-output {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.terminal-output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+.terminal-screen {
+    background: #111;
+    color: #0f0;
+    min-height: 280px;
+    border-radius: 12px;
+    padding: 18px;
+    overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-size: 14px;
+    white-space: pre-wrap;
+}
+.terminal-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin: 0;
+}
+.terminal-details dt {
+    font-weight: 600;
+    color: var(--secondary-text);
+}
+.terminal-details dd {
+    margin: 4px 0 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+.badge {
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    background: #f0f0f0;
+}
+.badge.running {
+    background: #fff5cc;
+    color: #b8860b;
+}
+.badge.success {
+    background: #e6f4ea;
+    color: #1b813e;
+}
+.badge.error {
+    background: #ffe7e7;
+    color: #c0392b;
+}
+.quick-commands .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 12px;
+}
+.chip {
+    border: 1px solid var(--separator-color);
+    border-radius: 999px;
+    padding: 8px 14px;
+    background: transparent;
+    cursor: pointer;
+}
+.chip-note {
+    margin-left: 6px;
+    color: #ff7518;
+    font-size: 12px;
+}
+.history {
+    margin-top: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.history-item {
+    border: 1px solid var(--separator-color);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+.history-item.success {
+    border-color: rgba(27,129,62,0.3);
+}
+.history-item.error {
+    border-color: rgba(192,57,43,0.3);
+}
+.history-item .history-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+.no-targets-placeholder {
+    color: #c0392b;
+}
+.deploy-card {
+    border: 1px solid rgba(255,117,24,0.3);
+}
+.hardware-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.hardware-btn {
+    border-radius: 12px;
+    border: 1px solid var(--separator-color);
+    padding: 12px 16px;
+    text-align: left;
+    background: var(--system-background-secondary);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.hardware-btn.active {
+    border-color: #ff7518;
+    background: rgba(255,117,24,0.1);
+    color: #ff7518;
+}
+.hardware-btn strong {
+    font-size: 15px;
+}
+.hardware-btn small {
+    font-size: 13px;
+    color: var(--secondary-text);
+}
+.deploy-card input {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid var(--separator-color);
+    padding: 10px 14px;
+    font-family: inherit;
+    margin-bottom: 12px;
+}
+.deploy-note {
+    font-size: 13px;
+    color: var(--secondary-text);
+    margin: 12px 0;
+}
+.deploy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+#deploy-spinner {
+    display: none;
+    border-color: rgba(255,255,255,0.3);
+}
+.danger-zone {
+    border: 1px solid rgba(192, 57, 43, 0.3);
+    background: #fff5f5;
+}
+.danger-input-group {
+    margin: 16px 0;
+}
+.danger-input-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.danger-input-row input {
+    flex: 1;
+    min-width: 200px;
+    border-radius: 10px;
+    border: 1px solid rgba(192, 57, 43, 0.6);
+    padding: 12px 14px;
+    font-family: inherit;
+    background: #fff;
+}
+.danger-btn {
+    min-width: 160px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: 1px solid rgba(192, 57, 43, 0.4);
+    background: linear-gradient(135deg, #f0483e, #c0392b);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+.danger-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(192, 57, 43, 0.3);
+}
+.danger-suggestions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.danger-suggestion {
+    border-radius: 20px;
+    padding: 6px 12px;
+    border: 1px solid rgba(192, 57, 43, 0.25);
+    background: rgba(192, 57, 43, 0.08);
+    cursor: pointer;
+    font-size: 14px;
+    color: #c0392b;
+}
+.suggestion-title {
+    font-size: 13px;
+    color: #c0392b;
+    font-weight: 600;
+}
+.danger-note {
+    color: #c0392b;
+    font-size: 13px;
+    margin-top: 10px;
+}
+.divider {
+    height: 1px;
+    background: var(--separator-color);
+    margin: 24px 0;
+}
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+@media (max-width: 768px) {
+    .terminal-hero {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .token-input {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .ghost-btn {
+        width: 100%;
+        text-align: center;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const TOKEN_STORAGE_KEY = 'cloudTerminalServiceToken';
+    const tokenInput = document.getElementById('cloud-terminal-token');
+    const commandInput = document.getElementById('cloud-terminal-command');
+    const runButton = document.getElementById('run-terminal-command');
+    const clearButton = document.getElementById('clear-terminal-output');
+    const toggleTokenButton = document.getElementById('toggle-token-visibility');
+    const rememberButton = document.getElementById('remember-token');
+    const forgetButton = document.getElementById('forget-token');
+    const outputEl = document.getElementById('cloud-terminal-output');
+    const metaEl = document.getElementById('terminal-meta');
+    const statusBadge = document.getElementById('terminal-status-badge');
+    const detailCommand = document.getElementById('detail-command');
+    const detailRunId = document.getElementById('detail-run-id');
+    const detailRuntime = document.getElementById('detail-runtime');
+    const detailProxy = document.getElementById('detail-proxy');
+    const historyContainer = document.getElementById('cloud-terminal-history');
+    const quickContainer = document.getElementById('quick-command-container');
+    const modeToggles = document.querySelectorAll('.mode-toggle');
+    const spinner = runButton.querySelector('.spinner');
+    const tokenHint = document.getElementById('token-hint');
+    const quickCommands = {{ quick_commands | tojson | safe }};
+    const terminalTargets = {{ terminal_targets | tojson | safe }};
+    const hardwarePresets = {{ hardware_presets | tojson | safe }};
+    const hardwareButtons = document.querySelectorAll('.hardware-btn');
+    const deployButton = document.getElementById('deploy-submit-button');
+    const deploySpinner = document.getElementById('deploy-spinner');
+    const deployAppInput = document.getElementById('deploy-app-name');
+    const targetWrapper = document.getElementById('cloud-target-wrapper');
+    const dangerSuggestions = document.getElementById('danger-suggestions');
+
+    let currentTarget = terminalTargets.length ? terminalTargets[0].name : '';
+    let selectedHardware = hardwarePresets.length ? hardwarePresets[0].key : '';
+
+    function updateTargetButtonStates() {
+        document.querySelectorAll('.mode-toggle').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.target === currentTarget);
+        });
+    }
+
+    function setTarget(targetName) {
+        currentTarget = targetName;
+        updateTargetButtonStates();
+    }
+
+    if (targetWrapper) {
+        targetWrapper.addEventListener('click', (event) => {
+            const button = event.target.closest('.mode-toggle');
+            if (button && button.dataset.target) {
+                setTarget(button.dataset.target);
+            }
+        });
+    }
+
+    if (currentTarget) {
+        setTarget(currentTarget);
+    }
+
+    function setHardwareOption(key) {
+        if (!key) return;
+        selectedHardware = key;
+        hardwareButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.hardware === key);
+        });
+        const preset = hardwarePresets.find(p => p.key === key);
+        const placeholder = preset && preset.default_app_name ? `默认：${preset.default_app_name}` : '留空使用默认名称';
+        deployAppInput.placeholder = placeholder;
+    }
+
+    hardwareButtons.forEach(btn => {
+        btn.addEventListener('click', () => setHardwareOption(btn.dataset.hardware));
+    });
+    if (selectedHardware) {
+        setHardwareOption(selectedHardware);
+    }
+
+    function ensureTargetGroup() {
+        let group = targetWrapper ? targetWrapper.querySelector('.mode-toggle-group') : null;
+        if (!group && targetWrapper) {
+            targetWrapper.innerHTML = '';
+            group = document.createElement('div');
+            group.className = 'mode-toggle-group';
+            group.setAttribute('role', 'group');
+            group.setAttribute('aria-label', '终端资源选择');
+            targetWrapper.appendChild(group);
+        }
+        return group;
+    }
+
+    function addTargetFromDeployment(name, endpoint) {
+        if (!name || !endpoint) return;
+        const existing = terminalTargets.find(t => t.name === name);
+        if (!existing) {
+            terminalTargets.push({ name, url: endpoint });
+            const group = ensureTargetGroup();
+            if (group) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'mode-toggle';
+                btn.dataset.target = name;
+                btn.innerHTML = `<span>${name}</span><small>${endpoint}</small>`;
+                group.appendChild(btn);
+            }
+        }
+        if (dangerSuggestions && !dangerSuggestions.querySelector(`[data-app="${name}"]`)) {
+            const suggestionBtn = document.createElement('button');
+            suggestionBtn.type = 'button';
+            suggestionBtn.className = 'danger-suggestion';
+            suggestionBtn.dataset.app = name;
+            suggestionBtn.textContent = name;
+            dangerSuggestions.appendChild(suggestionBtn);
+        }
+        setTarget(name);
+    }
+
+    function removeTargetFromUI(targetName) {
+        if (!targetName) return;
+        const idx = terminalTargets.findIndex(t => t.name === targetName);
+        if (idx >= 0) {
+            terminalTargets.splice(idx, 1);
+        }
+        const btn = document.querySelector(`.mode-toggle[data-target="${targetName}"]`);
+        if (btn && btn.parentElement) {
+            btn.parentElement.removeChild(btn);
+        }
+        document.querySelectorAll(`.danger-suggestion[data-app="${targetName}"]`).forEach(el => {
+            if (el.parentElement) {
+                el.parentElement.removeChild(el);
+            }
+        });
+        if (currentTarget === targetName) {
+            currentTarget = terminalTargets.length ? terminalTargets[0].name : '';
+        }
+        if (!terminalTargets.length) {
+            if (targetWrapper) {
+                targetWrapper.innerHTML = '<p class="subtitle no-targets-placeholder" style="color:#c0392b;">尚未配置任何云终端端点，请在下方部署或手动配置 URL。</p>';
+            }
+            metaEl.textContent = '已删除所有云终端环境，请刷新页面或重新部署。';
+            updateBadge('待机');
+        } else if (currentTarget) {
+            setTarget(currentTarget);
+        }
+    }
+
+    if (quickCommands.length) {
+        commandInput.value = quickCommands[0].command;
+    }
+
+    const savedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (savedToken) {
+        tokenInput.value = savedToken;
+        tokenHint.textContent = '已从浏览器中读取密钥。';
+    }
+
+    rememberButton.addEventListener('click', () => {
+        const value = tokenInput.value.trim();
+        if (!value) {
+            tokenHint.textContent = '请输入密钥后再保存。';
+            return;
+        }
+        localStorage.setItem(TOKEN_STORAGE_KEY, value);
+        tokenHint.textContent = '✅ 密钥仅保存在本地浏览器。';
+    });
+
+    forgetButton.addEventListener('click', () => {
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        tokenInput.value = '';
+        tokenHint.textContent = '🗑️ 已清除本地缓存。';
+    });
+
+    toggleTokenButton.addEventListener('click', () => {
+        const show = tokenInput.type === 'password';
+        tokenInput.type = show ? 'text' : 'password';
+        toggleTokenButton.textContent = show ? '隐藏' : '显示';
+    });
+
+    document.getElementById('prefill-example').addEventListener('click', () => {
+        commandInput.value = 'cerebrium app ls';
+        setVariant('cpu');
+    });
+
+    if (quickContainer) {
+        quickContainer.addEventListener('click', (event) => {
+            const button = event.target.closest('.chip');
+            if (!button) return;
+            const cmd = button.dataset.command;
+            if (cmd) {
+                commandInput.value = cmd;
+            }
+            if (button.dataset.target) {
+                setTarget(button.dataset.target);
+            }
+        });
+    }
+
+    function updateBadge(state) {
+        statusBadge.classList.remove('running', 'success', 'error');
+        statusBadge.textContent = state;
+        if (state === '运行中') {
+            statusBadge.classList.add('running');
+        } else if (state === '成功') {
+            statusBadge.classList.add('success');
+        } else if (state === '失败') {
+            statusBadge.classList.add('error');
+        }
+    }
+
+    function appendHistory(entry) {
+        const item = document.createElement('article');
+        item.className = `history-item ${entry.success ? 'success' : 'error'}`;
+
+        const head = document.createElement('div');
+        head.className = 'history-head';
+        const commandSpan = document.createElement('span');
+        commandSpan.textContent = entry.command;
+        const timeSpan = document.createElement('span');
+        timeSpan.textContent = entry.time;
+        head.append(commandSpan, timeSpan);
+
+        const metaLine = document.createElement('div');
+        metaLine.textContent = `模式：${entry.variant.toUpperCase()} ｜ 返回码：${entry.returncode ?? '-'}`;
+
+        const summaryLine = document.createElement('div');
+        summaryLine.textContent = entry.summary || '';
+
+        item.append(head, metaLine, summaryLine);
+        historyContainer.prepend(item);
+        while (historyContainer.children.length > 6) {
+            historyContainer.removeChild(historyContainer.lastChild);
+        }
+    }
+
+    async function deployCloudTerminalApp() {
+        const token = tokenInput.value.trim();
+        const appName = deployAppInput.value.trim();
+        if (!token) {
+            metaEl.textContent = '请输入 Service Account Token。';
+            updateBadge('失败');
+            return;
+        }
+        if (!selectedHardware) {
+            metaEl.textContent = '请选择硬件配置。';
+            updateBadge('失败');
+            return;
+        }
+
+        deployButton.disabled = true;
+        deploySpinner.style.display = 'inline-block';
+        updateBadge('运行中');
+        metaEl.textContent = '正在通过 VPS 调用 cerebrium deploy...';
+
+        try {
+            const response = await fetch('{{ url_for("api.deploy_cloud_terminal_app") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token,
+                    app_name: appName,
+                    hardware: selectedHardware
+                })
+            });
+            const payload = await response.json();
+            const logBody = `${payload.stdout || ''}${payload.stderr ? `\nstderr:\n${payload.stderr}` : ''}`.trim() || JSON.stringify(payload, null, 2);
+            outputEl.textContent = logBody;
+            detailCommand.textContent = `deploy ${payload.app_name || appName || '-'}`;
+            detailRunId.textContent = '-';
+            detailRuntime.textContent = '-';
+            detailProxy.textContent = '-';
+
+            const historySummary = payload.success ? '部署完成' : (payload.error || '部署失败');
+            appendHistory({
+                command: `deploy ${payload.app_name || appName || selectedHardware}`,
+                time: new Date().toLocaleTimeString(),
+                variant: selectedHardware,
+                success: payload.success,
+                returncode: payload.returncode,
+                summary: historySummary
+            });
+
+            if (response.ok && payload.success) {
+                metaEl.textContent = `部署成功：${payload.app_name}`;
+                updateBadge('成功');
+                if (payload.endpoint && payload.app_name) {
+                    addTargetFromDeployment(payload.app_name, payload.endpoint);
+                }
+            } else {
+                metaEl.textContent = payload.error || `部署失败 (HTTP ${response.status})`;
+                updateBadge('失败');
+            }
+        } catch (error) {
+            outputEl.textContent = error.stack || error.message;
+            metaEl.textContent = '部署请求失败。';
+            updateBadge('失败');
+        } finally {
+            deploySpinner.style.display = 'none';
+            deployButton.disabled = false;
+        }
+    }
+
+    async function executeCommand(commandOverride, targetOverride, options = {}) {
+        const token = tokenInput.value.trim();
+        const providedCommand = (commandOverride ?? commandInput.value).trim();
+        if (targetOverride && targetOverride !== currentTarget) {
+            setTarget(targetOverride);
+        }
+        const targetUsed = targetOverride || currentTarget || '';
+
+        if (commandOverride && !options.skipInputUpdate) {
+            commandInput.value = providedCommand;
+        }
+
+        if (!providedCommand) {
+            metaEl.textContent = '请输入命令后再执行。';
+            updateBadge('失败');
+            statusBadge.classList.add('error');
+            return;
+        }
+        if (!token) {
+            metaEl.textContent = '请输入 Service Account Token。';
+            updateBadge('失败');
+            return;
+        }
+        if (!targetUsed && terminalTargets.length) {
+            metaEl.textContent = '请选择运行环境。';
+            updateBadge('失败');
+            return;
+        }
+
+        runButton.disabled = true;
+        spinner.style.display = 'inline-block';
+        updateBadge('运行中');
+        metaEl.textContent = '正在发送到云端...';
+
+        // 如果命令包含 cerebrium，自动注入 token 并确保 CLI 存在
+        let finalCommand = providedCommand;
+        if (providedCommand.includes('cerebrium ')) {
+            const escaped = token.replace(/"/g, '\\"');
+            finalCommand = `export CEREBRIUM_SERVICE_ACCOUNT_TOKEN=\"${escaped}\" && pip install -q cerebrium --upgrade && ${providedCommand}`;
+        }
+
+        try {
+            const response = await fetch('{{ url_for("api.proxy_cloud_terminal_command") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token,
+                    command: finalCommand,
+                    target: targetUsed
+                })
+            });
+            const payload = await response.json();
+            const remote = payload.payload || {};
+            const result = remote.result || remote;
+
+            if (!response.ok || !payload.success) {
+                const summary = payload.error || '远程服务返回错误。';
+                updateBadge('失败');
+                metaEl.textContent = summary;
+                outputEl.textContent = JSON.stringify(remote, null, 2);
+                appendHistory({
+                    command: providedCommand,
+                    time: new Date().toLocaleTimeString(),
+                    variant: targetUsed || 'default',
+                    success: false,
+                    returncode: payload.status_code,
+                    summary
+                });
+                return;
+            }
+
+            const stdout = result.stdout || '';
+            const stderr = result.stderr || remote.stderr || '';
+            const body = `${stdout}${stderr ? `\n⚠️ stderr:\n${stderr}` : ''}`.trim() || JSON.stringify(remote, null, 2);
+
+            outputEl.textContent = body;
+            detailCommand.textContent = result.command || providedCommand;
+            detailRunId.textContent = remote.run_id || '-';
+            let runtimeMs = Number(result.run_time_ms);
+            if (!Number.isFinite(runtimeMs)) {
+                runtimeMs = Number(remote.run_time_ms);
+            }
+            detailRuntime.textContent = Number.isFinite(runtimeMs)
+                ? `${runtimeMs.toFixed(2)} ms`
+                : '-';
+            const proxyMs = Number(payload.proxy_latency_ms);
+            detailProxy.textContent = Number.isFinite(proxyMs)
+                ? `${proxyMs} ms`
+                : '-';
+
+            const success = result.success !== false;
+            updateBadge(success ? '成功' : '失败');
+            metaEl.textContent = `云端返回码 ${result.returncode ?? '-'} ｜ 环境：${targetUsed || '默认'}`;
+            appendHistory({
+                command: result.command || providedCommand,
+                time: new Date().toLocaleTimeString(),
+                variant: targetUsed || 'default',
+                success,
+                returncode: result.returncode,
+                summary: success ? '执行完成' : (stderr || '执行失败')
+            });
+
+            // 如果是删除命令且成功，前端移除对应环境
+            if (success) {
+                const lowerCommand = (result.command || providedCommand).toLowerCase();
+                const deleteMatch = lowerCommand.match(/cerebrium\s+app\s+delete\s+([^\s]+)/);
+                if (deleteMatch && deleteMatch[1]) {
+                    removeTargetFromUI(deleteMatch[1]);
+                }
+            }
+        } catch (error) {
+            updateBadge('失败');
+            metaEl.textContent = error.message;
+            outputEl.textContent = error.stack || error.message;
+        } finally {
+            spinner.style.display = 'none';
+            runButton.disabled = false;
+        }
+    }
+
+    runButton.addEventListener('click', () => executeCommand());
+    if (deployButton) {
+        deployButton.addEventListener('click', deployCloudTerminalApp);
+    }
+    clearButton.addEventListener('click', () => {
+        outputEl.textContent = '等待执行命令…';
+        detailCommand.textContent = '-';
+        detailRunId.textContent = '-';
+        detailRuntime.textContent = '-';
+        detailProxy.textContent = '-';
+        metaEl.textContent = '输出已清空。';
+        updateBadge('待机');
+    });
+    commandInput.addEventListener('keydown', (event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+            event.preventDefault();
+            executeCommand();
+        }
+    });
+
+    const dangerInput = document.getElementById('danger-app-name');
+    const dangerDeleteButton = document.getElementById('danger-delete-button');
+
+    if (dangerSuggestions && dangerInput) {
+        dangerSuggestions.addEventListener('click', (event) => {
+            const button = event.target.closest('.danger-suggestion');
+            if (!button) return;
+            const appName = button.dataset.app;
+            if (appName) {
+                dangerInput.value = appName;
+            }
+        });
+    }
+
+    if (dangerDeleteButton && dangerInput) {
+        dangerDeleteButton.addEventListener('click', () => {
+            const appName = dangerInput.value.trim();
+            if (!appName) {
+                metaEl.textContent = '请输入要删除的应用名称。';
+                updateBadge('失败');
+                return;
+            }
+            if (!confirm(`确定删除 ${appName} 吗？该操作不可撤销。`)) {
+                return;
+            }
+            if (!tokenInput.value.trim()) {
+                metaEl.textContent = '请输入 Service Account Token。';
+                updateBadge('失败');
+                return;
+            }
+            runButton.disabled = true;
+            spinner.style.display = 'inline-block';
+            updateBadge('运行中');
+            metaEl.textContent = `正在删除 ${appName} ...`;
+            fetch('{{ url_for("api.delete_cloud_app") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: tokenInput.value.trim(),
+                    app_name: appName
+                })
+            })
+            .then(res => res.json().then(body => ({ ok: res.ok, status: res.status, body })))
+            .then(({ ok, status, body }) => {
+                const log = (body.stdout || '') + (body.stderr ? `\nstderr:\n${body.stderr}` : '');
+                outputEl.textContent = log || JSON.stringify(body, null, 2);
+                detailCommand.textContent = `cerebrium app delete ${appName}`;
+                detailRunId.textContent = '-';
+                detailRuntime.textContent = '-';
+                detailProxy.textContent = '-';
+                appendHistory({
+                    command: `delete ${appName}`,
+                    time: new Date().toLocaleTimeString(),
+                    variant: 'cli',
+                    success: ok && body.success,
+                    returncode: body.returncode,
+                    summary: body.success ? '删除请求已执行' : (body.error || '删除失败')
+                });
+                if (ok && body.success) {
+                    metaEl.textContent = `删除 ${appName} 完成。`;
+                    updateBadge('成功');
+                    removeTargetFromUI(appName);
+                } else {
+                    metaEl.textContent = body.error || `删除失败 (HTTP ${status})`;
+                    updateBadge('失败');
+                }
+            })
+            .catch(err => {
+                outputEl.textContent = err.stack || err.message;
+                metaEl.textContent = '删除请求失败';
+                updateBadge('失败');
+            })
+            .finally(() => {
+                spinner.style.display = 'none';
+                runButton.disabled = false;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

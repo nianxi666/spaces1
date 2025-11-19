@@ -1,0 +1,118 @@
+{% extends "layout.html" %}
+{% block title %}登录 - 南瓜AI{% endblock %}
+
+{% block content %}
+<style>
+    .auth-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 80vh;
+        padding: 20px;
+    }
+    .auth-form-wrapper {
+        width: 100%;
+        max-width: 350px;
+    }
+    .auth-form {
+        background: var(--system-background);
+        border: 1px solid var(--separator-color);
+        border-radius: 3px;
+        padding: 40px;
+        text-align: center;
+    }
+    .auth-logo {
+        font-family: 'Cursive', 'Brush Script MT', sans-serif;
+        font-size: 48px;
+        margin-bottom: 20px;
+    }
+    .form-group {
+        margin-bottom: 10px;
+    }
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--separator-color);
+        border-radius: 3px;
+        background: var(--system-background-secondary);
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+    .btn-submit {
+        width: 100%;
+        background: var(--link-color);
+        color: white;
+        padding: 8px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        margin-top: 10px;
+    }
+    .btn-submit:hover {
+        filter: brightness(1.1);
+    }
+    .auth-separator {
+        display: flex;
+        align-items: center;
+        text-align: center;
+        color: var(--secondary-text);
+        margin: 20px 0;
+        font-weight: 600;
+        font-size: 13px;
+    }
+    .auth-separator::before,
+    .auth-separator::after {
+        content: '';
+        flex: 1;
+        border-bottom: 1px solid var(--separator-color);
+    }
+    .auth-separator:not(:empty)::before {
+        margin-right: .25em;
+    }
+    .auth-separator:not(:empty)::after {
+        margin-left: .25em;
+    }
+    .auth-redirect-box {
+        background: var(--system-background);
+        border: 1px solid var(--separator-color);
+        border-radius: 3px;
+        padding: 20px;
+        text-align: center;
+        margin-top: 10px;
+    }
+    .auth-redirect-link {
+        color: var(--link-color);
+        text-decoration: none;
+        font-weight: 600;
+    }
+    .auth-error {
+        color: #ed4956;
+        margin-bottom: 15px;
+        font-size: 14px;
+    }
+</style>
+
+<div class="auth-container">
+    <div class="auth-form-wrapper">
+        <div class="auth-form">
+            <h1 class="auth-logo">南瓜AI</h1>
+            {% if error %}
+            <div class="auth-error">{{ error }}</div>
+            {% endif %}
+            <form method="post" autocomplete="on">
+                <div class="form-group">
+                    <input type="text" name="username" placeholder="用户名" class="form-control" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password" placeholder="密码" class="form-control" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn-submit">登录</button>
+            </form>
+        </div>
+        <div class="auth-redirect-box">
+            <p>还没有账户？ <a href="{{ url_for('auth.register') }}" class="auth-redirect-link">注册</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

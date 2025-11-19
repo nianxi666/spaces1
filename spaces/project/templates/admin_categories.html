@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% block title %}管理分类 - 南瓜AI{% endblock %}
+{% block content %}
+<div class="admin-panel-container">
+    <div class="page-header">
+        <h2>管理分类</h2>
+        <div class="header-actions">
+            <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-secondary" title="返回管理面板">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            </a>
+        </div>
+    </div>
+
+    <div class="card" style="background: white; border-radius: 12px; padding: 25px; margin-bottom: 30px; box-shadow: 0 4px 20px rgba(255, 117, 24, 0.1);">
+        <div class="card-header" style="margin-bottom: 15px;">
+            <h3 style="margin: 0; color: #2C2C2C; font-size: 18px;">{% if category_to_edit %}编辑分类{% else %}添加新分类{% endif %}</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin.manage_categories') }}">
+                <input type="hidden" name="category_id" value="{{ category_to_edit.id if category_to_edit else '' }}">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="name" style="display: block; margin-bottom: 5px; font-weight: 500;">名称</label>
+                    <input type="text" name="name" class="form-control" value="{{ category_to_edit.name if category_to_edit else '' }}" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="icon" style="display: block; margin-bottom: 5px; font-weight: 500;">图标 (Emoji)</label>
+                    <input type="text" name="icon" class="form-control" value="{{ category_to_edit.icon if category_to_edit else '' }}" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+                </div>
+                <button type="submit" class="btn btn-primary">保存分类</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="projects-table">
+            <thead>
+                <tr>
+                    <th>名称</th>
+                    <th>图标</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in categories %}
+                <tr>
+                    <td>{{ category.name }}</td>
+                    <td>{{ category.icon }}</td>
+                    <td>
+                        <div class="actions">
+                            <a href="{{ url_for('admin.manage_categories', edit_id=category.id) }}" class="btn-action edit">编辑</a>
+                            <a href="{{ url_for('admin.delete_category', category_id=category.id) }}" class="btn-action delete" onclick="return confirm('确定要删除这个分类吗？')">删除</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

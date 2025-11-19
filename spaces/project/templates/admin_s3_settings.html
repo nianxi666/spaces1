@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block title %}S3 设置 - 管理面板{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h2>S3 存储设置</h2>
+    <p>在此处配置您的 S3 兼容存储桶的设置。这些设置将用于存储空间封面和推理结果文件。</p>
+
+    <form method="POST" action="{{ url_for('admin.manage_s3_settings') }}" class="mt-4">
+        <div class="mb-3">
+            <label for="s3_endpoint_url" class="form-label">Endpoint URL</label>
+            <input type="text" class="form-control" id="s3_endpoint_url" name="s3_endpoint_url" value="{{ s3_config.get('S3_ENDPOINT_URL', '') }}" placeholder="例如：https://s3.tebi.io">
+        </div>
+        <div class="mb-3">
+            <label for="s3_access_key_id" class="form-label">Access Key ID</label>
+            <input type="text" class="form-control" id="s3_access_key_id" name="s3_access_key_id" value="{{ s3_config.get('S3_ACCESS_KEY_ID', '') }}">
+        </div>
+        <div class="mb-3">
+            <label for="s3_secret_access_key" class="form-label">Secret Access Key</label>
+            <input type="password" class="form-control" id="s3_secret_access_key" name="s3_secret_access_key" value="{{ s3_config.get('S3_SECRET_ACCESS_KEY', '') }}">
+        </div>
+        <div class="mb-3">
+            <label for="s3_bucket_name" class="form-label">Bucket Name</label>
+            <input type="text" class="form-control" id="s3_bucket_name" name="s3_bucket_name" value="{{ s3_config.get('S3_BUCKET_NAME', '') }}">
+        </div>
+        <button type="submit" class="btn btn-primary">保存设置</button>
+        <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-secondary">取消</a>
+    </form>
+</div>
+{% endblock %}

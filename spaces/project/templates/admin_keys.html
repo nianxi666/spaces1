@@ -1,0 +1,67 @@
+{% extends "layout.html" %}
+{% block title %}管理API密钥 - 南瓜AI{% endblock %}
+{% block content %}
+<div class="admin-panel-container">
+    <div class="page-header">
+        <h2>管理Modal API密钥</h2>
+        <div class="header-actions">
+            <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-secondary">
+                <span class="icon">‹</span>
+                返回管理面板
+            </a>
+        </div>
+    </div>
+
+    <div class="form-container" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+        <form method="post">
+            <div class="form-group">
+                <label for="keys" style="display: block; margin-bottom: 10px; font-weight: 500; color: #333;">密钥列表 (key.txt)</label>
+                <p class="form-text" style="font-size: 14px; color: #666; margin-bottom: 15px;">
+                    在此处编辑您的Modal密钥命令，每行一个。当任务遇到 "limit reached" 错误时，系统将自动使用第一行的命令，并将其从列表中移除。
+                </p>
+                <textarea name="keys" id="keys" class="form-control" rows="15" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: 'Courier New', monospace;">{{ keys_content }}</textarea>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <button type="submit" class="btn btn-primary">保存更改</button>
+            </div>
+        </form>
+    </div>
+</div>
+<style>
+.admin-panel-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+.page-header h2 {
+    color: #FF7518;
+    margin: 0;
+}
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+.btn-primary {
+    background: linear-gradient(135deg, #FF7518, #FFB366);
+    color: white;
+}
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+</style>
+{% endblock %}

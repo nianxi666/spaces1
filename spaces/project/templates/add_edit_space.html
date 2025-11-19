@@ -1,0 +1,698 @@
+{% extends "layout.html" %}
+{% block title %}{{ '编辑' if space else '添加' }} Space{% endblock %}
+{% block content %}
+<h2 style="color: #333; margin-bottom: 30px;">{{ '编辑' if space else '添加' }} Space</h2>
+<div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <form method="post">
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">名称</label>
+            <input type="text" name="name" value="{{ space.name if space else '' }}" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">描述</label>
+            <textarea name="description" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; height: 80px;">{{ space.description if space else '' }}</textarea>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Space 卡片类型</label>
+            {% set card_type = space.card_type if space else 'standard' %}
+            <select name="card_type" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                <option value="standard" {% if card_type == 'standard' %}selected{% endif %}>标准命令型 (Inferless/Modal)</option>
+                <option value="cerebrium" {% if card_type == 'cerebrium' %}selected{% endif %}>Cerebrium API 型</option>
+            </select>
+            <small style="color: #666;">Cerebrium 类型使用外部 API 请求与网盘文件。</small>
+        </div>
+        {% set timeout_seconds = space.cerebrium_timeout_seconds if space and space.cerebrium_timeout_seconds is not none else 300 %}
+        {% set timeout_minutes = (timeout_seconds / 60) | int %}
+        <div id="cerebrium-settings" style="margin-bottom: 15px; {% if card_type != 'cerebrium' %}display: none;{% endif %}">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">推理超时时间（分钟）</label>
+            <input type="number"
+                   name="cerebrium_timeout_minutes"
+                   min="1"
+                   value="{{ timeout_minutes }}"
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            <small style="color: #666;">当用户发起 Cerebrium 推理后，在该时间内若未收到结果会提示超时，并允许重新发送。</small>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">封面图片</label>
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <input type="file" id="cover_file_input" accept="image/*,video/*" style="padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                <button type="button" id="select-cover-btn" class="btn btn-secondary" style="width: fit-content;">从我的作品中选择</button>
+            </div>
+            <input type="hidden" name="cover" id="cover_url_input" value="{{ space.cover if space else '' }}">
+            <input type="hidden" name="cover_type" id="cover_type_input" value="{{ space.cover_type if space else 'image' }}">
+            <div id="upload-status" style="margin-top: 10px; font-weight: bold;"></div>
+            <div id="cover-preview-container" style="margin-top: 10px; {% if not space or not space.cover %}display: none;{% endif %}">
+                <p style="color: #666; margin: 0;">当前:</p>
+                {% if space and space.cover %}
+                    {% set cover_url = space.cover if space.cover.startswith('http') else to_s3_url(space.cover) %}
+                    {% if space.cover_type == 'video' %}
+                        <video id="cover-preview-video" src="{{ cover_url }}" style="width: 150px; height: auto; vertical-align: middle; border-radius: 4px;" controls></video>
+                        <img id="cover-preview-img" src="" style="display: none; width: 100px; height: 100px; object-fit: cover; vertical-align: middle; border-radius: 4px;">
+                    {% else %}
+                        <video id="cover-preview-video" src="" style="display: none; width: 150px; height: auto; vertical-align: middle; border-radius: 4px;" controls></video>
+                        <img id="cover-preview-img" src="{{ cover_url }}" style="width: 100px; height: 100px; object-fit: cover; vertical-align: middle; border-radius: 4px;">
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        <hr style="margin-top: 20px; margin-bottom: 20px; border: 0; border-top: 1px solid #eee;">
+
+        {% if space %}
+        <div id="template-management" style="margin-bottom: 20px;">
+            <h3 style="color: #333; margin-bottom: 20px;">GPU (GPU)</h3>
+            <div id="template-list">
+                <p>此 Space 还没有GPU。</p>
+            </div>
+            <button type="button" id="add-template-btn" style="margin-top: 15px; background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">+ 添加新GPU</button>
+        </div>
+        {% else %}
+        <div class="alert alert-info" style="padding: 15px; background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; border-radius: 4px;">
+            请先保存 Space，然后您才能向其添加GPU。
+        </div>
+        {% endif %}
+
+        <button type="submit" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">保存 Space</button>
+    </form>
+</div>
+
+<!-- Cover Image Scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const coverFileInput = document.getElementById('cover_file_input');
+    const coverUrlInput = document.getElementById('cover_url_input');
+    const coverTypeInput = document.getElementById('cover_type_input');
+    const uploadStatus = document.getElementById('upload-status');
+    const previewContainer = document.getElementById('cover-preview-container');
+    const previewImg = document.getElementById('cover-preview-img');
+    const previewVideo = document.getElementById('cover-preview-video');
+    const spaceId = "{{ space.id if space else '' }}";
+    const cardTypeSelect = document.querySelector('select[name="card_type"]');
+    const cerebriumSettings = document.getElementById('cerebrium-settings');
+
+    if (cardTypeSelect && cerebriumSettings) {
+        const toggleCerebriumSettings = () => {
+            cerebriumSettings.style.display = cardTypeSelect.value === 'cerebrium' ? 'block' : 'none';
+        };
+        cardTypeSelect.addEventListener('change', toggleCerebriumSettings);
+        toggleCerebriumSettings();
+    }
+
+    function updateCoverPreview(url, type) {
+        if (!previewContainer) return;
+        previewContainer.style.display = 'block';
+        if (type === 'video') {
+            if (previewImg) {
+                previewImg.style.display = 'none';
+                previewImg.src = '';
+            }
+            if (previewVideo) {
+                previewVideo.style.display = 'block';
+                previewVideo.src = url;
+            }
+        } else {
+            if (previewVideo) {
+                previewVideo.style.display = 'none';
+                previewVideo.src = '';
+            }
+            if (previewImg) {
+                previewImg.style.display = 'block';
+                previewImg.src = url;
+            }
+        }
+    }
+
+    if (coverFileInput) {
+        coverFileInput.addEventListener('change', async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            uploadStatus.textContent = '正在获取上传许可...';
+            uploadStatus.style.color = '#007bff';
+
+            try {
+                const presignedUrlResponse = await fetch(`/api/generate-upload-url?fileName=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type || 'application/octet-stream')}`);
+                if (!presignedUrlResponse.ok) throw new Error('无法从服务器获取上传URL。');
+
+                const data = await presignedUrlResponse.json();
+                if (!data.success) throw new Error(data.error || '生成上传URL失败。');
+
+                const { presigned_url, final_url } = data;
+                uploadStatus.textContent = '正在上传...';
+
+                const uploadResponse = await fetch(presigned_url, {
+                    method: 'PUT',
+                    body: file,
+                    headers: { 'Content-Type': file.type || 'application/octet-stream' }
+                });
+                if (!uploadResponse.ok) throw new Error('上传到S3失败。');
+
+                const fileType = file.type.startsWith('video') ? 'video' : 'image';
+                coverUrlInput.value = final_url;
+                coverTypeInput.value = fileType;
+
+                updateCoverPreview(final_url, fileType);
+                uploadStatus.textContent = '封面上传成功！';
+                uploadStatus.style.color = 'green';
+
+            } catch (error) {
+                console.error('Upload failed:', error);
+                uploadStatus.textContent = `上传失败: ${error.message}`;
+                uploadStatus.style.color = 'red';
+                coverFileInput.value = '';
+            }
+        });
+    }
+
+    const coverModal = document.getElementById('file-browser-modal');
+    const selectCoverBtn = document.getElementById('select-cover-btn');
+
+    if (coverModal && selectCoverBtn && spaceId) {
+        const closeBtn = coverModal.querySelector('.close-button');
+        const fileListContainer = coverModal.querySelector('#file-browser-list');
+
+        selectCoverBtn.addEventListener('click', async () => {
+            coverModal.style.display = 'flex';
+            fileListContainer.innerHTML = '<p>正在加载图片...</p>';
+            try {
+                const response = await fetch('{{ url_for("api.list_my_s3_files") }}');
+                const data = await response.json();
+                if (data.success) {
+                    renderFileList(data.files.filter(f => f.is_image));
+                } else {
+                    fileListContainer.innerHTML = `<p style="color: red;">无法加载文件: ${data.error}</p>`;
+                }
+            } catch (error) {
+                fileListContainer.innerHTML = `<p style="color: red;">加载文件时出错: ${error.message}</p>`;
+            }
+        });
+
+        if(closeBtn) {
+            closeBtn.addEventListener('click', () => { coverModal.style.display = 'none'; });
+        }
+
+        window.addEventListener('click', (event) => {
+            if (event.target == coverModal) coverModal.style.display = 'none';
+        });
+
+        function renderFileList(files) {
+            if (files.length === 0) {
+                fileListContainer.innerHTML = '<p>您还没有生成任何图片。请先在AI空间中创作。</p>';
+                return;
+            }
+            fileListContainer.innerHTML = '';
+            files.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.dataset.key = file.key;
+                fileItem.innerHTML = `<img src="${file.preview_url}" alt="${file.filename}"><p>${file.filename}</p>`;
+                fileListContainer.appendChild(fileItem);
+            });
+        }
+
+        if(fileListContainer) {
+            fileListContainer.addEventListener('click', async (event) => {
+                const fileItem = event.target.closest('.file-item');
+                if (fileItem) {
+                    const fileKey = fileItem.dataset.key;
+                    try {
+                        const response = await fetch(`/admin/space/${spaceId}/set_cover`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ s3_key: fileKey }),
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            coverUrlInput.value = result.new_cover_url;
+                            coverTypeInput.value = 'image';
+                            updateCoverPreview(result.new_cover_url, 'image');
+                            coverModal.style.display = 'none';
+                            uploadStatus.textContent = '封面选择成功！';
+                            uploadStatus.style.color = 'green';
+                        } else {
+                            alert('更新封面失败: ' + result.error);
+                        }
+                    } catch (error) {
+                        alert('更新封面时出错: ' + error.message);
+                    }
+                }
+            });
+        }
+    }
+});
+</script>
+
+<!-- Template Editor Scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const spaceId = "{{ space.id if space else '' }}";
+    if (!spaceId) return;
+
+    const templates = {{ space.templates | tojson | safe if space and space.templates else '{}' }};
+    let currentEditorMode = 'normal';
+    let codeEditor;
+
+    const templateListEl = document.getElementById('template-list');
+    const addTemplateBtn = document.getElementById('add-template-btn');
+    const templateModal = document.getElementById('template-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const templateForm = document.getElementById('template-form');
+    const cancelBtn = document.getElementById('cancel-template-btn');
+    const saveBtn = document.getElementById('save-template-btn');
+    const hiddenTemplateIdInput = document.getElementById('template-id');
+    const toggleModeBtn = document.getElementById('toggle-mode-btn');
+
+    if (!templateModal) return;
+
+    if (document.getElementById('template-json-editor')) {
+        codeEditor = CodeMirror.fromTextArea(document.getElementById('template-json-editor'), {
+            mode: { name: "javascript", json: true },
+            lineNumbers: true,
+            theme: "default",
+            autoCloseBrackets: true,
+            matchBrackets: true,
+        });
+
+        if (toggleModeBtn) {
+            toggleModeBtn.addEventListener('click', function() {
+                if (currentEditorMode === 'normal') {
+                    switchToAdvancedMode();
+                } else {
+                    switchToNormalMode();
+                }
+            });
+        }
+    }
+
+    function switchToAdvancedMode() {
+        const templateData = formToJSON();
+        codeEditor.setValue(JSON.stringify(templateData, null, 2));
+        document.getElementById('normal-editor').style.display = 'none';
+        document.getElementById('advanced-editor').style.display = 'block';
+        toggleModeBtn.textContent = '切换到普通模式';
+        currentEditorMode = 'advanced';
+        codeEditor.refresh();
+    }
+
+    function switchToNormalMode() {
+        try {
+            const jsonData = JSON.parse(codeEditor.getValue());
+            jsonToForm(jsonData);
+        } catch (e) {
+            alert('高级模式中的代码不是有效的JSON格式，请修正后再切换。\n错误: ' + e.message);
+            return;
+        }
+        document.getElementById('advanced-editor').style.display = 'none';
+        document.getElementById('normal-editor').style.display = 'block';
+        toggleModeBtn.textContent = '切换到高级模式';
+        currentEditorMode = 'normal';
+    }
+
+    const modalParamsContainer = document.getElementById('modal-params-container');
+    const modalAddParamBtn = document.getElementById('modal-add-param');
+    let currentParams = [];
+
+    function renderModalParams() {
+        if (!modalParamsContainer) return;
+        modalParamsContainer.innerHTML = '';
+        currentParams.forEach((param, index) => {
+            const paramEl = document.createElement('div');
+            paramEl.className = 'param-item';
+            paramEl.style = 'background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #dee2e6;';
+            paramEl.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <strong style="font-size: 1.1em;">参数 #${index + 1}</strong>
+                    <button type="button" class="remove-param" data-index="${index}" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">删除</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div><label>名称</label><input type="text" class="param-input" data-index="${index}" data-field="name" value="${param.name || ''}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                    <div><label>标签</label><input type="text" class="param-input" data-index="${index}" data-field="label" value="${param.label || ''}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                    <div><label>类型</label><select class="param-input" data-index="${index}" data-field="type" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"><option value="text" ${param.type === 'text' ? 'selected' : ''}>文本</option><option value="number" ${param.type === 'number' ? 'selected' : ''}>数字</option><option value="boolean" ${param.type === 'boolean' ? 'selected' : ''}>布尔</option></select></div>
+                    <div><label>默认值</label><input type="text" class="param-input" data-index="${index}" data-field="default" value="${param.default || ''}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                    <div style="grid-column: 1 / -1;"><label>帮助文本</label><input type="text" class="param-input" data-index="${index}" data-field="help_text" value="${param.help_text || ''}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                </div>
+            `;
+            modalParamsContainer.appendChild(paramEl);
+        });
+    }
+
+    if (modalAddParamBtn) {
+        modalAddParamBtn.addEventListener('click', () => {
+            currentParams.push({ name: '', label: '', type: 'text', default: '', help_text: '' });
+            renderModalParams();
+        });
+    }
+
+    if (modalParamsContainer) {
+        modalParamsContainer.addEventListener('input', e => {
+            if (e.target.classList.contains('param-input')) {
+                const index = e.target.dataset.index;
+                const field = e.target.dataset.field;
+                currentParams[index][field] = e.target.value;
+            }
+        });
+        modalParamsContainer.addEventListener('click', e => {
+            if (e.target.classList.contains('remove-param')) {
+                currentParams.splice(e.target.dataset.index, 1);
+                renderModalParams();
+            }
+        });
+    }
+
+    function formToJSON() {
+        const data = {};
+        document.querySelectorAll('#normal-editor [name]').forEach(el => {
+            if (el.name) {
+                if (el.type === 'checkbox') {
+                    data[el.name] = el.checked;
+                } else if (el.id !== 'modal-params-hidden-input') {
+                    data[el.name] = el.value;
+                }
+            }
+        });
+        data.params = currentParams;
+        return data;
+    }
+
+    function jsonToForm(data) {
+        document.querySelectorAll('#normal-editor [name]').forEach(el => {
+            if (data[el.name] !== undefined && el.id !== 'modal-params-hidden-input') {
+                if (el.type === 'checkbox') {
+                    el.checked = !!data[el.name];
+                } else {
+                    el.value = data[el.name];
+                }
+            }
+        });
+        currentParams = data.params || [];
+        renderModalParams();
+    }
+
+    function renderTemplateList() {
+        if (!templateListEl) return;
+        templateListEl.innerHTML = '';
+        if (Object.keys(templates).length === 0) {
+            templateListEl.innerHTML = '<p>此 Space 还没有GPU。</p>';
+            return;
+        }
+        const ul = document.createElement('ul');
+        ul.style = 'list-style: none; padding: 0;';
+        Object.values(templates).sort((a, b) => a.name.localeCompare(b.name)).forEach(t => {
+            const li = document.createElement('li');
+            li.style = 'background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;';
+            li.innerHTML = `
+                <div><strong style="font-size: 1.2em;">${t.name}</strong><small style="display: block; color: #6c757d; margin-top: 5px;">ID: ${t.id}</small></div>
+                <div>
+                    <button type="button" class="edit-template-btn" data-id="${t.id}" style="background: #ffc107; color: #212529; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px;">编辑</button>
+                    <button type="button" class="delete-template-btn" data-id="${t.id}" style="background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">删除</button>
+                </div>`;
+            ul.appendChild(li);
+        });
+        templateListEl.appendChild(ul);
+    }
+
+    function openEditModal(templateId) {
+        const template = templates[templateId];
+        if (!template) return;
+        modalTitle.textContent = '编辑GPU';
+        templateForm.reset();
+        hiddenTemplateIdInput.value = template.id;
+        jsonToForm(template);
+        if (currentEditorMode === 'advanced') switchToNormalMode();
+        showTemplateModal();
+    }
+
+    function openAddModal() {
+        modalTitle.textContent = '添加新GPU';
+        templateForm.reset();
+        hiddenTemplateIdInput.value = '';
+        currentParams = [];
+        renderModalParams();
+        if (currentEditorMode === 'advanced') switchToNormalMode();
+        showTemplateModal();
+    }
+
+    function showTemplateModal() { if(templateModal) templateModal.style.display = 'block'; }
+    function hideTemplateModal() { if(templateModal) templateModal.style.display = 'none'; }
+
+    if(addTemplateBtn) addTemplateBtn.addEventListener('click', openAddModal);
+    if(cancelBtn) cancelBtn.addEventListener('click', hideTemplateModal);
+
+    if (templateListEl) {
+        templateListEl.addEventListener('click', function(e) {
+            if (e.target.classList.contains('edit-template-btn')) {
+                openEditModal(e.target.dataset.id);
+            }
+            if (e.target.classList.contains('delete-template-btn')) {
+                const templateId = e.target.dataset.id;
+                if (confirm(`您确定要删除GPU "${templates[templateId].name}" 吗？`)) {
+                    handleDelete(templateId);
+                }
+            }
+        });
+    }
+
+    function handleDelete(templateId) {
+        fetch(`/admin/space/${spaceId}/template/delete/${templateId}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(result => {
+                if (result.success) {
+                    delete templates[templateId];
+                    renderTemplateList();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            }).catch(err => alert('删除GPU时出错。'));
+    }
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            let data;
+            if (currentEditorMode === 'advanced') {
+                try {
+                    data = JSON.parse(codeEditor.getValue());
+                } catch (e) {
+                    alert('JSON格式无效: ' + e.message);
+                    return;
+                }
+            } else {
+                data = formToJSON();
+            }
+
+            const templateId = hiddenTemplateIdInput.value;
+            const url = templateId ? `/admin/space/${spaceId}/template/edit/${templateId}` : `/admin/space/${spaceId}/template/add`;
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = '保存中...';
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(result => {
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            })
+            .catch(err => alert('保存GPU时出错。'))
+            .finally(() => {
+                saveBtn.disabled = false;
+                saveBtn.textContent = '保存GPU';
+            });
+        });
+    }
+
+    renderTemplateList();
+});
+</script>
+
+<style>
+/* Modal Styles copied from profile.html */
+.modal {
+    position: fixed;
+    z-index: 1050; /* Higher than other elements */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 900px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.modal-header h2 { margin: 0; font-size: 24px; }
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.close-button:hover, .close-button:focus { color: black; }
+.modal-body { overflow-y: auto; }
+
+.file-list-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+}
+.file-item {
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+}
+.file-item:hover { border-color: #007bff; }
+.file-item img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+.file-item p {
+    margin: 8px 0 0;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+</style>
+
+<!-- File Browser Modal -->
+<div id="file-browser-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>从我的作品中选择封面</h2>
+            <span class="close-button">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="file-browser-list" class="file-list-container">
+                <p>正在加载文件...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Template Modal -->
+<div id="template-modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+    <div style="background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 700px; border-radius: 8px; box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
+        <h4 id="modal-title">添加新GPU</h4>
+        <form id="template-form">
+            <div style="text-align: right; margin-bottom: 10px;">
+                <button type="button" id="toggle-mode-btn" class="btn btn-secondary btn-sm">切换到高级模式</button>
+            </div>
+            <div id="normal-editor">
+            <input type="hidden" id="template-id" name="template_id">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">GPU名称</label>
+                <input type="text" name="template_name" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">命令运行器</label>
+                <select name="command_runner" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    <option value="inferless">Inferless</option>
+                    <option value="modal">Modal</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">入口脚本 (Entrypoint Script)</label>
+                <input type="text" name="entrypoint_script" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="app.py">
+                <small style="color: #666;">运行命令时要执行的脚本文件，例如 `app.py` 或 `gradio.py`。</small>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">主命令前置 (可选)</label>
+                <input type="text" name="pre_command" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="例如: cd flux &&">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">子命令前置 (可选)</label>
+                <input type="text" name="sub_command" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="例如: cd workspace &&">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">基础命令</label>
+                <input type="text" name="base_command" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">预设参数 (管理员定义)</label>
+                <input type="text" name="preset_params" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="例如: --height 720 --width 1280">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">预测输出文件名 (可选)</label>
+                <input type="text" name="predicted_output_filename" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="例如: output.wav">
+                <small style="color: #666;">如果留空，将根据prompt和seed自动生成文件名。可以包含路径，例如 `assets/output.glb`，否则将默认保存在 `output/` 目录下。</small>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: bold;">附加参数GPU</label>
+                <div id="modal-params-container" style="display: flex; flex-direction: column; gap: 15px;"></div>
+                <button type="button" id="modal-add-param" style="margin-top: 15px; background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">+ 添加参数</button>
+                <input type="hidden" name="params" id="modal-params-hidden-input">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">超时时间 (秒)</label>
+                <input type="number" name="timeout" value="300" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">强制上传文件</label>
+                <input type="checkbox" name="force_upload" style="width: auto;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">开启 Lora 上传</label>
+                <input type="checkbox" name="enable_lora_upload" style="width: auto;">
+                <small style="color: #666;">如果选中，将允许上传一个额外的 lora safetensors 文件。</small>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">关闭提示词</label>
+                <input type="checkbox" name="disable_prompt" style="width: auto;">
+                <small style="color: #666;">如果选中，该模板将不再有提示词输入功能。</small>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">需要邀请码</label>
+                <input type="checkbox" name="requires_invitation_code" style="width: auto;">
+                <small style="color: #666;">如果选中，只有拥有邀请码的用户才能使用此GPU。</small>
+            </div>
+        </div> <!-- closes normal-editor -->
+        <div id="advanced-editor" style="display: none;">
+            <div style="margin-bottom: 15px;">
+                <label for="template-json-editor" style="display: block; margin-bottom: 5px; font-weight: bold;">模板代码 (JSON)</label>
+                <textarea id="template-json-editor" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace; height: 300px;"></textarea>
+            </div>
+        </div>
+
+        <div style="text-align: right;">
+            <button type="button" id="cancel-template-btn" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">取消</button>
+            <button type="submit" id="save-template-btn" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">保存GPU</button>
+        </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

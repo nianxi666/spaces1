@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+
+{% block title %}错误日志{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">系统错误日志</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_panel') }}">管理面板</a></li>
+        <li class="breadcrumb-item active">错误日志</li>
+    </ol>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            错误日志
+            <a href="{{ url_for('admin.clear_logs') }}" class="btn btn-danger btn-sm float-end" onclick="return confirm('确定要清除所有错误日志吗？此操作不可逆！');">
+                <i class="fas fa-trash-alt me-1"></i> 清除日志
+            </a>
+        </div>
+        <div class="card-body">
+            {% if logs %}
+                <pre style="white-space: pre-wrap; word-wrap: break-word; max-height: 600px; overflow-y: auto; background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; border-radius: 4px;"><code>{% for log in logs %}{{ log }}{% endfor %}</code></pre>
+            {% else %}
+                <div class="alert alert-success" role="alert">
+                    <i class="fas fa-check-circle me-2"></i> 太棒了！没有发现任何错误日志。
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
