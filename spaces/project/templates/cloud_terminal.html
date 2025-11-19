@@ -2,21 +2,6 @@
 {% block title %}云终端 · 南瓜AI{% endblock %}
 {% block content %}
 <div class="cloud-terminal-page">
-    <div class="terminal-hero card">
-        <div>
-            <p class="eyebrow">Cerebrium Cloud Terminal</p>
-            <h2>一键打开漂亮的云端 SSH 面板</h2>
-            <p class="subtitle">
-                使用 Service Account Token 即可远程执行 <code>cerebrium</code> 命令，部署 / 查询 cloud-terminal 和 cloud-terminal-gpu 的状态。
-                密钥可选择保存到浏览器，服务器仅在执行命令时帮你代理转发，不会持久化。
-            </p>
-        </div>
-        <div class="hero-actions">
-            <a class="btn-outline" href="https://github.com/nianxi666/cerebrium/tree/feat/deploy-cloud-terminal-no-model-cli-output" target="_blank" rel="noopener">查看部署教程</a>
-            <button class="btn-text" id="prefill-example">填入示例命令</button>
-        </div>
-    </div>
-
     <div class="terminal-grid">
         <section class="card terminal-form">
             <h3>认证信息</h3>
@@ -192,73 +177,6 @@
 }
 .card:hover {
     box-shadow: 0 12px 32px rgba(0,0,0,0.08);
-}
-.terminal-hero {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 48px;
-    background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 50%, #252d3d 100%);
-    color: #f8f8f8;
-    border-radius: 24px;
-    border: 1px solid rgba(255,255,255,0.05);
-}
-.terminal-hero .eyebrow {
-    text-transform: uppercase;
-    color: #ff7518;
-    letter-spacing: 0.15em;
-    margin-bottom: 12px;
-    font-size: 12px;
-    font-weight: 700;
-}
-.terminal-hero h2 {
-    margin: 0;
-    font-size: 40px;
-    font-weight: 700;
-    line-height: 1.2;
-    letter-spacing: -0.5px;
-}
-.terminal-hero .subtitle {
-    margin-top: 16px;
-    color: #b8c5d6;
-    font-size: 15px;
-    line-height: 1.6;
-}
-.hero-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-width: 240px;
-}
-.btn-outline {
-    border: 1.5px solid rgba(255,255,255,0.25);
-    background: rgba(255,255,255,0.05);
-    color: #fff;
-    padding: 12px 24px;
-    border-radius: 12px;
-    text-decoration: none;
-    text-align: center;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    font-size: 14px;
-}
-.btn-outline:hover {
-    background: rgba(255,255,255,0.1);
-    border-color: rgba(255,255,255,0.4);
-    transform: translateY(-2px);
-}
-.btn-text {
-    background: none;
-    border: none;
-    color: #ffb366;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 14px;
-    transition: color 0.3s ease;
-    padding: 8px 0;
-}
-.btn-text:hover {
-    color: #ffc47f;
 }
 .terminal-grid {
     display: grid;
@@ -835,16 +753,6 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.8; }
 }
-@keyframes slideInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
 @keyframes slideInUp {
     from {
         opacity: 0;
@@ -866,11 +774,6 @@
     .terminal-grid {
         grid-template-columns: 1fr;
     }
-    .terminal-hero {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 32px;
-    }
 }
 @media (max-width: 768px) {
     .cloud-terminal-page {
@@ -880,16 +783,6 @@
     .card {
         border-radius: 16px;
         padding: 20px;
-    }
-    .terminal-hero {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .terminal-hero h2 {
-        font-size: 28px;
-    }
-    .hero-actions {
-        min-width: auto;
     }
     .token-input {
         flex-direction: column;
