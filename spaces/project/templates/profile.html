@@ -1,0 +1,400 @@
+{% extends "layout.html" %}
+{% block title %}个人资料{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <a href="{{ url_for('main.index') }}" class="back-arrow">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        </a>
+        <h1>个人信息</h1>
+    </div>
+
+    <div class="info-box">
+        <p>请提供您的个人信息，即使该账户用于商业、宠物或其他用途。这不会成为您公开个人资料的一部分。</p>
+    </div>
+
+    <div class="profile-section">
+        <div class="profile-item">
+            <span class="item-label">用户名</span>
+            <span class="item-value">{{ session.username }}</span>
+        </div>
+        <div class="profile-item">
+            <span class="item-label">API 密钥</span>
+            <div class="api-key-group">
+                <input type="text" class="item-value" value="{{ api_key }}" readonly>
+                <button class="copy-btn" onclick="copyToClipboard('{{ user.api_key }}')">复制</button>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Avatar Section -->
+    <div class="profile-section">
+        <div class="profile-item-vertical">
+            <span class="item-label">头像</span>
+            <img src="{{ user.avatar or url_for('static', filename='avatars/default.png') }}" alt="User Avatar" class="avatar-preview" id="avatar-preview-img">
+            <div class="avatar-upload-form">
+                 <button type="button" id="change-avatar-btn" class="btn btn-primary">更换头像</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password -->
+    <div class="profile-section">
+        <div class="profile-item-vertical">
+            <span class="item-label">修改密码</span>
+            <form method="post" action="{{ url_for('main.change_password') }}">
+                <div class="form-group">
+                    <label for="current_password">当前密码</label>
+                    <input type="password" id="current_password" name="current_password" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="new_password">新密码</label>
+                    <input type="password" id="new_password" name="new_password" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">确认新密码</label>
+                    <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary">更新密码</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="profile-section danger-zone">
+        <div class="profile-item-vertical">
+            <span class="item-label">危险区域</span>
+            <p>此操作会将您的账户加入删除队列，待管理员审核后，您的账户和所有相关数据将被永久删除。</p>
+            <form method="post" action="{{ url_for('auth.delete_account') }}" onsubmit="return confirm('您确定要请求删除您的账户吗？');">
+                <button type="submit" class="btn btn-danger" {% if session.username == 'admin' %}disabled{% endif %}>
+                    请求删除我的账户
+                </button>
+                {% if session.username == 'admin' %}
+                <small class="form-text text-muted mt-2">管理员账户不能被删除。</small>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<!-- File Browser Modal -->
+<div id="file-browser-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>从我的作品中选择头像</h2>
+            <span class="close-button">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="file-browser-list" class="file-list-container">
+                <!-- File list will be loaded here -->
+                <p>正在加载文件...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+body {
+    background-color: #fafafa;
+}
+.profile-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 16px;
+    background-color: #ffffff;
+    min-height: 100vh;
+}
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 0;
+    border-bottom: 1px solid #dbdbdb;
+    margin-bottom: 16px;
+}
+.profile-header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+}
+.back-arrow {
+    color: #262626;
+}
+.info-box {
+    border: 1px solid #f0a3a3;
+    background-color: #fff6f6;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+}
+.info-box p {
+    margin: 0;
+    color: #333;
+    font-size: 14px;
+    line-height: 1.5;
+}
+.profile-section {
+    margin-bottom: 24px;
+}
+.profile-item, .profile-item-vertical {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #efefef;
+    font-size: 16px;
+}
+.profile-item-vertical {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+}
+.item-label {
+    font-weight: 600;
+    color: #262626;
+}
+.item-value {
+    color: #8e8e8e;
+}
+input.item-value {
+    border: none;
+    background: transparent;
+    text-align: right;
+}
+.api-key-group {
+    display: flex;
+    align-items: center;
+}
+.copy-btn {
+    background: none;
+    border: none;
+    color: #0095f6;
+    font-weight: 600;
+    cursor: pointer;
+}
+.badge {
+    padding: .4em .6em;
+    font-size: 90%;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: .25rem;
+}
+.badge-success {
+    color: #fff;
+    background-color: #28a745;
+}
+.badge-warning {
+    color: #212529;
+    background-color: #ffc107;
+}
+.avatar-preview {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-top: 8px;
+}
+.avatar-upload-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+.danger-zone {
+    border-top: 8px solid #f3f3f3;
+    padding-top: 24px;
+}
+.form-inline {
+    display: flex;
+    gap: 8px;
+}
+/* Modal Styles */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+    display: none; /* Hidden by default */
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 900px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: black;
+    text-decoration: none;
+}
+
+.modal-body {
+    overflow-y: auto;
+}
+.file-list-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+}
+.file-item {
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+}
+.file-item:hover {
+    border-color: #007bff;
+}
+.file-item img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+.file-item p {
+    margin: 8px 0 0;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+</style>
+
+<script>
+function copyToClipboard(text) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(function() {
+        alert('API密钥已复制到剪贴板');
+    }, function(err) {
+        alert('无法复制 API 密钥: ' + err);
+    });
+}
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('file-browser-modal');
+    const changeAvatarBtn = document.getElementById('change-avatar-btn');
+    const closeBtn = document.querySelector('.close-button');
+    const fileListContainer = document.getElementById('file-browser-list');
+
+    changeAvatarBtn.addEventListener('click', async () => {
+        modal.style.display = 'flex';
+        fileListContainer.innerHTML = '<p>正在加载图片...</p>';
+        try {
+            const response = await fetch('{{ url_for("api.list_my_s3_files") }}');
+            const data = await response.json();
+            if (data.success) {
+                renderFileList(data.files.filter(f => f.is_image));
+            } else {
+                fileListContainer.innerHTML = `<p style="color: red;">无法加载文件: ${data.error}</p>`;
+            }
+        } catch (error) {
+            fileListContainer.innerHTML = `<p style="color: red;">加载文件时出错: ${error.message}</p>`;
+        }
+    });
+
+    closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+
+    window.addEventListener('click', (event) => {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    });
+
+    function renderFileList(files) {
+        if (files.length === 0) {
+            fileListContainer.innerHTML = '<p>您还没有生成任何图片。请先在AI空间中创作。</p>';
+            return;
+        }
+        fileListContainer.innerHTML = '';
+        files.forEach(file => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.dataset.key = file.key;
+            fileItem.dataset.url = file.preview_url;
+
+            let previewHtml = `<img src="${file.preview_url}" alt="${file.filename}">`;
+            fileItem.innerHTML = `${previewHtml}<p>${file.filename}</p>`;
+            fileListContainer.appendChild(fileItem);
+        });
+    }
+
+    fileListContainer.addEventListener('click', async (event) => {
+        const fileItem = event.target.closest('.file-item');
+        if (fileItem) {
+            const fileKey = fileItem.dataset.key;
+
+            try {
+                const response = await fetch('{{ url_for("main.set_avatar") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ s3_key: fileKey }),
+                });
+                const result = await response.json();
+                if (result.success) {
+                    const newAvatarUrl = result.new_avatar_url;
+                    document.getElementById('avatar-preview-img').src = newAvatarUrl;
+                    const headerAvatar = document.querySelector('#profile-dropdown-toggle img');
+                    if (headerAvatar) {
+                        headerAvatar.src = newAvatarUrl;
+                    }
+                    modal.style.display = 'none';
+                    alert('头像更新成功！');
+                } else {
+                    alert('更新头像失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('更新头像时出错: ' + error.message);
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

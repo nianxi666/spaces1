@@ -1,0 +1,1647 @@
+{% extends "layout.html" %}
+
+{% block meta_description %}
+<meta name="description" content="在南瓜AI上运行和探索 &quot;{{ ai_project.name }}&quot;。{{ (ai_project.description or '强大的AI工具，等待您的探索') | truncate(100) }}">
+{% endblock %}
+
+{% block hreflang_tags %}
+  {% for link in hreflang_links %}
+    <link rel="alternate" hreflang="{{ link.lang }}" href="{{ link.url }}">
+  {% endfor %}
+{% endblock %}
+
+{% block title %}{{ ai_project.name }} - 南瓜AI{% endblock %}
+{% block content %}
+<div class="ai-project-page">
+    <div class="project-content">
+        <div class="main-panel card">
+    {% if ai_project.cover %}
+    <div class="project-cover" style="margin-bottom: 20px;">
+        {% set cover_url = ai_project.cover if ai_project.cover.startswith('http') else to_s3_url(ai_project.cover) %}
+        {% if ai_project.cover_type == 'video' %}
+            <video src="{{ cover_url }}" autoplay muted loop playsinline style="width: 100%; border-radius: 8px 8px 0 0;"></video>
+        {% else %}
+            <img src="{{ cover_url }}" alt="{{ ai_project.name }} Cover" style="width: 100%; border-radius: 8px 8px 0 0; object-fit: cover; max-height: 400px;">
+        {% endif %}
+    </div>
+    {% endif %}
+            <div class="panel-header">
+                <div class="project-details">
+                    <h1 class="project-title">{{ ai_project.name }}</h1>
+                    <p class="project-description">{{ ai_project.description or '强大的AI工具，等待您的探索' }}</p>
+                </div>
+            </div>
+
+
+            <div id="invitation-nag-message" style="display: none; background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; border-radius: 5px; margin: 0 20px 15px;">
+                部分高级GPU已被锁定。 <a href="{{ url_for('main.profile') }}" style="font-weight: bold; color: #856404;">绑定邀请码</a> 来解锁所有功能。
+            </div>
+            <div id="error-message" style="display: none; color: red; margin-bottom: 10px; padding: 10px; border: 1px solid red; border-radius: 5px; background-color: #fdd;"></div>
+            <form id="inference-form" class="inference-form">
+                {% if space_card_type == 'cerebrium' %}
+                {% if not session.logged_in %}
+                <div class="alert" style="padding: 12px; border-radius: 6px; background: #fff4e5; border: 1px solid #ffe0b2; color: #a65b00; margin-bottom: 20px;">
+                    该卡片需要登录后才能使用，请先 <a href="{{ url_for('auth.login') }}">登录</a> 或 <a href="{{ url_for('auth.register') }}">注册</a>。
+                </div>
+                {% endif %}
+                {% if session.logged_in and not cerebrium_configs %}
+                <div class="alert" style="padding: 12px; border-radius: 6px; background: #ffe8e8; border: 1px solid #ffb3b3; color: #c62828; margin-bottom: 20px;">
+                    你还没有被分配可用的 GPU。请联系管理员在用户管理中为你添加请求地址与密钥。
+                </div>
+                {% endif %}
+
+                <div class="form-group">
+                    <label for="cerebrium-gpu-select" class="form-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                        请选择一个GPU
+                    </label>
+                    <select id="cerebrium-gpu-select" {% if not cerebrium_configs %}disabled{% endif %}>
+                        {% if cerebrium_configs %}
+                        <option value="">-- 请选择一个GPU --</option>
+                        {% for config in cerebrium_configs %}
+                        <option value="{{ config.id }}">{{ config.name }}</option>
+                        {% endfor %}
+                        {% else %}
+                        <option value="">暂无可用GPU，请联系管理员</option>
+                        {% endif %}
+                    </select>
+                    <small style="color: #666; display:block; margin-top:4px;">管理员可以为你分配多个请求地址与密钥，此处以 GPU 名称展示。</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">视频输入</label>
+                    <div class="mode-selector">
+                        <label><input type="radio" name="video-source" value="pan" checked> 从网盘选择</label>
+                        <label><input type="radio" name="video-source" value="url"> 使用外部链接</label>
+                    </div>
+                    <div id="video-pan-section" class="picker-section">
+                        <button type="button" id="select-video-btn" class="btn btn-secondary">选择一个视频文件 (.mp4)</button>
+                        <div id="video-file-display" class="file-name">未选择文件</div>
+                    </div>
+                    <div id="video-url-section" class="picker-section hidden">
+                        <input type="text" id="video-url-input" placeholder="https://example.com/video.mp4">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">音频输入</label>
+                    <div class="mode-selector">
+                        <label><input type="radio" name="audio-source" value="pan" checked> 从网盘选择</label>
+                        <label><input type="radio" name="audio-source" value="url"> 使用外部链接</label>
+                    </div>
+                    <div id="audio-pan-section" class="picker-section">
+                        <button type="button" id="select-audio-btn" class="btn btn-secondary">选择音频文件 (.wav / .mp3)</button>
+                        <div id="audio-file-display" class="file-name">未选择文件</div>
+                    </div>
+                    <div id="audio-url-section" class="picker-section hidden">
+                        <input type="text" id="audio-url-input" placeholder="https://example.com/audio.wav">
+                    </div>
+                </div>
+
+                <input type="hidden" id="video-file-key">
+                <input type="hidden" id="audio-file-key">
+
+                <div id="cerebrium-error" class="warning" style="display: none;"></div>
+
+                <div class="form-actions">
+                    <button id="cerebrium-submit-button" type="button" class="btn btn-primary btn-large">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                        开始处理
+                    </button>
+                </div>
+                {% endif %}
+                {% if space_card_type != 'cerebrium' %}
+                <div class="form-group" id="prompt-group">
+                    <label for="prompt" class="form-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        创意描述
+                    </label>
+                    <textarea id="prompt" name="prompt"
+                              placeholder="描述您想要创建的内容..."
+                              rows="4"
+                              required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="template-select" class="form-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                        请选择一个GPU
+                    </label>
+                    <select id="template-select" name="template_id" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        <!-- Options will be populated by JavaScript -->
+                    </select>
+                </div>
+
+                <div id="parameters-container" class="parameters-section" style="display: none;">
+                    <h3 class="section-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        参数设置
+                    </h3>
+                    <div id="parameters-grid" class="parameters-grid">
+                        <!-- Parameters for the selected template will be rendered here -->
+                    </div>
+                </div>
+
+                <div id="file-upload-container" class="form-group" style="display: none;">
+                    <label for="input_file" class="form-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                        <span id="file-upload-label">上传文件</span>
+                    </label>
+                    <div class="file-upload-area">
+                        <button type="button" id="select-file-btn" class="btn btn-secondary">从文件库选择</button>
+                        <div id="selected-file-display" style="margin-top: 10px; font-weight: bold;"></div>
+                    </div>
+                    <input type="hidden" name="s3_object_keys" id="s3_object_keys">
+                </div>
+
+                <div class="form-actions">
+                    <button id="submit-button" type="submit" class="btn btn-primary btn-large" {% if is_waiting_for_file %}disabled{% endif %}>
+                        {% if is_waiting_for_file %}
+                        <span class="loading"></span>
+                        处理中...
+                        {% else %}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                        开始生成
+                        {% endif %}
+                    </button>
+                    <span id="timeout-message" class="timeout-message"></span>
+                </div>
+                {% endif %}
+            </form>
+
+            <!-- API Examples Section -->
+            {% if api_examples and space_card_type != 'cerebrium' %}
+            <div class="api-examples-section">
+                <h3 class="section-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-code"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                    API 使用示例
+                </h3>
+                {% for example in api_examples %}
+                <div class="api-example" id="api-example-{{ example.id }}">
+                    <h4>{{ example.name }}</h4>
+                    <div class="api-tabs">
+                        <button class="api-tab-button" data-tab-target="#curl-{{ example.id }}">cURL</button>
+                        <button class="api-tab-button" data-tab-target="#python-async-{{ example.id }}">Python (Async)</button>
+                        <button class="api-tab-button" data-tab-target="#python-stream-{{ example.id }}">Python (Stream)</button>
+                    </div>
+
+                    <div id="curl-{{ example.id }}" class="api-tab-content">
+                        <div class="code-block-container">
+                            <pre><code id="code-curl-{{ example.id }}">{{ example.curl }}</code></pre>
+                            <button class="copy-button" data-clipboard-target="#code-curl-{{ example.id }}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                复制
+                            </button>
+                        </div>
+                    </div>
+                    <div id="python-async-{{ example.id }}" class="api-tab-content">
+                        <div class="code-block-container">
+                            <pre><code id="code-python-async-{{ example.id }}">{{ example.python_async }}</code></pre>
+                            <button class="copy-button" data-clipboard-target="#code-python-async-{{ example.id }}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                复制
+                            </button>
+                        </div>
+                    </div>
+                    <div id="python-stream-{{ example.id }}" class="api-tab-content">
+                        <div class="code-block-container">
+                            <pre><code id="code-python-stream-{{ example.id }}">{{ example.python_stream }}</code></pre>
+                            <button class="copy-button" data-clipboard-target="#code-python-stream-{{ example.id }}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                复制
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+        </div>
+
+        <div class="side-panel">
+            <div class="card mb-3">
+                <a href="{{ url_for('main.chat') }}" class="btn btn-secondary btn-block">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    进入聊天室
+                </a>
+            </div>
+            <div class="result-card card">
+                <h3 class="card-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+                    生成结果
+                </h3>
+                <div id="status" class="result-status">
+                    <div id="result-content" class="result-content">
+                        {% if space_card_type == 'cerebrium' and last_cerebrium_result %}
+                        {% set result_status = last_cerebrium_result.status or 'completed' %}
+                        {% set recent_name = last_cerebrium_result.filename or (last_cerebrium_result.output_key and last_cerebrium_result.output_key.split('/')[-1]) or '输出视频.mp4' %}
+                        <div class="result-preview {% if result_status != 'completed' %}result-preview--pending{% endif %}">
+                            <div class="result-meta"><strong>输出文件：</strong>{{ recent_name }}</div>
+                            {% if result_status == 'completed' and last_cerebrium_result.public_url %}
+                            <video src="{{ last_cerebrium_result.public_url }}" controls playsinline style="width:100%; border-radius:8px; background:#000"></video>
+                            <p class="result-hint">若视频没有立即播放，可稍后在 <a href="{{ url_for('results.my_results') }}">我的作品</a> 中查看。</p>
+                            {% elif result_status == 'pending' %}
+                            <p class="result-hint processing">任务执行中，完成后最新结果会自动出现在此处，或前往 <a href="{{ url_for('results.my_results') }}">我的作品</a> 查看 ({{ recent_name }})。</p>
+                            {% elif result_status == 'timeout' %}
+                            <p class="result-hint timeout">上一次任务已超时 ({{ recent_name }})，请检查 GPU 服务后重新开始。</p>
+                            {% else %}
+                            <p class="result-hint">等待任务开始...</p>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        等待任务开始...
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if session.logged_in %}
+            <div class="logs-card card">
+                <h3 class="card-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="8" y1="12" x2="16" y2="12"></line><line x1="12" y1="8" x2="12" y2="16"></line></svg>
+                    执行日志
+                </h3>
+                {% if space_card_type == 'cerebrium' %}
+                <div class="logs-content">该卡片通过浏览器直接调用外部 GPU 服务，暂不提供远程日志。运行状态会在右侧实时更新。</div>
+                {% else %}
+                <div id="logs" class="logs-content">等待日志...</div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="status-card card">
+                <h3 class="card-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                    状态信息
+                </h3>
+                <div class="status-item">
+                    <span class="status-label">当前状态:</span>
+                    <span class="status-value {% if is_waiting_for_file %}processing{% else %}ready{% endif %}">
+                        {% if is_waiting_for_file %}处理中{% else %}就绪{% endif %}
+                    </span>
+                </div>
+                {% if session.is_admin %}
+                <div class="status-item">
+                    <span class="status-label">API密钥:</span>
+                    <span class="status-value">{{ api_key[:8] }}...</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- File Browser Modal -->
+<div id="file-browser-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>文件库</h2>
+            <span class="close-button">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="file-browser-list" class="file-list-container">
+                <!-- File list will be loaded here -->
+                <p>正在加载文件...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+/* Modal Styles */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 900px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: black;
+    text-decoration: none;
+}
+
+.modal-body {
+    overflow-y: auto;
+}
+
+.file-list-container {
+    /* Styles for the file list, borrowing from my_results.html */
+}
+
+.ai-project-page { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.project-content { display: grid; grid-template-columns: 1fr 400px; gap: 30px; }
+.main-panel { background: var(--system-background); border: 1px solid var(--separator-color); border-radius: 8px; }
+.panel-header { padding: 20px; border-bottom: 1px solid var(--separator-color); }
+.panel-header h2 { font-size: 20px; font-weight: 600; color: var(--primary-text); margin: 0; }
+.panel-header p { color: var(--secondary-text); margin: 4px 0 0 0; }
+.inference-form { padding: 20px; }
+.form-group { margin-bottom: 20px; }
+.form-label { font-weight: 600; color: var(--primary-text); margin-bottom: 8px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.form-group textarea, .form-group input[type="text"] {
+    width: 100%; padding: 10px; border: 1px solid var(--separator-color); border-radius: 6px;
+    background: var(--system-background-secondary); font-size: 14px; box-sizing: border-box;
+}
+.form-group textarea:focus, .form-group input[type="text"]:focus { outline: none; border-color: var(--secondary-text); }
+.parameters-section { margin: 20px 0; padding: 20px; background: var(--system-background-secondary); border-radius: 8px; }
+.section-title { font-size: 16px; font-weight: 600; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;}
+.file-upload-area { border: 2px dashed var(--separator-color); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; }
+.file-upload-area:hover { border-color: var(--secondary-text); }
+.form-actions { text-align: center; margin-top: 20px; }
+.side-panel { display: flex; flex-direction: column; gap: 20px; }
+.result-card, .logs-card, .status-card { background: var(--system-background); border: 1px solid var(--separator-color); border-radius: 8px; padding: 20px; }
+.card-title { font-size: 16px; font-weight: 600; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;}
+.result-status, .logs-content { background: var(--system-background-secondary); border-radius: 6px; padding: 16px; min-height: 100px; }
+.logs-content { font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; }
+.status-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--separator-color); font-size: 14px; }
+.status-item:last-child { border-bottom: none; }
+.status-label { color: var(--secondary-text); }
+.status-value.ready { color: #28a745; }
+.status-value.processing { color: #fd7e14; }
+.result-preview video { width: 100%; border-radius: 8px; background: #000; margin-top: 8px; }
+.result-meta { font-size: 14px; color: var(--primary-text); }
+.result-hint { font-size: 12px; color: #666; margin-top: 8px; }
+.result-hint.processing { color: #3c78ff; }
+.result-hint.timeout { color: #c62828; }
+.result-preview--pending {
+    border: 1px dashed var(--separator-color);
+    border-radius: 8px;
+    padding: 12px;
+    background: rgba(60, 120, 255, 0.05);
+}
+
+@media (max-width: 1024px) {
+    .project-content { grid-template-columns: 1fr; gap: 20px; }
+    .side-panel { order: -1; }
+}
+
+/* API Examples Styles */
+.api-examples-section {
+    padding: 20px;
+    margin-top: 20px;
+    background: var(--system-background-secondary);
+    border-radius: 8px;
+}
+.api-example {
+    margin-bottom: 20px;
+}
+.api-example:last-child {
+    margin-bottom: 0;
+}
+.api-example h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+.code-block-container {
+    position: relative;
+}
+.code-block-container pre {
+    background-color: #0d1117; /* Dark background for code */
+    color: #c9d1d9; /* Light text for contrast */
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'SF Mono', 'Consolas', 'Menlo', monospace;
+    font-size: 14px;
+}
+.copy-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    opacity: 0.8;
+    transition: opacity 0.2s ease-in-out;
+}
+.copy-button:hover {
+    background-color: #30363d;
+    opacity: 1;
+}
+
+/* API Tabs Styles */
+.api-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--separator-color);
+    margin-bottom: 15px;
+}
+.api-tab-button {
+    padding: 10px 15px;
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--secondary-text);
+    position: relative;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+.api-tab-button.active {
+    color: var(--primary-text);
+    border-bottom-color: var(--primary-text);
+}
+.api-tab-content {
+    display: none;
+}
+.api-tab-content.active {
+    display: block;
+}
+.mode-selector {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+.mode-selector label {
+    font-weight: 500;
+    color: var(--secondary-text);
+}
+.picker-section {
+    border: 1px dashed var(--separator-color);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+.file-name {
+    margin-top: 8px;
+    font-style: italic;
+    color: #555;
+    word-break: break-all;
+}
+.hidden { display: none; }
+.warning {
+    color: #c62828;
+    background: #ffeaea;
+    border: 1px solid #ffbdbd;
+    border-radius: 6px;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+.field-error {
+    border-color: #ff6b6b !important;
+    box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.15);
+}
+
+.btn[disabled], .btn.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+</style>
+
+{% if space_card_type == 'cerebrium' %}
+<script src="https://sdk.amazonaws.com/js/aws-sdk-2.1093.0.min.js"></script>
+{% endif %}
+
+<script>
+function initCerebriumFlow() {
+    const isLoggedIn = {{ session.get('logged_in')|tojson }};
+    const cerebriumConfigs = {{ cerebrium_configs | tojson | safe }} || [];
+    const lastResult = {{ last_cerebrium_result | tojson | safe }};
+    const aiProjectId = '{{ ai_project.id }}';
+    const timeoutConfig = {{ cerebrium_timeout_seconds | default(300) | tojson }};
+    const parsedTimeout = Number(timeoutConfig);
+    const cerebriumTimeoutSeconds = parsedTimeout > 0 ? parsedTimeout : 300;
+    const cerebriumTimeoutMs = cerebriumTimeoutSeconds * 1000;
+    const configsById = {};
+    cerebriumConfigs.forEach(cfg => {
+        configsById[cfg.id] = cfg;
+    });
+
+    const gpuSelect = document.getElementById('cerebrium-gpu-select');
+    const submitButton = document.getElementById('cerebrium-submit-button');
+    const errorBox = document.getElementById('cerebrium-error');
+    const statusBox = document.getElementById('status');
+    const resultContent = document.getElementById('result-content');
+    const selectVideoBtn = document.getElementById('select-video-btn');
+    const selectAudioBtn = document.getElementById('select-audio-btn');
+    const videoKeyInput = document.getElementById('video-file-key');
+    const audioKeyInput = document.getElementById('audio-file-key');
+    const videoDisplay = document.getElementById('video-file-display');
+    const audioDisplay = document.getElementById('audio-file-display');
+    const videoUrlInput = document.getElementById('video-url-input');
+    const audioUrlInput = document.getElementById('audio-url-input');
+    const videoSourceRadios = document.querySelectorAll('input[name="video-source"]');
+    const audioSourceRadios = document.querySelectorAll('input[name="audio-source"]');
+    const videoPanSection = document.getElementById('video-pan-section');
+    const videoUrlSection = document.getElementById('video-url-section');
+    const audioPanSection = document.getElementById('audio-pan-section');
+    const audioUrlSection = document.getElementById('audio-url-section');
+    const modal = document.getElementById('file-browser-modal');
+    const fileListContainer = document.getElementById('file-browser-list');
+    const closeBtn = document.querySelector('.close-button');
+    const filesApiUrl = '{{ url_for("api.list_my_s3_files") }}';
+    const s3ContextUrl = '{{ url_for("api.get_cerebrium_s3_context") }}';
+    const resultsUrl = '{{ url_for("results.my_results") }}';
+    const saveResultUrl = '{{ url_for("api.save_cerebrium_result") }}';
+
+    if (!submitButton) {
+        return;
+    }
+
+    let isSubmitting = false;
+    let activeFileSelection = null;
+    let cachedS3Context = null;
+    let s3Client = null;
+    let publicBaseUrl = {{ s3_public_base_url|tojson }};
+    let pendingTimeoutTimer = null;
+    let pendingJobKey = null;
+    let pendingJobName = null;
+    let isPendingLocked = false;
+
+    function setStatus(message) {
+        if (statusBox) {
+            statusBox.textContent = message;
+        }
+    }
+
+    function showError(message) {
+        if (!errorBox) return;
+        errorBox.textContent = message;
+        errorBox.style.display = 'block';
+    }
+
+    function clearError() {
+        if (!errorBox) return;
+        errorBox.style.display = 'none';
+        errorBox.textContent = '';
+    }
+
+    function isSourceReady(kind) {
+        const mode = document.querySelector(`input[name="${kind}-source"]:checked`);
+        if (!mode) return false;
+        if (mode.value === 'pan') {
+            return (kind === 'video' ? videoKeyInput.value : audioKeyInput.value).length > 0;
+        }
+        return (kind === 'video' ? videoUrlInput.value.trim() : audioUrlInput.value.trim()).length > 0;
+    }
+
+    function updateButtonState() {
+        if (!submitButton) return;
+        if (!isLoggedIn || cerebriumConfigs.length === 0) {
+            submitButton.disabled = true;
+            return;
+        }
+        const videoReady = isSourceReady('video');
+        const audioReady = isSourceReady('audio');
+        submitButton.disabled = !(videoReady && audioReady) || isSubmitting || isPendingLocked;
+    }
+
+    function bindSourceToggle(radios, panSection, urlSection) {
+        radios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                const usePan = document.querySelector(`input[name="${radio.name}"]:checked`).value === 'pan';
+                panSection.classList.toggle('hidden', !usePan);
+                urlSection.classList.toggle('hidden', usePan);
+                updateButtonState();
+            });
+        });
+    }
+
+    function formatFilename(key) {
+        if (!key) return '未选择文件';
+        const parts = key.split('/');
+        return parts[parts.length - 1];
+    }
+
+    function renderResultPreview(result) {
+        if (!resultContent) return;
+        if (!result) {
+            resultContent.textContent = '等待任务开始...';
+            return;
+        }
+        const status = result.status || 'completed';
+        const displayName = result.filename || (result.output_key ? formatFilename(result.output_key) : '输出视频.mp4');
+        const isCompleted = status === 'completed';
+        let innerHtml = `
+            <div class="result-preview ${!isCompleted ? 'result-preview--pending' : ''}">
+                <div class="result-meta"><strong>输出文件：</strong>${displayName}</div>
+        `;
+        if (isCompleted && result.public_url) {
+            innerHtml += `
+                <video src="${result.public_url}" controls playsinline style="width:100%; border-radius:8px; background:#000"></video>
+                <p class="result-hint">若视频没有立即播放，可稍后在 <a href="${resultsUrl}">我的作品</a> 中查看。</p>
+            `;
+        } else if (status === 'timeout') {
+            innerHtml += `
+                <p class="result-hint timeout">上一次任务已超时 (${displayName})，请检查 GPU 服务后重新开始。</p>
+            `;
+        } else {
+            innerHtml += `
+                <p class="result-hint processing">任务执行中，完成后最新结果会自动出现在此处，或前往 <a href="${resultsUrl}">我的作品</a> 查看 (${displayName})。</p>
+            `;
+        }
+        innerHtml += '</div>';
+        resultContent.innerHTML = innerHtml;
+    }
+
+    function bindFilePicker(button, keyInput, displayEl) {
+        if (!button) return;
+        button.addEventListener('click', () => {
+            if (!isLoggedIn) {
+                alert('请先登录后再选择文件。');
+                return;
+            }
+            activeFileSelection = { keyInput, displayEl };
+            openFileModal(keyInput.value);
+        });
+    }
+
+    function beginPendingLock(durationMs, jobInfo) {
+        if (!submitButton || !jobInfo || !jobInfo.outputKey || durationMs <= 0) {
+            return;
+        }
+        if (pendingTimeoutTimer) {
+            clearTimeout(pendingTimeoutTimer);
+        }
+        pendingJobKey = jobInfo.outputKey;
+        pendingJobName = jobInfo.filename || formatFilename(jobInfo.outputKey);
+        isPendingLocked = true;
+        pendingTimeoutTimer = setTimeout(handlePendingTimeout, durationMs);
+        submitButton.disabled = true;
+        submitButton.classList.add('disabled');
+        updateButtonState();
+    }
+
+    function clearPendingLock() {
+        if (pendingTimeoutTimer) {
+            clearTimeout(pendingTimeoutTimer);
+            pendingTimeoutTimer = null;
+        }
+        pendingJobKey = null;
+        pendingJobName = null;
+        isPendingLocked = false;
+        if (submitButton) {
+            submitButton.classList.remove('disabled');
+        }
+        updateButtonState();
+    }
+
+    function handlePendingTimeout() {
+        pendingTimeoutTimer = null;
+        const jobKey = pendingJobKey;
+        const jobName = pendingJobName || (jobKey ? formatFilename(jobKey) : '输出视频.mp4');
+        pendingJobKey = null;
+        pendingJobName = null;
+        isPendingLocked = false;
+        isSubmitting = false;
+        if (submitButton) {
+            submitButton.classList.remove('disabled');
+        }
+        updateButtonState();
+        renderResultPreview({ status: 'timeout', filename: jobName, output_key: jobKey });
+        showError('请求已超时，请稍后重试。');
+        setStatus('超时：未在设定时间内收到推理结果。');
+        if (jobKey) {
+            persistResult(jobKey, jobName, 'timeout');
+        }
+    }
+
+    function resumePendingLockFromServer(result) {
+        if (!result || result.status !== 'pending' || !result.output_key || cerebriumTimeoutMs <= 0) {
+            return;
+        }
+        const filename = result.filename || formatFilename(result.output_key);
+        const savedAtMsCandidate = Number(result.saved_at_ms);
+        let savedAtMs = Number.isFinite(savedAtMsCandidate) ? savedAtMsCandidate : NaN;
+        if (Number.isNaN(savedAtMs) && result.saved_at) {
+            savedAtMs = Date.parse(result.saved_at);
+        }
+        if (!Number.isNaN(savedAtMs)) {
+            const elapsed = Date.now() - savedAtMs;
+            if (elapsed >= cerebriumTimeoutMs) {
+                renderResultPreview({ ...result, status: 'timeout' });
+                setStatus('超时：未在设定时间内收到推理结果。');
+                persistResult(result.output_key, filename, 'timeout');
+                return;
+            }
+            const timeLeft = Math.max(0, cerebriumTimeoutMs - elapsed);
+            beginPendingLock(timeLeft, { outputKey: result.output_key, filename });
+            setStatus('任务执行中，请稍候...');
+            return;
+        }
+        beginPendingLock(cerebriumTimeoutMs, { outputKey: result.output_key, filename });
+        setStatus('任务执行中，请稍候...');
+    }
+
+    function promptGpuSelection() {
+        if (!gpuSelect) return;
+        gpuSelect.classList.add('field-error');
+        gpuSelect.focus();
+        gpuSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function renderFileList(files, selectedKey) {
+        if (!files || files.length === 0) {
+            fileListContainer.innerHTML = '<p>文件库中没有文件。</p>';
+            return;
+        }
+
+        const table = document.createElement('table');
+        table.className = 'responsive-table';
+        table.style = 'width: 100%; border-collapse: collapse;';
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th style="padding: 12px; text-align: left; width: 80px;">预览</th>
+                    <th style="padding: 12px; text-align: left;">文件名</th>
+                    <th style="padding: 12px; text-align: left;">大小</th>
+                    <th style="padding: 12px; text-align: left;">修改日期</th>
+                    <th style="padding: 12px; text-align: center;">操作</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        `;
+
+        const tbody = table.querySelector('tbody');
+        files.forEach(file => {
+            const row = tbody.insertRow();
+            if (file.key === selectedKey) {
+                row.style.backgroundColor = '#e7f3ff';
+            }
+            const sizeInMB = file.size / (1024 * 1024);
+            const sizeDisplay = isNaN(sizeInMB) ? '-' : (sizeInMB >= 1 ? `${sizeInMB.toFixed(2)} MB` : `${(file.size / 1024).toFixed(2)} KB`);
+            const modified = file.last_modified ? new Date(file.last_modified).toLocaleString() : '-';
+
+            let previewHtml = `
+                <div style="width: 50px; height: 50px; background-color: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; border: 1px solid #ddd;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                </div>
+            `;
+            if (file.preview_url && (file.is_image || file.is_video)) {
+                if (file.is_image) {
+                    previewHtml = `<img src="${file.preview_url}" alt="预览" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">`;
+                } else {
+                    previewHtml = `<video src="${file.preview_url}#t=0.1" muted loop playsinline style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; background-color:#000;"></video>`;
+                }
+            }
+
+            row.innerHTML = `
+                <td style="padding: 10px; text-align:center;">${previewHtml}</td>
+                <td style="padding: 10px;">${file.filename}</td>
+                <td style="padding: 10px;">${sizeDisplay}</td>
+                <td style="padding: 10px;">${modified}</td>
+                <td style="padding: 10px; text-align: center;"></td>
+            `;
+
+            const actionCell = row.cells[4];
+            const useBtn = document.createElement('button');
+            useBtn.type = 'button';
+            useBtn.className = 'btn btn-primary btn-sm';
+            useBtn.textContent = '选择';
+            useBtn.addEventListener('click', () => {
+                if (activeFileSelection) {
+                    activeFileSelection.keyInput.value = file.key;
+                    activeFileSelection.displayEl.textContent = formatFilename(file.key);
+                }
+                modal.style.display = 'none';
+                updateButtonState();
+            });
+            actionCell.appendChild(useBtn);
+        });
+
+        fileListContainer.innerHTML = '';
+        fileListContainer.appendChild(table);
+    }
+
+    async function persistResult(outputKey, fileName, status = 'completed', publicUrl = null) {
+        if (!saveResultUrl) return;
+        try {
+            const payload = {
+                ai_project_id: aiProjectId,
+                output_key: outputKey,
+                filename: fileName,
+                status
+            };
+            if (publicUrl) {
+                payload.public_url = publicUrl;
+            }
+            await fetch(saveResultUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+        } catch (err) {
+            console.warn('Failed to persist GPU result:', err);
+        }
+    }
+
+    function openFileModal(selectedKey) {
+        if (!modal || !fileListContainer) return;
+        modal.style.display = 'flex';
+        fileListContainer.innerHTML = '<p>正在加载文件...</p>';
+        fetch(filesApiUrl)
+            .then(resp => resp.json())
+            .then(data => {
+                if (data.success) {
+                    renderFileList(data.files, selectedKey);
+                } else {
+                    fileListContainer.innerHTML = `<p style="color:red;">${data.error || '无法加载文件'}</p>`;
+                }
+            })
+            .catch(err => {
+                fileListContainer.innerHTML = `<p style="color:red;">加载文件失败: ${err.message}</p>`;
+            });
+    }
+
+    if (closeBtn && modal) {
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    }
+    window.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+
+    bindSourceToggle(videoSourceRadios, videoPanSection, videoUrlSection);
+    bindSourceToggle(audioSourceRadios, audioPanSection, audioUrlSection);
+    bindFilePicker(selectVideoBtn, videoKeyInput, videoDisplay);
+    bindFilePicker(selectAudioBtn, audioKeyInput, audioDisplay);
+
+    function resolveMediaUrl(kind) {
+        const mode = document.querySelector(`input[name="${kind}-source"]:checked`);
+        if (!mode) {
+            throw new Error('请选择文件来源');
+        }
+        if (mode.value === 'pan') {
+            const key = kind === 'video' ? videoKeyInput.value : audioKeyInput.value;
+            if (!key) {
+                throw new Error(kind === 'video' ? '请选择一个视频文件' : '请选择一个音频文件');
+            }
+            if (!publicBaseUrl) {
+                throw new Error('S3 配置缺失，无法生成文件链接');
+            }
+            return `${publicBaseUrl}/${key}`;
+        }
+        const input = kind === 'video' ? videoUrlInput : audioUrlInput;
+        const value = input.value.trim();
+        if (!value) {
+            throw new Error(kind === 'video' ? '请输入视频链接' : '请输入音频链接');
+        }
+        return value;
+    }
+
+    function generateOutputKey(prefix) {
+        const rand = Math.random().toString(36).substring(2, 10);
+        return `${prefix}/cerebrium/${Date.now()}_${rand}.mp4`;
+    }
+
+    async function ensureS3Context() {
+        if (cachedS3Context && s3Client) {
+            return cachedS3Context;
+        }
+        const resp = await fetch(s3ContextUrl);
+        const data = await resp.json();
+        if (!data.success) {
+            throw new Error(data.error || '无法获取 S3 配置');
+        }
+        cachedS3Context = data.context;
+        publicBaseUrl = cachedS3Context.public_base_url;
+        if (typeof AWS === 'undefined') {
+            throw new Error('AWS SDK 未加载，无法生成上传链接');
+        }
+        s3Client = new AWS.S3({
+            accessKeyId: cachedS3Context.access_key_id,
+            secretAccessKey: cachedS3Context.secret_access_key,
+            region: cachedS3Context.region,
+            endpoint: new AWS.Endpoint(cachedS3Context.endpoint_url),
+            s3ForcePathStyle: true,
+            signatureVersion: 'v4'
+        });
+        return cachedS3Context;
+    }
+
+    function attachInputListener(el) {
+        if (!el) return;
+        ['input', 'change'].forEach(evt => {
+            el.addEventListener(evt, updateButtonState);
+        });
+    }
+
+    attachInputListener(gpuSelect);
+    attachInputListener(videoUrlInput);
+    attachInputListener(audioUrlInput);
+
+    if (gpuSelect) {
+        gpuSelect.addEventListener('change', () => {
+            gpuSelect.classList.remove('field-error');
+            clearError();
+        });
+    }
+
+    const handleSubmit = async () => {
+        if (submitButton.disabled) return;
+        clearError();
+        if (!isLoggedIn) {
+            showError('请登录后再使用该功能');
+            return;
+        }
+        if (!cerebriumConfigs.length) {
+            showError('请联系管理员分配 GPU 后再尝试');
+            return;
+        }
+        const selectedConfig = gpuSelect ? configsById[gpuSelect.value] : null;
+        if (!selectedConfig) {
+            showError('请选择一个 GPU');
+            promptGpuSelection();
+            return;
+        }
+
+        try {
+            isSubmitting = true;
+            updateButtonState();
+            setStatus('1. 正在准备上传凭证...');
+            const s3Context = await ensureS3Context();
+            const outputKey = generateOutputKey(s3Context.username_prefix);
+            const uploadUrl = await s3Client.getSignedUrlPromise('putObject', {
+                Bucket: s3Context.bucket_name,
+                Key: outputKey,
+                ContentType: 'video/mp4',
+                Expires: 3600
+            });
+
+            const videoUrl = resolveMediaUrl('video');
+            const audioUrl = resolveMediaUrl('audio');
+            const finalUrl = `${publicBaseUrl}/${outputKey}`;
+            const fileName = outputKey.split('/').pop();
+
+            renderResultPreview({ status: 'pending', filename: fileName, output_key: outputKey, public_url: finalUrl });
+            if (cerebriumTimeoutMs > 0) {
+                beginPendingLock(cerebriumTimeoutMs, { outputKey, filename: fileName });
+            }
+            await persistResult(outputKey, fileName, 'pending', finalUrl);
+
+            setStatus('2. 正在调用 GPU 服务...');
+            const payload = {
+                video_url: videoUrl,
+                audio_url: audioUrl,
+                output_presigned_url: uploadUrl
+            };
+
+            const response = await fetch(selectedConfig.api_url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${selectedConfig.api_token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'GPU 服务调用失败');
+            }
+
+            setStatus('3. 模型执行完成，正在拉取结果...');
+            renderResultPreview({ public_url: finalUrl, filename: fileName, output_key: outputKey, status: 'completed' });
+            clearPendingLock();
+            await persistResult(outputKey, fileName, 'completed', finalUrl);
+            setStatus('处理完成！如果视频稍后才出现，请刷新或前往“我的作品”查看。');
+        } catch (error) {
+            console.error('GPU card flow error:', error);
+            clearPendingLock();
+            showError(error.message || '执行失败，请重试');
+            setStatus('执行失败，请检查输入后重试。');
+        } finally {
+            isSubmitting = false;
+            updateButtonState();
+        }
+    };
+
+    submitButton.addEventListener('click', handleSubmit);
+    updateButtonState();
+    if (lastResult) {
+        renderResultPreview(lastResult);
+        if (lastResult.status === 'pending') {
+            resumePendingLockFromServer(lastResult);
+        } else if (lastResult.status === 'timeout') {
+            setStatus('上一次任务已超时，可重新尝试。');
+        } else {
+            setStatus('已加载最近结果');
+        }
+    } else {
+        setStatus('等待任务开始...');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const spaceCardType = {{ space_card_type|tojson }};
+    if (spaceCardType === 'cerebrium') {
+        initCerebriumFlow();
+        return;
+    }
+    // --- Global State & Elements ---
+    let currentTaskId = null;
+    let logPollInterval = null;
+    let inferenceStatusPollInterval = null;
+
+    const submitButton = document.getElementById('submit-button');
+    const timeoutMessage = document.getElementById('timeout-message');
+    const aiProjectId = '{{ ai_project.id }}';
+    const templates = {{ ai_project.templates | tojson | safe if ai_project.templates else '{}' }};
+    const userHasCode = {{ user_has_invitation_code | tojson }};
+
+    const templateSelect = document.getElementById('template-select');
+    const paramsContainer = document.getElementById('parameters-container');
+    const paramsGrid = document.getElementById('parameters-grid');
+
+    // --- Modal Logic ---
+    const modal = document.getElementById('file-browser-modal');
+    const selectFileBtn = document.getElementById('select-file-btn');
+    const closeBtn = document.querySelector('.close-button');
+    const fileListContainer = document.getElementById('file-browser-list');
+    const s3ObjectKeysInput = document.getElementById('s3_object_keys');
+    const selectedFileDisplay = document.getElementById('selected-file-display');
+    const savedFileKey = {{ selected_file_key | tojson }};
+
+    selectFileBtn.addEventListener('click', async () => {
+        modal.style.display = 'flex';
+        fileListContainer.innerHTML = '<p>正在加载文件...</p>';
+        try {
+            const response = await fetch('{{ url_for("api.list_my_s3_files") }}');
+            const data = await response.json();
+            if (data.success) {
+                const currentSelectedKey = s3ObjectKeysInput.value ? JSON.parse(s3ObjectKeysInput.value)[0] : null;
+                renderFileList(data.files, currentSelectedKey);
+            } else {
+                fileListContainer.innerHTML = `<p style="color: red;">无法加载文件: ${data.error}</p>`;
+            }
+        } catch (error) {
+            fileListContainer.innerHTML = `<p style="color: red;">加载文件时出错: ${error.message}</p>`;
+        }
+    });
+
+    closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+
+    window.addEventListener('click', (event) => {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    });
+
+    function renderFileList(files, selectedKey) {
+        if (files.length === 0) {
+            fileListContainer.innerHTML = '<p>文件库中没有文件。</p>';
+            return;
+        }
+
+        const table = document.createElement('table');
+        table.className = 'responsive-table';
+        table.style = 'width: 100%; border-collapse: collapse;';
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th style="padding: 15px; text-align: left; border-bottom: 1px solid #ddd; width: 80px;">预览</th>
+                    <th style="padding: 15px; text-align: left; border-bottom: 1px solid #ddd;">文件名</th>
+                    <th style="padding: 15px; text-align: left; border-bottom: 1px solid #ddd;">大小</th>
+                    <th style="padding: 15px; text-align: left; border-bottom: 1px solid #ddd;">修改日期</th>
+                    <th style="padding: 15px; text-align: center; border-bottom: 1px solid #ddd;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        `;
+
+        const tbody = table.querySelector('tbody');
+        files.forEach(file => {
+            const row = tbody.insertRow();
+            if (file.key === selectedKey) {
+                row.style.backgroundColor = '#e7f3ff'; // Highlight selected row
+            }
+            const sizeInMB = file.size / (1024 * 1024);
+            const sizeInKB = file.size / 1024;
+            let formattedSize;
+            if (sizeInMB >= 1) {
+                formattedSize = `${sizeInMB.toFixed(2)} MB`;
+            } else {
+                formattedSize = `${sizeInKB.toFixed(2)} KB`;
+            }
+
+            let previewHtml = '';
+            if (file.preview_url && (file.is_image || file.is_video)) {
+                if (file.is_image) {
+                    previewHtml = `<img src="${file.preview_url}" alt="预览" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">`;
+                } else {
+                    previewHtml = `<video src="${file.preview_url}#t=0.1" muted loop playsinline style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; background-color:#000;"></video>`;
+                }
+            } else {
+                previewHtml = `<div style="width: 50px; height: 50px; background-color: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; border: 1px solid #ddd;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                               </div>`;
+            }
+
+            row.innerHTML = `
+                <td data-label="预览" style="padding: 15px; text-align: center;">${previewHtml}</td>
+                <td data-label="文件名" style="padding: 15px;">${file.filename}</td>
+                <td data-label="大小" style="padding: 15px;">${formattedSize}</td>
+                <td data-label="修改日期" style="padding: 15px;">${new Date(file.last_modified).toLocaleString()}</td>
+                <td data-label="操作" style="padding: 15px; text-align: center;">
+                    <button type="button" class="btn btn-primary btn-sm select-file-confirm" data-key="${file.key}" data-filename="${file.filename}">选择</button>
+                </td>
+            `;
+        });
+
+        fileListContainer.innerHTML = '';
+        fileListContainer.appendChild(table);
+    }
+
+    fileListContainer.addEventListener('click', async (event) => {
+        if (event.target.classList.contains('select-file-confirm')) {
+            const fileKey = event.target.dataset.key;
+            const filename = event.target.dataset.filename;
+
+            s3ObjectKeysInput.value = JSON.stringify([fileKey]);
+            selectedFileDisplay.textContent = `已选择: ${filename}`;
+            modal.style.display = 'none';
+
+            // --- Persist selection ---
+            try {
+                await fetch('{{ url_for("api.save_selected_file") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        s3_key: fileKey,
+                        ai_project_id: aiProjectId
+                    }),
+                });
+            } catch (error) {
+                console.error('Failed to save file selection:', error);
+            }
+        }
+    });
+
+
+    // --- Template & Parameter Rendering ---
+    function renderParameters(templateId) {
+        paramsGrid.innerHTML = '';
+        const template = templates[templateId];
+
+        if (!template || !template.params || template.params.length === 0) {
+            paramsContainer.style.display = 'none';
+            return;
+        }
+
+        let paramFormHtml = '';
+        template.params.forEach(param => {
+            const name = param.name || '';
+            const label = param.label || name;
+            const param_type = param.type || 'text';
+            const defaultValue = param.default || '';
+            const help_text = param.help_text || '';
+
+            let input_html = '';
+            if (param_type === 'boolean') {
+                const checked = defaultValue ? 'checked' : '';
+                input_html = `<input type="checkbox" name="${name}" id="param_${name}" ${checked} style="width: auto;">`;
+            } else {
+                input_html = `<input type="${param_type}" name="${name}" id="param_${name}" value="${defaultValue}" class="form-control" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">`;
+            }
+
+            const help_html = help_text ? `<small style="color: #666; display: block; margin-top: 4px;">${help_text}</small>` : '';
+
+            paramFormHtml += `
+                <div class="form-group">
+                    <label for="param_${name}">${label}</label>
+                    ${input_html}
+                    ${help_html}
+                </div>
+            `;
+        });
+
+        paramsGrid.innerHTML = paramFormHtml;
+        paramsContainer.style.display = 'block';
+    }
+
+    function populateTemplateDropdown() {
+        const templateIds = Object.keys(templates);
+        let hasRestrictedTemplates = false;
+
+        if (templateIds.length === 0) {
+            templateSelect.innerHTML = '<option value="">-- 此Space无可用GPU --</option>';
+            templateSelect.disabled = true;
+            setButtonState(true, '<span>🚫</span>无可用GPU');
+            return;
+        }
+
+        templateSelect.innerHTML = '<option value="">-- 请选择一个GPU --</option>';
+        templateIds.forEach(id => {
+            const template = templates[id];
+            const option = document.createElement('option');
+            option.value = id;
+
+            const requiresCode = template.requires_invitation_code || false;
+            if (requiresCode) {
+                hasRestrictedTemplates = true;
+            }
+
+            if (requiresCode && !userHasCode) {
+                option.textContent = `${template.name} (🔒 需要邀请码)`;
+                option.disabled = true;
+                option.style.color = '#999';
+            } else {
+                option.textContent = template.name;
+            }
+            templateSelect.appendChild(option);
+        });
+
+        if (hasRestrictedTemplates && !userHasCode) {
+            document.getElementById('invitation-nag-message').style.display = 'block';
+        }
+
+        templateSelect.addEventListener('change', function() {
+            const selectedId = this.value;
+            const isLoggedIn = {{ session.get('logged_in')|tojson }};
+
+            if (selectedId) {
+                const template = templates[selectedId];
+                const templateName = template.name.toLowerCase();
+
+                // Check for GPU template and user login status
+                if (templateName.includes('gpu') && !isLoggedIn) {
+                    alert('选择高级GPU需要登录。您可以点击页面右上角的按钮进行登录或注册。');
+                    this.value = ''; // Reset selection
+                    return; // Stop further processing
+                }
+
+                localStorage.setItem(`selected_template_${aiProjectId}`, selectedId);
+                const fileUploadContainer = document.getElementById('file-upload-container');
+                const fileUploadLabel = document.getElementById('file-upload-label');
+                const promptGroup = document.getElementById('prompt-group');
+                const promptTextarea = document.getElementById('prompt');
+
+                renderParameters(selectedId);
+
+                if (template) {
+                    // Handle prompt display
+                    if (template.disable_prompt) {
+                        promptGroup.style.display = 'none';
+                        promptTextarea.required = false;
+                    } else {
+                        promptGroup.style.display = 'block';
+                        promptTextarea.required = true;
+                    }
+
+                    // Handle file upload display and label
+                    if (template.force_upload || template.enable_lora_upload) {
+                        fileUploadContainer.style.display = 'block';
+                    } else {
+                        fileUploadContainer.style.display = 'none';
+                    }
+
+                    if (template.enable_lora_upload) {
+                        fileUploadLabel.textContent = '上传文件 (支持 LoRA, 最多2个)';
+                    } else {
+                        fileUploadLabel.textContent = template.force_upload ? '上传文件 (必须)' : '上传文件';
+                    }
+
+                    // Handle file types for selection
+                    // This is a placeholder for where you would adjust the file input's `accept` attribute
+                    // if you were using a direct <input type="file">.
+                    // Since we use a modal, the filtering happens when listing files.
+                    // For now, we just note that .glb should be allowed.
+                    const fileInput = document.querySelector('input[type="file"]'); // Hypothetical input
+                    if (fileInput) {
+                        let acceptTypes = 'image/*,video/*';
+                        if (template.force_upload) {
+                             acceptTypes += ',.glb';
+                        }
+                         fileInput.accept = acceptTypes;
+                    }
+
+                } else {
+                    promptGroup.style.display = 'block';
+                    promptTextarea.required = true;
+                    fileUploadContainer.style.display = 'none';
+                }
+
+            } else {
+                paramsContainer.style.display = 'none';
+                paramsGrid.innerHTML = '';
+                fileUploadContainer.style.display = 'none';
+                document.getElementById('prompt-group').style.display = 'block';
+                document.getElementById('prompt').required = true;
+            }
+        });
+
+        const savedTemplateId = localStorage.getItem(`selected_template_${aiProjectId}`);
+        const savedOption = templateSelect.querySelector(`option[value="${savedTemplateId}"]`);
+        if (savedTemplateId && savedOption && !savedOption.disabled) {
+            templateSelect.value = savedTemplateId;
+            templateSelect.dispatchEvent(new Event('change'));
+        }
+    }
+
+
+    // --- Form Submission & Status Polling ---
+    function setButtonState(disabled, message = '<span>🚀</span>开始生成') {
+        submitButton.disabled = disabled;
+        submitButton.innerHTML = message;
+        submitButton.style.cursor = disabled ? 'not-allowed' : 'pointer';
+        submitButton.style.opacity = disabled ? '0.6' : '1';
+    }
+
+    async function checkInferenceStatus() {
+        try {
+            const response = await fetch('{{ url_for("main.check_inference_status") }}');
+            const result = await response.json();
+            if (!result.is_waiting) {
+                setButtonState(false);
+                if (inferenceStatusPollInterval) clearInterval(inferenceStatusPollInterval);
+            } else {
+                setButtonState(true, '<span class="loading"></span>正在生成...');
+            }
+        } catch (error) {
+            console.error('无法检查推理状态:', error);
+            setButtonState(false);
+            if (inferenceStatusPollInterval) clearInterval(inferenceStatusPollInterval);
+        }
+    }
+
+    document.getElementById('inference-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const isLoggedIn = {{ session.get('logged_in')|tojson }};
+        if (!isLoggedIn) {
+            alert('您需要登录才能运行此工具。请点击页面右上角的按钮进行登录或注册。');
+            return;
+        }
+
+        if (!templateSelect.value) {
+            alert('请先选择一个GPU。');
+            return;
+        }
+        document.getElementById('error-message').style.display = 'none';
+        setButtonState(true, '<span class="loading"></span>正在启动...');
+        timeoutMessage.style.display = 'none';
+
+        const statusDiv = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+        const resultDiv = document.getElementById('result-content');
+
+        statusDiv.className = 'result-status';
+        resultDiv.innerHTML = '准备提交任务...';
+        logsDiv.innerHTML = '';
+
+        // --- Proceed with inference form submission ---
+        const formData = new FormData(this);
+
+        resultDiv.innerHTML = '正在启动任务...';
+        logsDiv.innerHTML = '正在启动...';
+
+        if (logPollInterval) clearInterval(logPollInterval);
+        if (inferenceStatusPollInterval) clearInterval(inferenceStatusPollInterval);
+
+        try {
+            const response = await fetch('{{ url_for("main.run_inference", ai_project_id=ai_project.id) }}', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            if (response.ok) {
+                currentTaskId = result.task_id;
+                resultDiv.innerHTML = '任务已启动，正在执行...';
+                setButtonState(true, '<span class="loading"></span>正在生成...');
+                logPollInterval = setInterval(checkLogStatus, 2000);
+                inferenceStatusPollInterval = setInterval(checkInferenceStatus, 3000);
+            } else {
+                const errorDiv = document.getElementById('error-message');
+                errorDiv.innerText = result.error || 'An unknown error occurred.';
+                errorDiv.style.display = 'block';
+                resultDiv.innerHTML = '错误: ' + (result.error || '未知错误');
+                statusDiv.className = 'result-status failed';
+                setButtonState(false);
+            }
+        } catch (error) {
+            resultDiv.innerHTML = '请求失败: ' + error.message;
+            statusDiv.className = 'result-status failed';
+            setButtonState(false);
+        }
+    });
+
+    async function checkLogStatus() {
+        if (!currentTaskId) return;
+        try {
+            const response = await fetch(`{{ url_for('main.check_status', task_id='') }}${currentTaskId}`);
+            const task = await response.json();
+            const logsDiv = document.getElementById('logs');
+            logsDiv.innerHTML = task.logs || '暂无日志...';
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+
+            const statusDiv = document.getElementById('status');
+            const resultDiv = document.getElementById('result-content');
+            if (task.status === 'completed' || task.status === 'failed') {
+                if (logPollInterval) clearInterval(logPollInterval);
+                statusDiv.className = `result-status ${task.status}`;
+                let resultHtml = `<h4>${task.status === 'completed' ? '✅ 任务完成!' : '❌ 任务失败'}</h4>`;
+                if (task.status === 'completed' && task.result_files && task.result_files.length > 0) {
+                    const objectKey = task.result_files[0];
+                    try {
+                        const urlResponse = await fetch(`/api/get-s3-view-url?key=${encodeURIComponent(objectKey)}`);
+                        const urlData = await urlResponse.json();
+                        if (urlData.success) {
+                            const resultFileUrl = urlData.url;
+                            resultHtml += '<h4>结果文件:</h4>';
+                            if (/\.(jpg|jpeg|png|gif|webp)$/i.test(objectKey)) {
+                                resultHtml += `<a href="${resultFileUrl}" target="_blank"><img src="${resultFileUrl}" style="max-width: 100%; border-radius: 6px; margin-top: 10px;"></a>`;
+                            } else if (/\.(mp4|webm|mov)$/i.test(objectKey)) {
+                                resultHtml += `<video src="${resultFileUrl}" controls style="max-width: 100%; border-radius: 6px; margin-top: 10px;"></video>`;
+                            } else if (/\.(mp3|wav|ogg)$/i.test(objectKey)) {
+                                resultHtml += `<audio src="${resultFileUrl}" controls style="width: 100%; margin-top: 10px;"></audio>`;
+                            } else {
+                                resultHtml += `<a href="${resultFileUrl}" target="_blank" class="btn btn-secondary" style="margin-top: 10px;">下载结果文件</a>`;
+                            }
+                        } else {
+                            resultHtml += `<p>无法获取结果文件的预览链接: ${urlData.error || '未知错误'}</p>`;
+                        }
+                    } catch (e) {
+                        resultHtml += `<p>获取预览链接时出错: ${e.message}</p>`;
+                    }
+                } else if (task.status === 'completed') {
+                    resultHtml += '<p>任务完成，但没有找到输出文件或文件上传失败。</p>';
+                } else {
+                    resultHtml += '<p>请查看日志了解详细信息。</p>';
+                }
+                resultDiv.innerHTML = resultHtml;
+            } else if (task.status === 'running') {
+                statusDiv.className = 'result-status running';
+                resultDiv.innerHTML = '<h4>⚡ 正在执行...</h4><p>请耐心等待任务完成。</p>';
+            }
+        } catch (error) {
+            console.error('状态检查失败:', error);
+            if (logPollInterval) clearInterval(logPollInterval);
+            document.getElementById('result-content').innerHTML = '<h4>❌ 连接错误</h4><p>无法获取任务状态，请检查网络或稍后重试。</p>';
+            document.getElementById('status').className = 'result-status failed';
+        }
+    }
+
+    // --- Initial Page Load Logic ---
+    const isWaiting = {{ is_waiting_for_file | tojson }};
+    if (isWaiting) {
+        setButtonState(true, '<span class="loading"></span>正在生成...');
+        inferenceStatusPollInterval = setInterval(checkInferenceStatus, 3000);
+    }
+
+    populateTemplateDropdown();
+
+    if (savedFileKey) {
+        s3ObjectKeysInput.value = JSON.stringify([savedFileKey]);
+        // Extract filename from the key, which is usually 'username/filename.ext'
+        const filename = savedFileKey.split('/').pop();
+        selectedFileDisplay.textContent = `已选择: ${filename}`;
+    }
+
+    // --- Form Persistence Logic ---
+    const promptInput = document.getElementById('prompt');
+
+    // Load prompt from localStorage
+    const savedPrompt = localStorage.getItem(`prompt_${aiProjectId}`);
+    if (savedPrompt) {
+        promptInput.value = savedPrompt;
+    }
+
+    // Save prompt to localStorage
+    promptInput.addEventListener('input', function() {
+        localStorage.setItem(`prompt_${aiProjectId}`, this.value);
+    });
+
+    // Save/Load dynamic params using event delegation
+    paramsGrid.addEventListener('input', function(e) {
+        if (e.target.name) {
+            const key = `param_${aiProjectId}_${templateSelect.value}_${e.target.name}`;
+            localStorage.setItem(key, e.target.value);
+        }
+    });
+
+    templateSelect.addEventListener('change', function() {
+        const selectedId = this.value;
+        if (selectedId) {
+            // After rendering, try to load saved values
+            setTimeout(() => {
+                const template = templates[selectedId];
+                if (template && template.params) {
+                    template.params.forEach(param => {
+                        const input = document.getElementById(`param_${param.name}`);
+                        if (input) {
+                            const key = `param_${aiProjectId}_${selectedId}_${param.name}`;
+                            const savedValue = localStorage.getItem(key);
+                            if (savedValue !== null) {
+                                input.value = savedValue;
+                            }
+                        }
+                    });
+                }
+            }, 0);
+        }
+    });
+
+    // --- Clipboard.js Initialization ---
+    var clipboard = new ClipboardJS('.copy-button');
+
+    clipboard.on('success', function(e) {
+        const originalText = e.trigger.innerHTML;
+        e.trigger.innerHTML = '已复制!';
+        setTimeout(function() {
+            e.trigger.innerHTML = originalText;
+        }, 2000);
+        e.clearSelection();
+    });
+
+    clipboard.on('error', function(e) {
+        console.error('Action:', e.action);
+        console.error('Trigger:', e.trigger);
+        alert('复制失败，请手动复制。');
+    });
+
+    // --- API Tabs Logic ---
+    document.querySelectorAll('.api-example').forEach(function(exampleContainer) {
+        const tabButtons = exampleContainer.querySelectorAll('.api-tab-button');
+        const tabContents = exampleContainer.querySelectorAll('.api-tab-content');
+
+        // Activate the first tab by default
+        if (tabButtons.length > 0) {
+            tabButtons[0].classList.add('active');
+            tabContents[0].classList.add('active');
+        }
+
+        tabButtons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                // Deactivate all tabs within this container
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+
+                // Activate the clicked tab
+                button.classList.add('active');
+                const targetContent = exampleContainer.querySelector(button.dataset.tabTarget);
+                if (targetContent) {
+                    targetContent.classList.add('active');
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

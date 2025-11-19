@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+{% block title %}所有文章 - 南瓜AI{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 960px; margin: 2rem auto;">
+    <header style="margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--separator-color);">
+        <h1>所有文章</h1>
+        <p style="color: var(--secondary-text);">探索我们的想法、教程和更新。</p>
+    </header>
+
+    <div class="article-list" style="display: grid; gap: 2rem;">
+        {% for article in articles %}
+            <article class="card" style="padding: 2rem;">
+                <header>
+                    <h2 style="margin-bottom: 0.5rem;">
+                        <a href="{{ url_for('main.article_view', slug=article.slug) }}" style="text-decoration: none; color: var(--primary-text);">{{ article.title }}</a>
+                    </h2>
+                    <p class="article-meta" style="color: var(--secondary-text); font-size: 0.9em;">
+                        由 {{ article.author }} 发布于 {{ article.created_at | format_datetime }}
+                    </p>
+                </header>
+                <div class="article-excerpt" style="margin-top: 1rem; line-height: 1.7;">
+                    {# Create a plain-text excerpt from the markdown content #}
+                    {{ article.content | striptags | truncate(200, True) }}
+                </div>
+                <footer style="margin-top: 1.5rem;">
+                    <a href="{{ url_for('main.article_view', slug=article.slug) }}" class="btn">继续阅读 →</a>
+                </footer>
+            </article>
+        {% else %}
+            <div class="empty-state" style="text-align: center; padding: 4rem;">
+                <h3>暂无文章</h3>
+                <p>我们正在努力创作中，请稍后再来看看！</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>{% block title %}南瓜AI{% endblock %}</title>
+    <meta name="baidu-site-verification" content="codeva-woywxjPQ5o" />
+    <meta name="baidu_union_verify" content="bda8fde006c264232a8c8db61b7c51ef">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% block meta_description %}
+    <meta name="description" content="南瓜AI是一个充满创意的AI项目社区，探索最新、最有趣的AI应用和工具。">
+    {% endblock %}
+    <link rel="canonical" href="{{ canonical_url or request.url }}" />
+    <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎃</text></svg>">
+    <style>
+        :root {
+            --primary-text: #333;
+            --secondary-text: #777;
+            --system-background: #fff;
+            --system-background-secondary: #f8f9fa;
+            --separator-color: #ddd;
+            --link-color: #ff7518; /* Pumpkin Orange */
+            --shadow-color: rgba(0, 0, 0, 0.05);
+            --ui-scale: 1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--system-background-secondary);
+            color: var(--primary-text);
+            line-height: 1.6;
+            font-size: calc(16px * var(--ui-scale));
+            transition: font-size 0.2s ease;
+            overflow-x: hidden;
+        }
+
+        input, textarea, select, button {
+            font-size: inherit;
+        }
+
+        .header {
+            background: var(--system-background);
+            color: var(--primary-text);
+            padding: calc(15px * var(--ui-scale)) calc(20px * var(--ui-scale));
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--separator-color);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: calc(24px * var(--ui-scale));
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-logo {
+            height: calc(32px * var(--ui-scale));
+            width: calc(32px * var(--ui-scale));
+            color: var(--link-color);
+        }
+
+        .nav {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: var(--primary-text);
+            text-decoration: none;
+            padding: calc(10px * var(--ui-scale)) calc(16px * var(--ui-scale));
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            background: none;
+            border: none;
+            position: relative;
+            font-size: calc(14px * var(--ui-scale));
+        }
+        .nav a .nav-icon-inline {
+            width: calc(16px * var(--ui-scale));
+            height: calc(16px * var(--ui-scale));
+            margin-right: 6px;
+        }
+
+        .unread-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: red;
+            color: white;
+            border-radius: 50%;
+            padding: calc(2px * var(--ui-scale)) calc(6px * var(--ui-scale));
+            font-size: calc(10px * var(--ui-scale));
+            font-weight: bold;
+            display: none; /* Hidden by default */
+        }
+
+        .nav a:hover {
+            background: var(--system-background-secondary);
+        }
+
+        .header-right-items {
+            display: flex;
+            align-items: center;
+            gap: calc(16px * var(--ui-scale));
+        }
+
+        .profile-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: calc(40px * var(--ui-scale));
+            height: calc(40px * var(--ui-scale));
+            background: var(--system-background-secondary);
+            border: 1px solid var(--separator-color);
+            border-radius: 50%;
+            font-size: calc(24px * var(--ui-scale));
+            text-decoration: none;
+            color: var(--primary-text);
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .profile-icon:hover {
+            background: #e0e0e0; /* a bit darker grey for hover */
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: calc(20px * var(--ui-scale)) auto;
+            padding: 0 calc(20px * var(--ui-scale));
+        }
+
+        .flashes {
+            margin-bottom: calc(20px * var(--ui-scale));
+        }
+
+        .flash {
+            padding: calc(16px * var(--ui-scale)) calc(20px * var(--ui-scale));
+            border-radius: 8px;
+            margin: 0 calc(20px * var(--ui-scale)) calc(20px * var(--ui-scale)) calc(20px * var(--ui-scale));
+            border: 1px solid var(--separator-color);
+            background: var(--system-background);
+        }
+
+        .flash.success {
+            border-left: 4px solid #4CAF50;
+        }
+
+        .flash.error {
+            border-left: 4px solid #F44336;
+        }
+
+        .flash.info {
+            border-left: 4px solid var(--link-color);
+        }
+
+        /* Announcement Styles */
+        .announcement-banner {
+            margin: calc(20px * var(--ui-scale));
+            padding: calc(20px * var(--ui-scale));
+            border-radius: 8px;
+            border: 1px solid var(--separator-color);
+            background: var(--system-background);
+        }
+
+        .announcement-title {
+            font-weight: 600;
+            font-size: calc(18px * var(--ui-scale));
+            margin-bottom: 8px;
+            color: var(--primary-text);
+        }
+
+        .announcement-content {
+            color: var(--secondary-text);
+            line-height: 1.6;
+            font-size: calc(15px * var(--ui-scale));
+        }
+
+        /* Instagram-style card components */
+        .card {
+            background: var(--system-background);
+            border: 1px solid var(--separator-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: calc(8px * var(--ui-scale)) calc(16px * var(--ui-scale));
+            border: 1px solid var(--separator-color);
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            font-size: calc(14px * var(--ui-scale));
+            background: var(--system-background-secondary);
+            color: var(--primary-text);
+        }
+
+        .btn:hover {
+            border-color: var(--secondary-text);
+        }
+
+        .btn-primary {
+            background: var(--link-color);
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.1);
+            border: none;
+        }
+
+        .btn-secondary {
+            background: var(--light-gray);
+            color: var(--medium-gray);
+        }
+
+        .btn-secondary:hover {
+            background: #E0E0E0;
+            color: var(--dark-gray);
+        }
+
+        /* Responsive design */
+        .mobile-nav {
+            display: none; /* Hidden by default */
+        }
+
+        @media (max-width: 768px) {
+            .desktop-nav {
+                display: none;
+            }
+
+            .mobile-nav {
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: 60px;
+                background: var(--system-background);
+                border-top: 1px solid var(--separator-color);
+                z-index: 1001;
+            }
+
+            .mobile-nav .nav-item {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: var(--secondary-text);
+                flex-grow: 1;
+                height: 100%;
+                text-decoration: none;
+                transition: color 0.2s ease-in-out;
+                position: relative;
+            }
+
+            .mobile-nav .nav-icon {
+                width: 28px;
+                height: 28px;
+                stroke-width: 1.5;
+                stroke: var(--primary-text);
+                transition: all 0.2s ease-in-out;
+            }
+
+            .mobile-nav .nav-item:hover .nav-icon {
+                transform: scale(1.1);
+            }
+
+            .mobile-nav .nav-item.active .nav-icon {
+                stroke: var(--primary-text);
+                fill: var(--primary-text);
+            }
+
+            .header {
+                flex-direction: row; /* Revert to row for mobile header */
+                justify-content: space-between;
+                padding: 10px 16px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .nav {
+                justify-content: center;
+                width: 100%;
+            }
+
+            .container {
+                padding: 0;
+                margin: 0;
+            }
+
+            .nav a {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+
+            body {
+                padding-bottom: 60px;
+            }
+
+            .mobile-actions {
+                display: flex;
+                gap: 10px;
+                justify-content: center;
+            }
+
+        }
+        @media (max-width: 768px) {
+            .responsive-table {
+                display: block;
+                width: 100%;
+            }
+            .responsive-table thead {
+                display: none;
+            }
+            .responsive-table tbody, .responsive-table tr, .responsive-table td {
+                display: block;
+                width: 100%;
+            }
+            .responsive-table tr {
+                margin-bottom: 15px;
+                border: 1px solid var(--separator-color);
+                border-radius: 8px;
+                padding: 10px;
+            }
+            .responsive-table td {
+                text-align: right;
+                padding-left: 50%;
+                position: relative;
+                border: none;
+                padding-bottom: 5px;
+                padding-top: 5px;
+            }
+            .responsive-table td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 0;
+                width: 50%;
+                padding-left: 15px;
+                font-weight: bold;
+                text-align: left;
+            }
+        }
+
+        /* Loading animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 117, 24, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--pumpkin-orange);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Focus styles for accessibility */
+        *:focus {
+            outline: 2px solid var(--link-color);
+            outline-offset: 2px;
+        }
+        .profile-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 8px;
+            background-color: var(--system-background);
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px var(--shadow-color);
+            z-index: 1001;
+            border-radius: 8px;
+            border: 1px solid var(--separator-color);
+            padding: 8px 0;
+        }
+
+        .dropdown-menu a.dropdown-item {
+            color: var(--primary-text);
+            padding: 10px 16px;
+            text-decoration: none;
+            display: block;
+            background: none;
+            border: none;
+            width: 100%;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .dropdown-menu a.dropdown-item:hover {
+            background-color: var(--system-background-secondary);
+        }
+    </style>
+    <!-- CodeMirror for advanced editor -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/javascript/javascript.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>
+            <a href="{{ url_for('main.index') }}" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 10px;">
+                <svg class="header-logo" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M22 10.5c0 5.7-4.5 10.5-10 10.5S2 16.2 2 10.5C2 6.9 4.3 3.9 7.5 2.9c0 0 .7-.7 2-.7s1.5.8 1.5.8S11.8 2.2 13 2.2s1.7.8 1.7.8S15.2 2.2 16.5 2.2c1.3 0 2 .7 2 .7 2.2 1 3.5 4 3.5 7.6zM12 4.1c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                <span>南瓜AI</span>
+            </a>
+        </h1>
+        <div class="header-right-items">
+            <nav class="nav desktop-nav">
+                <a href="{{ url_for('main.index') }}">AI 项目</a>
+                <a href="{{ url_for('main.article_list') }}">文章</a>
+                <a href="{{ url_for('results.my_results') }}">我的文件</a>
+                <a href="{{ url_for('main.chat') }}">聊天室<span class="chat-unread-badge unread-badge"></span></a>
+                {% if session.get('logged_in') %}
+                <a href="{{ url_for('main.cloud_terminal') }}" title="云终端">
+                    <svg class="nav-icon-inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17.5 18a4.5 4.5 0 0 0 1-8.9 6 6 0 0 0-11.5-1A5 5 0 0 0 6 18h11.5z"></path>
+                        <polyline points="8 13 10 15 8 17"></polyline>
+                        <line x1="12" y1="17" x2="16" y2="17"></line>
+                    </svg>
+                    云终端
+                </a>
+                {% endif %}
+                {% if session.is_admin %}
+                <a href="{{ url_for('main.settings') }}">设置</a>
+                {% endif %}
+                {% if session.is_admin %}
+                <a href="{{ url_for('admin.admin_panel') }}">管理</a>
+                {% endif %}
+            </nav>
+            {% if session.get('logged_in') %}
+            <div class="profile-dropdown">
+                <a href="#" class="profile-icon" id="profile-dropdown-toggle">
+                    <img src="{{ session.user_avatar or url_for('static', filename='avatars/default.png') }}" alt="User Avatar" style="width: 100%; height: 100%; border-radius: 50%;">
+                </a>
+                <div class="dropdown-menu" id="profile-dropdown-menu">
+                    <a href="{{ url_for('main.profile') }}" class="dropdown-item">个人资料</a>
+                    <a href="{{ url_for('auth.logout') }}" class="dropdown-item">退出登录</a>
+                </div>
+            </div>
+            {% else %}
+                <a href="{{ url_for('auth.login') }}" class="btn">登录</a>
+                <a href="{{ url_for('auth.register') }}" class="btn btn-primary">注册</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flashes">
+            {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Global Announcement Banner -->
+        {% if announcement and announcement.enabled and announcement.title %}
+        {% set show_announcement = (request.endpoint == 'main.index' and announcement.show_on_homepage) or
+                                   (request.endpoint == 'main.ai_project_view' and announcement.show_on_projects) %}
+        {% if show_announcement %}
+        <div class="announcement-banner {{ announcement.type }}">
+            <div class="announcement-title">{{ announcement.title }}</div>
+            {% if announcement.content %}
+            <div class="announcement-content">{{ announcement.content }}</div>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <nav class="nav mobile-nav">
+        <a href="{{ url_for('main.index') }}" class="nav-item" data-endpoint="main.index">
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        </a>
+        <a href="{{ url_for('main.article_list') }}" class="nav-item" data-endpoint="main.article_list">
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+        </a>
+        <a href="{{ url_for('results.my_results') }}" class="nav-item" data-endpoint="results.my_results">
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        </a>
+        <a href="{{ url_for('main.chat') }}" class="nav-item" data-endpoint="main.chat">
+            <span class="chat-unread-badge unread-badge"></span>
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </a>
+        {% if session.get('logged_in') %}
+        <a href="{{ url_for('main.cloud_terminal') }}" class="nav-item" data-endpoint="main.cloud_terminal">
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.5 18a4.5 4.5 0 0 0 1-8.9 6 6 0 0 0-11.5-1A5 5 0 0 0 6 18h11.5z"></path>
+                <polyline points="8 12 10 14 8 16"></polyline>
+                <line x1="12" y1="16" x2="16" y2="16"></line>
+            </svg>
+        </a>
+        {% endif %}
+        {% if session.is_admin %}
+        <a href="{{ url_for('main.settings') }}" class="nav-item" data-endpoint="main.settings">
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </a>
+        {% endif %}
+        <a href="{{ url_for('main.favorites') }}" class="nav-item" data-endpoint="main.favorites">
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+        </a>
+        <a href="{{ url_for('main.profile') }}" class="nav-item" data-endpoint="main.profile">
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        </a>
+        {% if session.is_admin %}
+        <a href="{{ url_for('admin.admin_panel') }}" class="nav-item" data-endpoint="admin.admin_panel">
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        </a>
+        {% endif %}
+    </nav>
+
+    <script>
+    (function() {
+        const STORAGE_KEY = 'uiScalePreference';
+        const root = document.documentElement;
+        const saved = parseFloat(localStorage.getItem(STORAGE_KEY));
+        if (!isNaN(saved)) {
+            const scale = Math.min(2, Math.max(0.5, saved));
+            root.style.setProperty('--ui-scale', scale.toString());
+        }
+    })();
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
+
+
+<script>
+// Advanced animations and interactions
+document.addEventListener('DOMContentLoaded', function() {
+    // Highlight active mobile nav icon
+    const currentEndpoint = '{{ request.endpoint }}';
+    const mobileNavItems = document.querySelectorAll('.mobile-nav .nav-item');
+    mobileNavItems.forEach(item => {
+        if (item.dataset.endpoint === currentEndpoint) {
+            item.classList.add('active');
+        }
+    });
+
+    // Like button functionality
+    document.querySelectorAll('.like-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const spaceId = this.dataset.id;
+            const icon = this.querySelector('.action-icon');
+
+            fetch(`/api/space/${spaceId}/like`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.classList.toggle('liked', data.is_liked);
+                    // If on the favorites page, reload to update the list
+                    if (window.location.pathname === '/favorites') {
+                        window.location.reload();
+                    }
+                } else {
+                    console.error('Failed to like space:', data.error);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    });
+
+    // Intersection Observer for fade-in animations (REMOVED to fix content visibility bug)
+
+    // Enhanced button interactions
+    document.querySelectorAll('.btn').forEach(btn => {
+        btn.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px) scale(1.05)';
+        });
+
+        btn.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0) scale(1)';
+        });
+
+        btn.addEventListener('mousedown', function() {
+            this.style.transform = 'translateY(0) scale(0.98)';
+        });
+
+        btn.addEventListener('mouseup', function() {
+            this.style.transform = 'translateY(-2px) scale(1.05)';
+        });
+    });
+
+    // Floating animation for pumpkin emoji
+    const pumpkinIcon = document.querySelector('.header h1::before');
+    if (pumpkinIcon) {
+        setInterval(() => {
+            const randomDelay = Math.random() * 2000;
+            setTimeout(() => {
+                pumpkinIcon.style.animation = 'none';
+                pumpkinIcon.offsetHeight; // Trigger reflow
+                pumpkinIcon.style.animation = 'bounce 2s infinite';
+            }, randomDelay);
+        }, 5000);
+    }
+
+    // Smooth scroll for navigation links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+
+    // Dynamic background particles (subtle)
+    function createParticle() {
+        const particle = document.createElement('div');
+        particle.className = 'bg-particle';
+        particle.style.cssText = `
+            position: fixed;
+            width: 4px;
+            height: 4px;
+            background: var(--pumpkin-orange);
+            border-radius: 50%;
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: -1;
+            left: ${Math.random() * 100}vw;
+            top: 100vh;
+            animation: floatUp ${5 + Math.random() * 5}s linear forwards;
+        `;
+        document.body.appendChild(particle);
+
+        setTimeout(() => {
+            particle.remove();
+        }, 10000);
+    }
+
+    // Create particles occasionally
+    setInterval(createParticle, 3000);
+
+    // Add floating animation keyframes
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes floatUp {
+            to {
+                transform: translateY(-100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        /* Enhanced hover effects */
+        .card {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 117, 24, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .card:hover::before {
+            left: 100%;
+        }
+
+        /* Ripple effect for buttons */
+        .btn {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0);
+            animation: ripple-animation 0.6s linear;
+            pointer-events: none;
+        }
+
+        @keyframes ripple-animation {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Add ripple effect to buttons
+    document.querySelectorAll('.btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            const ripple = document.createElement('span');
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+
+            ripple.className = 'ripple';
+            ripple.style.width = ripple.style.height = size + 'px';
+            ripple.style.left = x + 'px';
+            ripple.style.top = y + 'px';
+
+            this.appendChild(ripple);
+
+            setTimeout(() => {
+                ripple.remove();
+            }, 600);
+        });
+    });
+
+    // Loading state animations
+    document.querySelectorAll('.loading').forEach(loader => {
+        loader.style.animation = 'spin 1s linear infinite';
+    });
+
+    // Enhanced form interactions
+    document.querySelectorAll('input, textarea').forEach(input => {
+        input.addEventListener('focus', function() {
+            this.parentElement.style.transform = 'scale(1.02)';
+            this.style.borderColor = 'var(--pumpkin-orange)';
+        });
+
+        input.addEventListener('blur', function() {
+            this.parentElement.style.transform = 'scale(1)';
+            if (!this.value) {
+                this.style.borderColor = 'var(--light-gray)';
+            }
+        });
+    });
+
+    // Typewriter effect for announcements
+    function typeWriter(element, text, speed = 50) {
+        let i = 0;
+        element.innerHTML = '';
+
+        function type() {
+            if (i < text.length) {
+                element.innerHTML += text.charAt(i);
+                i++;
+                setTimeout(type, speed);
+            }
+        }
+
+        type();
+    }
+
+    // Apply typewriter effect to announcement titles
+    document.querySelectorAll('.announcement-title').forEach(title => {
+        const originalText = title.textContent;
+        if (originalText.length > 0) {
+            typeWriter(title, originalText, 80);
+        }
+    });
+
+    // Profile dropdown
+    const dropdownToggle = document.getElementById('profile-dropdown-toggle');
+    const dropdownMenu = document.getElementById('profile-dropdown-menu');
+
+    if (dropdownToggle && dropdownMenu) {
+        dropdownToggle.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
+        });
+
+        document.addEventListener('click', function(event) {
+            if (dropdownMenu.style.display === 'block' && !dropdownMenu.contains(event.target) && !dropdownToggle.contains(event.target)) {
+                dropdownMenu.style.display = 'none';
+            }
+        });
+    }
+
+    // Unread chat message count
+    function fetchUnreadCount() {
+        fetch('/api/chat/unread-count')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const badges = document.querySelectorAll('.chat-unread-badge');
+                    badges.forEach(badge => {
+                        if (data.unread_count > 0) {
+                            badge.textContent = data.unread_count;
+                            badge.style.display = 'inline-block';
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    });
+                }
+            })
+            .catch(error => console.error('Error fetching unread count:', error));
+    }
+
+    // Fetch count immediately on page load and then every 30 seconds
+    fetchUnreadCount();
+    setInterval(fetchUnreadCount, 30000);
+});
+
+// Performance optimization
+if ('requestIdleCallback' in window) {
+    requestIdleCallback(() => {
+        // Preload critical resources
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = '/static/covers/';
+        document.head.appendChild(link);
+    });
+}
+</script>
+
+</body>
+</html>
