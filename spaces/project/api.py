@@ -355,63 +355,10 @@ def decode_project_id(token_value):
 
 
 def build_terminal_endpoint(project_id, app_name):
-    if not project_id or not app_name:
-        return None
-    base = 'https://api.aws.us-east-1.cerebrium.ai/v4'
-    return f"{base}/{project_id}/{app_name}/run"
-
-
-@api_bp.route('/cloud-terminal/delete-app', methods=['POST'])
-def delete_cloud_app():
-    """
-    Delete a Cerebrium app using the CLI on the VPS.
-    """
-    if not session.get('logged_in'):
-        return jsonify({'success': False, 'error': 'Authentication required'}), 401
-
-    data = request.get_json(silent=True) or {}
-    token = (data.get('token') or '').strip()
-    app_name = (data.get('app_name') or '').strip()
-
-    if not token:
-        return jsonify({'success': False, 'error': '缺少 Service Account Token'}), 400
-    if not app_name:
-        return jsonify({'success': False, 'error': '缺少要删除的应用名称'}), 400
-
-    ok, cli_error = ensure_cerebrium_cli_available()
-    if not ok:
-        return jsonify({'success': False, 'error': f'安装 cerebrium CLI 失败: {cli_error}'}), 500
-
-    env = os.environ.copy()
-    env['CEREBRIUM_SERVICE_ACCOUNT_TOKEN'] = token
-
-    # Build app_id with project prefix if needed
-    final_app_id = app_name
-    if not app_name.startswith('p-'):
-        project_id = decode_project_id(token) or current_app.config.get('CEREBRIUM_PROJECT_ID')
-        if project_id:
-            final_app_id = f"{project_id}-{app_name}"
-
-    try:
-        proc = subprocess.run(
-            ['cerebrium', 'app', 'delete', final_app_id],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            env=env
-        )
-    except Exception as exc:
-        return jsonify({'success': False, 'error': f'执行删除失败: {exc}'}), 500
-
-    result_payload = {
-        'success': proc.returncode == 0,
-        'returncode': proc.returncode,
-        'stdout': proc.stdout,
-        'stderr': proc.stderr,
-        'app_id_used': final_app_id
-    }
-    status_code = 200 if proc.returncode == 0 else 500
-    return jsonify(result_payload), status_code
+     if not project_id or not app_name:
+         return None
+     base = 'https://api.aws.us-east-1.cerebrium.ai/v4'
+     return f"{base}/{project_id}/{app_name}/run"
 
 
 @api_bp.route('/cloud-terminal/deploy', methods=['POST'])
