@@ -1,0 +1,257 @@
+{% extends "layout.html" %}
+{% block title %}聊天室 - 南瓜AI{% endblock %}
+{% block content %}
+<div class="chat-container">
+    <div class="chat-header">
+        <h2>聊天室</h2>
+        <a href="{{ url_for('main.chat_history') }}" class="btn btn-sm btn-secondary">查看历史</a>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+        <!-- Messages will be loaded here -->
+    </div>
+    <div class="chat-input-container">
+        <input type="text" id="chat-input" class="chat-input" placeholder="输入消息...">
+        <button id="send-btn" class="send-btn">发送</button>
+    </div>
+</div>
+
+<style>
+.chat-container {
+    max-width: 800px;
+    margin: 20px auto;
+    background: white;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 140px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+
+.chat-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.chat-header h2 {
+    margin: 0;
+    color: #FF7518;
+    font-size: 20px;
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.message-item {
+    display: flex;
+    margin-bottom: 15px;
+}
+
+.message-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 15px;
+}
+
+.message-content {
+    flex: 1;
+}
+
+.message-header {
+    display: flex;
+    align-items: baseline;
+    margin-bottom: 5px;
+}
+
+.message-username {
+    font-weight: bold;
+    color: #333;
+    margin-right: 10px;
+}
+
+.message-timestamp {
+    font-size: 12px;
+    color: #999;
+}
+
+.message-text {
+    background: #f1f1f1;
+    padding: 10px 15px;
+    border-radius: 18px;
+    display: inline-block;
+    max-width: 100%;
+}
+
+.chat-input-container {
+    display: flex;
+    padding: 20px;
+    border-top: 1px solid #eee;
+}
+
+.chat-input {
+    flex: 1;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 10px 15px;
+    font-size: 14px;
+}
+
+.send-btn {
+    background: #FF7518;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    margin-left: 10px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.send-btn:hover {
+    background: #e66916;
+}
+
+.delete-msg-btn {
+    background: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    cursor: pointer;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Mark messages as read when entering the chat room
+    fetch('/api/chat/mark-as-read', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Chat marked as read.');
+            // Optional: Immediately hide the badge in the UI if it's visible
+            const badge = parent.document.getElementById('chat-unread-badge');
+            if (badge) {
+                badge.style.display = 'none';
+            }
+        }
+    })
+    .catch(error => console.error('Error marking chat as read:', error));
+
+    const messagesContainer = document.getElementById('chat-messages');
+    const messageInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+
+    const fetchMessages = async () => {
+        try {
+            const response = await fetch("{{ url_for('api.get_chat_messages') }}");
+            const data = await response.json();
+            if (data.success) {
+                renderMessages(data.messages);
+            } else {
+                console.error('Failed to fetch messages:', data.error);
+            }
+        } catch (error) {
+            console.error('Error fetching messages:', error);
+        }
+    };
+
+    const renderMessages = (messages) => {
+        messagesContainer.innerHTML = '';
+        messages.forEach(msg => {
+            const messageEl = document.createElement('div');
+            messageEl.classList.add('message-item');
+
+            const avatarUrl = msg.avatar ? `{{ url_for('static', filename='avatars/') }}${msg.avatar}` : `{{ url_for('static', filename='avatars/default.png') }}`;
+            const timestamp = new Date(msg.timestamp * 1000).toLocaleString();
+
+            messageEl.innerHTML = `
+                <img src="${avatarUrl}" alt="${msg.username}" class="message-avatar">
+                <div class="message-content">
+                    <div class="message-header">
+                        <span class="message-username">${msg.username}</span>
+                        <span class="message-timestamp">${timestamp}</span>
+                    </div>
+                    <div class="message-text">${msg.content}</div>
+                    {% if session.is_admin %}
+                    <button class="delete-msg-btn" data-id="${msg.id}">删除</button>
+                    {% endif %}
+                </div>
+            `;
+            messagesContainer.appendChild(messageEl);
+        });
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    };
+
+    const sendMessage = async () => {
+        const message = messageInput.value.trim();
+        if (!message) return;
+
+        try {
+            const response = await fetch("{{ url_for('api.post_chat_message') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: message })
+            });
+            const data = await response.json();
+            if (data.success) {
+                messageInput.value = '';
+                fetchMessages();
+            } else {
+                alert('发送失败: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            alert('发送消息时出错，请查看控制台。');
+        }
+    };
+
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    messagesContainer.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('delete-msg-btn')) {
+            const messageId = e.target.dataset.id;
+            if (confirm('确定要删除这条消息吗？')) {
+                try {
+                    const response = await fetch(`/api/chat/messages/${messageId}`, {
+                        method: 'DELETE'
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        fetchMessages();
+                    } else {
+                        alert('删除失败: ' + data.error);
+                    }
+                } catch (error) {
+                    console.error('Error deleting message:', error);
+                    alert('删除消息时出错，请查看控制台。');
+                }
+            }
+        }
+    });
+
+    // Fetch messages every 3 seconds
+    setInterval(fetchMessages, 3000);
+    // Initial fetch
+    fetchMessages();
+});
+</script>
+{% endblock %}

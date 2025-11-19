@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+{% block title %}GitHub注册需要邀请码{% endblock %}
+
+{% block content %}
+<style>
+    .auth-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 80vh;
+        padding: 20px;
+    }
+    .auth-form-wrapper {
+        width: 100%;
+        max-width: 400px;
+    }
+    .auth-form {
+        background: var(--system-background);
+        border: 1px solid var(--separator-color);
+        border-radius: 3px;
+        padding: 40px;
+        text-align: center;
+    }
+    .auth-logo {
+        font-family: 'Cursive', 'Brush Script MT', sans-serif;
+        font-size: 48px;
+        margin-bottom: 10px;
+    }
+    .auth-subheading {
+        color: var(--secondary-text);
+        font-size: 17px;
+        font-weight: 600;
+        margin-bottom: 20px;
+    }
+    .form-group {
+        margin-bottom: 10px;
+    }
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--separator-color);
+        border-radius: 3px;
+        background: var(--system-background-secondary);
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+    .btn-submit {
+        width: 100%;
+        background: var(--link-color);
+        color: white;
+        padding: 8px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        margin-top: 10px;
+    }
+    .btn-submit:hover {
+        filter: brightness(1.1);
+    }
+    .auth-error {
+        color: #ed4956;
+        margin-bottom: 15px;
+        font-size: 14px;
+    }
+</style>
+
+<div class="auth-container">
+    <div class="auth-form-wrapper">
+        <div class="auth-form">
+            <h1 class="auth-logo">南瓜AI</h1>
+            <h2 class="auth-subheading">欢迎! 请输入邀请码以完成注册。</h2>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+            {% if error %}
+            <div class="auth-error">{{ error }}</div>
+            {% endif %}
+            <form method="post">
+                <div class="form-group">
+                    <input type="text" name="invitation_code" placeholder="邀请码" class="form-control" required>
+                </div>
+                <button type="submit" class="btn-submit">完成注册</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
