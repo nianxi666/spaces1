@@ -32,8 +32,6 @@
             <p class="token-hint" id="token-hint">密钥会保存在本地浏览器的 LocalStorage 中。</p>
 
             <div class="divider"></div>
-            <h3>终端命令</h3>
-            <label class="field-label">运行环境</label>
             <div id="cloud-target-wrapper">
                 {% if terminal_targets %}
                 <div class="mode-toggle-group" role="group" aria-label="终端资源选择">
@@ -44,11 +42,8 @@
                     </button>
                     {% endfor %}
                 </div>
-                {% else %}
-                <p class="subtitle no-targets-placeholder" style="color:#c0392b;">尚未配置任何云终端端点，请在下方部署或手动配置 URL。</p>
                 {% endif %}
             </div>
-            <label class="field-label" for="cloud-terminal-command">命令</label>
             <textarea id="cloud-terminal-command" rows="3" placeholder="例如：cerebrium app ls"></textarea>
             <div class="command-actions">
                 <button type="button" class="btn btn-primary" id="run-terminal-command">
@@ -172,27 +167,6 @@
         </ul>
     </section>
 </div>
-
-<!-- 移动端菜单弹窗 -->
-<div class="mobile-drawer" id="mobileDrawer">
-    <div class="drawer-header">
-        <h2>云终端</h2>
-        <button class="drawer-close" id="closeDrawer">✕</button>
-    </div>
-    <div class="drawer-content">
-        <div class="drawer-section">
-            <h3>认证配置</h3>
-            <p class="drawer-hint">Service Account Token</p>
-        </div>
-        <div class="drawer-section">
-            <h3>快速命令</h3>
-            <div class="drawer-chips" id="drawerChips"></div>
-        </div>
-    </div>
-</div>
-
-<!-- 移动端覆盖层 -->
-<div class="drawer-overlay" id="drawerOverlay"></div>
 
 <style>
 .cloud-terminal-page {
@@ -582,285 +556,18 @@
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
-/* 移动端样式 */
-.drawer-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0);
-    z-index: 998;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-}
-
-.drawer-overlay.active {
-    opacity: 1;
-    background: rgba(0, 0, 0, 0.5);
-    pointer-events: auto;
-}
-
-.mobile-drawer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--system-background);
-    border-radius: 20px 20px 0 0;
-    z-index: 999;
-    max-height: 80vh;
-    overflow-y: auto;
-    transform: translateY(100%);
-    transition: transform 0.3s ease;
-    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
-}
-
-.mobile-drawer.active {
-    transform: translateY(0);
-}
-
-.drawer-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--separator-color);
-    position: sticky;
-    top: 0;
-    background: var(--system-background);
-}
-
-.drawer-header h2 {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 700;
-}
-
-.drawer-close {
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: var(--primary-text);
-    padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.drawer-content {
-    padding: 20px 24px 40px;
-}
-
-.drawer-section {
-    margin-bottom: 28px;
-}
-
-.drawer-section:last-child {
-    margin-bottom: 0;
-}
-
-.drawer-section h3 {
-    font-size: 16px;
-    font-weight: 700;
-    margin: 0 0 12px 0;
-    color: var(--primary-text);
-}
-
-.drawer-hint {
-    font-size: 13px;
-    color: var(--secondary-text);
-    margin: 0;
-}
-
-.drawer-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.drawer-chips .chip {
-    padding: 8px 12px;
-    font-size: 12px;
-}
-
 @media (max-width: 768px) {
-    .cloud-terminal-page {
-        padding: 0;
-        gap: 16px;
-    }
-
-    .card {
-        border-radius: 12px;
-        padding: 16px;
-        margin: 0 12px;
-    }
-
-    .terminal-grid {
-        grid-template-columns: 1fr;
-        gap: 16px;
-    }
-
     .terminal-hero {
         flex-direction: column;
         align-items: flex-start;
-        display: none;
     }
-
-    .terminal-form,
-    .terminal-output {
-        margin: 0;
-    }
-
-    .field-label {
-        margin: 16px 0 8px;
-        font-size: 13px;
-    }
-
     .token-input {
         flex-direction: column;
         align-items: stretch;
-        gap: 10px;
     }
-
-    .token-input input,
     .ghost-btn {
         width: 100%;
-        padding: 12px;
-        font-size: 14px;
-    }
-
-    .ghost-btn {
         text-align: center;
-        border-radius: 10px;
-    }
-
-    .btn-sm {
-        padding: 10px 12px;
-        font-size: 12px;
-        flex: 1;
-        min-width: 100px;
-    }
-
-    .token-actions {
-        gap: 8px;
-    }
-
-    .mode-toggle-group {
-        gap: 8px;
-    }
-
-    .mode-toggle {
-        min-width: 120px;
-        padding: 12px 14px;
-        font-size: 13px;
-    }
-
-    .command-actions {
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .command-actions .btn {
-        width: 100%;
-        padding: 12px;
-        font-size: 14px;
-    }
-
-    .terminal-screen {
-        min-height: 200px;
-        font-size: 12px;
-        padding: 14px;
-    }
-
-    .terminal-details {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-        padding: 12px;
-    }
-
-    .terminal-details dt {
-        font-size: 12px;
-    }
-
-    .terminal-details dd {
-        font-size: 12px;
-    }
-
-    .quick-commands {
-        margin: 0 12px;
-    }
-
-    .chips {
-        gap: 8px;
-    }
-
-    .chip {
-        padding: 8px 12px;
-        font-size: 12px;
-    }
-
-    .history-item {
-        padding: 12px;
-        font-size: 12px;
-    }
-
-    .deploy-card,
-    .danger-zone {
-        margin: 0 12px;
-    }
-
-    .hardware-options {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-    }
-
-    .hardware-btn {
-        padding: 12px;
-        font-size: 13px;
-    }
-
-    .deploy-card input {
-        padding: 11px 12px;
-        font-size: 14px;
-    }
-
-    .deploy-note {
-        font-size: 12px;
-    }
-
-    .deploy-btn {
-        width: 100%;
-        padding: 12px;
-    }
-
-    .danger-input-row {
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .danger-input-row input {
-        width: 100%;
-        min-width: auto;
-        padding: 12px;
-    }
-
-    .danger-btn {
-        width: 100%;
-        min-width: auto;
-        padding: 12px;
-    }
-
-    .danger-suggestions {
-        gap: 8px;
-        flex-direction: column;
-    }
-
-    .danger-suggestion {
-        width: 100%;
-        padding: 10px 12px;
     }
 }
 </style>
@@ -1382,74 +1089,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 runButton.disabled = false;
             });
         });
-    }
-
-    // 移动端菜单逻辑
-    const mobileDrawer = document.getElementById('mobileDrawer');
-    const drawerOverlay = document.getElementById('drawerOverlay');
-    const closeDrawer = document.getElementById('closeDrawer');
-    const drawerChips = document.getElementById('drawerChips');
-
-    function openDrawer() {
-        mobileDrawer.classList.add('active');
-        drawerOverlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
-    }
-
-    function closeDrawerMenu() {
-        mobileDrawer.classList.remove('active');
-        drawerOverlay.classList.remove('active');
-        document.body.style.overflow = '';
-    }
-
-    closeDrawer.addEventListener('click', closeDrawerMenu);
-    drawerOverlay.addEventListener('click', closeDrawerMenu);
-
-    // 填充抽屉中的快速命令
-    if (quickCommands.length && drawerChips) {
-        quickCommands.forEach(cmd => {
-            const chip = document.createElement('button');
-            chip.className = 'chip';
-            chip.type = 'button';
-            chip.textContent = cmd.label || cmd.command.substring(0, 20);
-            chip.dataset.command = cmd.command;
-            chip.addEventListener('click', () => {
-                commandInput.value = cmd.command;
-                if (cmd.target) {
-                    setTarget(cmd.target);
-                }
-                closeDrawerMenu();
-            });
-            drawerChips.appendChild(chip);
-        });
-    }
-
-    // 检测移动设备并在小屏幕上显示菜单按钮
-    if (window.innerWidth <= 768) {
-        const menuBtn = document.createElement('button');
-        menuBtn.className = 'mobile-menu-btn';
-        menuBtn.type = 'button';
-        menuBtn.innerHTML = '☰';
-        menuBtn.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #ff7518 0%, #ff9544 100%);
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            z-index: 997;
-            box-shadow: 0 4px 12px rgba(255, 117, 24, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        `;
-        document.body.appendChild(menuBtn);
-        menuBtn.addEventListener('click', openDrawer);
     }
 });
 </script>
