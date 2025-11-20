@@ -210,23 +210,26 @@ def cloud_terminal():
     # We use a short timeout to avoid blocking the page load for too long
     detection_timeout = 1.0
 
-    for target in potential_targets:
-        try:
-            # We send a HEAD request.
-            # If the service exists, it might return 405 (Method Not Allowed) if it only accepts POST,
-            # or 401 (Unauthorized) if it needs token.
-            # If it doesn't exist, it should return 404.
-            # If the server is down, connection might fail.
-            response = requests.post(target['url'], json={}, timeout=detection_timeout)
-
-            # 404 means specifically "Not Found" (app doesn't exist).
-            # 200-299 is success.
-            # 400, 401, 403, 405, 500 usually mean the endpoint is THERE, just maybe rejected our empty request.
-            if response.status_code != 404:
-                terminal_targets.append(target)
-        except requests.RequestException:
-            # If connection fails (timeout, DNS error), we assume it's not available.
-            pass
+    # If we have a project ID, we probe the standard endpoints
+    if project_id:
+        for app_name in candidate_apps:
+            url = f"https://api.aws.us-east-1.cerebrium.ai/v4/{project_id}/{app_name}/run"
+            try:
+                # Probe the endpoint to see if it exists
+                response = requests.post(url, json={}, timeout=detection_timeout)
+                if response.status_code != 404:
+                    terminal_targets.append({'name': app_name, 'url': url})
+            except requests.RequestException:
+                pass
+    else:
+        # Fallback to what was found in potential_targets if project_id wasn't explicitly set but inferred
+        for target in potential_targets:
+            try:
+                response = requests.post(target['url'], json={}, timeout=detection_timeout)
+                if response.status_code != 404:
+                    terminal_targets.append(target)
+            except requests.RequestException:
+                pass
 
     quick_commands = [{'label': '查看部署', 'command': 'cerebrium app ls'}]
     for target in terminal_targets:
@@ -237,16 +240,22 @@ def cloud_terminal():
     quick_commands.append({'label': '列出文件', 'command': 'ls -la'})
     hardware_presets = [
         {
+            'key': 'cpu',
+            'label': 'CPU (2 vCPU)',
+            'description': '经济实惠，适合轻量任务',
+            'default_app_name': 'cloud-terminal'
+        },
+        {
             'key': 'l40s',
             'label': 'L40S (24GB)',
             'description': '低成本 GPU，适合实时部署',
-            'default_app_name': 'cloud-terminal-l40s'
+            'default_app_name': 'cloud-terminal-gpu'
         },
         {
             'key': 'h100',
             'label': 'H100 (80GB)',
             'description': '最高性能 GPU，适合重度任务',
-            'default_app_name': 'cloud-terminal-h100'
+            'default_app_name': 'cloud-terminal-gpu'
         }
     ]
     # Determine if we have a GPU endpoint detected

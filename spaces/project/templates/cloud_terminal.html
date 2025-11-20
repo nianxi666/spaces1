@@ -194,8 +194,9 @@
 
             <div class="modal-body">
                 <div class="input-group">
-                    <label class="input-label" for="deploy-app-name">应用名称（可选）</label>
-                    <input type="text" id="deploy-app-name" class="material-input" placeholder="留空使用默认名称">
+                    <label class="input-label" for="deploy-app-name">应用名称</label>
+                    <input type="text" id="deploy-app-name" class="material-input" value="cloud-terminal" disabled style="opacity: 0.7; background-color: var(--md-surface-variant);">
+                    <p class="input-hint">应用名称已根据硬件配置自动锁定</p>
                 </div>
 
                 <div class="input-group">
@@ -1217,13 +1218,20 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.toggle('active', btn.dataset.hardware === key);
         });
         const preset = hardwarePresets.find(p => p.key === key);
-        const placeholder = preset?.default_app_name ? `默认：${preset.default_app_name}` : '留空使用默认名称';
-        if (deployAppInput) deployAppInput.placeholder = placeholder;
+        if (deployAppInput && preset) {
+            deployAppInput.value = preset.default_app_name || 'cloud-terminal';
+        }
     }
 
     hardwareButtons.forEach(btn => {
         btn.addEventListener('click', () => setHardwareOption(btn.dataset.hardware));
     });
+    // Initialize with the first preset (which is likely CPU if sorted, or L40S previously)
+    // We need to ensure selectedHardware matches a valid key.
+    // hardwarePresets now includes 'cpu', 'l40s', 'h100'.
+    if (!selectedHardware && hardwarePresets.length > 0) {
+        selectedHardware = hardwarePresets[0].key;
+    }
     if (selectedHardware) setHardwareOption(selectedHardware);
 
     function ensureTargetGroup() {
@@ -1343,7 +1351,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function deployCloudTerminalApp() {
         const token = tokenInput.value.trim();
+        // We still send the appName from the input (which is now read-only and set by JS)
+        // but backend will also enforce it.
         const appName = deployAppInput.value.trim();
+
         if (!token) {
             metaEl.textContent = '请输入 Service Account Token';
             updateBadge('失败');
@@ -1360,14 +1371,45 @@ document.addEventListener('DOMContentLoaded', () => {
         metaEl.textContent = '正在部署到 Cerebrium...';
 
         try {
+            outputEl.textContent = ''; // Clear previous output
             const response = await fetch('{{ url_for("api.deploy_cloud_terminal_app") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token, app_name: appName, hardware: selectedHardware })
             });
-            const payload = await response.json();
-            const logBody = `${payload.stdout || ''}${payload.stderr ? `\n⚠️ stderr:\n${payload.stderr}` : ''}`.trim() || JSON.stringify(payload, null, 2);
-            outputEl.textContent = logBody;
+
+            if (!response.ok) {
+                throw new Error(`Deployment failed with status: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let resultPayload = null;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('JSON_RESULT:')) {
+                        try {
+                            resultPayload = JSON.parse(line.substring('JSON_RESULT:'.length));
+                        } catch (e) {
+                            console.error('Failed to parse result JSON', e);
+                        }
+                        continue; // Don't print the JSON marker
+                    }
+                    outputEl.textContent += line + '\n';
+                    // Auto-scroll to bottom
+                    outputEl.scrollTop = outputEl.scrollHeight;
+                }
+            }
+
+            const payload = resultPayload || { success: false, error: 'Did not receive completion signal' };
+
             detailCommand.textContent = `deploy ${payload.app_name || appName || '-'}`;
             detailRunId.textContent = '-';
             detailRuntime.textContent = '-';
@@ -1383,7 +1425,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 summary: historySummary
             });
 
-            if (response.ok && payload.success) {
+            if (payload.success) {
                 metaEl.textContent = `✓ 部署成功：${payload.app_name}`;
                 updateBadge('成功');
                 closeDeployModal();
@@ -1391,11 +1433,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     addTargetFromDeployment(payload.app_name, payload.endpoint);
                 }
             } else {
-                metaEl.textContent = payload.error || `部署失败 (HTTP ${response.status})`;
+                metaEl.textContent = payload.error || `部署失败`;
                 updateBadge('失败');
             }
         } catch (error) {
-            outputEl.textContent = error.stack || error.message;
+            outputEl.textContent += `\nError: ${error.message}`;
             metaEl.textContent = '✗ 部署请求失败';
             updateBadge('失败');
         } finally {
@@ -1494,11 +1536,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (success) {
-                const lowerCommand = (result.command || providedCommand).toLowerCase();
-                const deleteMatch = lowerCommand.match(/cerebrium\s+app\s+delete\s+([^\s]+)/);
-                if (deleteMatch?.[1]) {
-                    removeTargetFromUI(deleteMatch[1]);
-                }
+                // Command executed successfully
             }
         } catch (error) {
             updateBadge('失败');

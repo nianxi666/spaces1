@@ -29,13 +29,21 @@ from flask import session
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 HARDWARE_PROFILES = {
+    'cpu': {
+        'display_name': 'CPU (2 vCPU, 2GB)',
+        'compute': None,
+        'cpu': 2.0,
+        'memory': 2.0,
+        'docker_image': 'debian:bookworm-slim',
+        'default_app_name': 'cloud-terminal'
+    },
     'l40s': {
         'display_name': 'NVIDIA L40S (24GB)',
         'compute': 'L4', # Cerebrium 使用 L4 枚举来表示 L40S GPU
         'cpu': 4.0,
         'memory': 32.0,
         'docker_image': 'nvidia/cuda:12.1.0-runtime-ubuntu22.04',
-        'default_app_name': 'cloud-terminal-l40s'
+        'default_app_name': 'cloud-terminal-gpu'
     },
     'h100': {
         'display_name': 'NVIDIA H100 (80GB)',
@@ -43,11 +51,11 @@ HARDWARE_PROFILES = {
         'cpu': 8.0,
         'memory': 60.0,
         'docker_image': 'nvidia/cuda:12.1.0-runtime-ubuntu22.04',
-        'default_app_name': 'cloud-terminal-h100'
+        'default_app_name': 'cloud-terminal-gpu'
     }
 }
 
-DEFAULT_HARDWARE_KEY = 'l40s'
+DEFAULT_HARDWARE_KEY = 'cpu'
 
 @api_bp.route('/upload', methods=['POST'])
 def api_upload():
@@ -292,6 +300,10 @@ def build_cerebrium_toml(app_name, preset):
     if preset.get('docker_image'):
         docker_line = f'\ndocker_base_image_url = "{preset["docker_image"]}"'
 
+    compute_line = ""
+    if preset.get("compute"):
+        compute_line = f'compute = "{preset.get("compute")}"'
+
     toml = [
         "[cerebrium.deployment]",
         f'name = "{app_name}"',
@@ -304,7 +316,7 @@ def build_cerebrium_toml(app_name, preset):
         "[cerebrium.hardware]",
         f'cpu = {preset.get("cpu", 2.0)}',
         f'memory = {preset.get("memory", 16.0)}',
-        f'compute = "{preset.get("compute")}"',
+        compute_line,
         'provider = "aws"',
         'region = "us-east-1"',
         "",
@@ -369,7 +381,7 @@ def deploy_cloud_terminal_app():
     data = request.get_json(silent=True) or {}
     token = (data.get('token') or '').strip()
     hardware_key = (data.get('hardware') or DEFAULT_HARDWARE_KEY).lower()
-    app_name_raw = (data.get('app_name') or '').strip()
+    # App name is fixed based on hardware profile
 
     if not token:
         return jsonify({'success': False, 'error': '缺少 Service Account Token'}), 400
@@ -378,9 +390,7 @@ def deploy_cloud_terminal_app():
     if not preset:
         return jsonify({'success': False, 'error': '未知的硬件类型'}), 400
 
-    cleaned_name = slugify(app_name_raw) if app_name_raw else ''
-    if not cleaned_name:
-        cleaned_name = preset.get('default_app_name') or 'cloud-terminal'
+    cleaned_name = preset.get('default_app_name') or 'cloud-terminal'
 
     source_dir = current_app.config.get('CLOUD_TERMINAL_SOURCE_DIR')
     if not source_dir or not os.path.isdir(source_dir):
@@ -401,38 +411,49 @@ def deploy_cloud_terminal_app():
         env = os.environ.copy()
         env['CEREBRIUM_SERVICE_ACCOUNT_TOKEN'] = token
         timeout = current_app.config.get('CLOUD_TERMINAL_DEPLOY_TIMEOUT', 900)
-        try:
-            proc = subprocess.run(
-                ['cerebrium', 'deploy'],
-                capture_output=True,
-                text=True,
-                cwd=deploy_dir,
-                env=env,
-                timeout=timeout
-            )
-        except subprocess.TimeoutExpired:
-            return jsonify({'success': False, 'error': '部署超时，请稍后再试'}), 504
+        def generate_logs():
+            try:
+                proc = subprocess.Popen(
+                    ['cerebrium', 'deploy'],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    cwd=deploy_dir,
+                    env=env
+                )
+
+                # Yield log lines as they come
+                for line in proc.stdout:
+                    yield line
+
+                proc.wait(timeout=timeout)
+
+                # After completion, verify success
+                success = proc.returncode == 0
+                project_id = decode_project_id(token) or current_app.config.get('CEREBRIUM_PROJECT_ID')
+                endpoint_url = build_terminal_endpoint(project_id, cleaned_name)
+
+                result_info = {
+                    'success': success,
+                    'returncode': proc.returncode,
+                    'app_name': cleaned_name,
+                    'hardware': hardware_key,
+                    'endpoint': endpoint_url,
+                    'project_id': project_id
+                }
+
+                yield f"\n--- DEPLOYMENT COMPLETE ---\nJSON_RESULT:{json.dumps(result_info)}"
+
+            except Exception as e:
+                yield f"\nError during deployment: {str(e)}"
+            finally:
+                shutil.rmtree(tmp_root, ignore_errors=True)
+
+        return Response(generate_logs(), mimetype='text/plain')
+
     except Exception as exc:
         shutil.rmtree(tmp_root, ignore_errors=True)
         return jsonify({'success': False, 'error': f'准备部署目录时失败: {exc}'}), 500
-    finally:
-        shutil.rmtree(tmp_root, ignore_errors=True)
-
-    project_id = decode_project_id(token) or current_app.config.get('CEREBRIUM_PROJECT_ID')
-    endpoint_url = build_terminal_endpoint(project_id, cleaned_name)
-
-    result_payload = {
-        'success': proc.returncode == 0,
-        'returncode': proc.returncode,
-        'stdout': proc.stdout,
-        'stderr': proc.stderr,
-        'app_name': cleaned_name,
-        'hardware': hardware_key,
-        'endpoint': endpoint_url,
-        'project_id': project_id
-    }
-    status_code = 200 if proc.returncode == 0 else 500
-    return jsonify(result_payload), status_code
 
 
 IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
