@@ -524,8 +524,9 @@ def deploy_cloud_terminal_app():
             env['PYTHONUNBUFFERED'] = '1'
 
             yield "Running deployment command...\n"
+            # Rely on environment variables for authentication as per user instruction
             proc = subprocess.Popen(
-                ['cerebrium', '--service-account-token', token, 'deploy', '-y'],
+                ['cerebrium', 'deploy', '-y'],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
