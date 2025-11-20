@@ -394,11 +394,14 @@ def list_cloud_terminal_apps():
 
     try:
         # Use CLI to list apps
+        env = os.environ.copy()
+        env['CEREBRIUM_SERVICE_ACCOUNT_TOKEN'] = token
         proc = subprocess.run(
-            ['cerebrium', '--service-account-token', token, 'app', 'list'],
+            ['cerebrium', 'app', 'list'],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
+            env=env
         )
 
         if proc.returncode != 0:
@@ -522,7 +525,7 @@ def deploy_cloud_terminal_app():
 
             yield "Running deployment command...\n"
             proc = subprocess.Popen(
-                ['cerebrium', '--service-account-token', token, 'deploy', '-y'],
+                ['cerebrium', 'deploy', '-y'],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
