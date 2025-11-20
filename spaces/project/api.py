@@ -516,15 +516,25 @@ def deploy_cloud_terminal_app():
                 toml_file.write(build_cerebrium_toml(cleaned_name, preset))
 
             env = os.environ.copy()
-            env['CEREBRIUM_SERVICE_ACCOUNT_TOKEN'] = token
-            # Also set CEREBRIUM_API_KEY and CEREBRIUM_TOKEN as alternatives to ensure CLI picks it up
-            env['CEREBRIUM_API_KEY'] = token
-            env['CEREBRIUM_TOKEN'] = token
-            # Force unbuffered output
+            # Set HOME to tmp_root to isolate auth config
+            env['HOME'] = tmp_root
             env['PYTHONUNBUFFERED'] = '1'
 
+            yield "Configuring authentication...\n"
+            auth_proc = subprocess.run(
+                ['cerebrium', 'save-auth-config', token],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                cwd=deploy_dir,
+                env=env
+            )
+            if auth_proc.returncode != 0:
+                yield f"Auth Error: {auth_proc.stdout}\n"
+                yield f"JSON_RESULT:{json.dumps({'success': False, 'error': 'Authentication failed'})}"
+                return
+
             yield "Running deployment command...\n"
-            # Rely on environment variables for authentication as per user instruction
             proc = subprocess.Popen(
                 ['cerebrium', 'deploy', '-y'],
                 stdout=subprocess.PIPE,
