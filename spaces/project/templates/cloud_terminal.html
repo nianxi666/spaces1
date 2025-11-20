@@ -73,20 +73,31 @@
             </dl>
         </section>
 
-        <section class="card terminal-history">
-            <div class="section-head">
-                <h3>执行历史</h3>
-                <p class="subtitle">最近 6 条命令记录。</p>
-            </div>
-            <div class="history" id="cloud-terminal-history" aria-live="polite" aria-label="执行历史"></div>
-        </section>
+    <section class="card terminal-history">
+        <div class="section-head">
+            <h3>执行历史</h3>
+            <p class="subtitle">记录最近 6 条命令。</p>
+        </div>
+        <div class="history" id="cloud-terminal-history" aria-live="polite" aria-label="执行历史"></div>
+    </section>
     </div>
 
-    <section class="card deploy-card">
-        <div class="section-head">
-            <h3>一键部署云终端</h3>
-            <p class="subtitle">通过 VPS 执行 <code>cerebrium deploy</code>，支持覆盖同名应用。选择 H100 或 L40S 即可。</p>
+    <section class="card deploy-launcher">
+    <div>
+        <h3>一键部署云终端</h3>
+        <p class="subtitle">通过 VPS 执行 <code>cerebrium deploy</code>，支持覆盖同名应用。</p>
+    </div>
+    <button type="button" class="btn btn-primary" id="open-deploy-modal">打开部署面板</button>
+    </section>
+
+    <div class="deploy-modal" id="deploy-modal" aria-hidden="true" role="dialog" aria-labelledby="deploy-modal-title">
+    <div class="deploy-modal-backdrop" id="deploy-modal-backdrop"></div>
+    <section class="card deploy-card" role="document">
+        <div class="deploy-modal-header">
+            <h3 id="deploy-modal-title">一键部署云终端</h3>
+            <button type="button" class="ghost-btn close-modal" id="close-deploy-modal" aria-label="关闭部署面板">关闭</button>
         </div>
+        <p class="subtitle">通过 VPS 执行 <code>cerebrium deploy</code>，支持覆盖同名应用。选择 H100 或 L40S 即可。</p>
         <label class="field-label" for="deploy-app-name">应用名称（可选）</label>
         <input type="text" id="deploy-app-name" placeholder="留空使用默认名称">
 
@@ -99,12 +110,13 @@
             </button>
             {% endfor %}
         </div>
-        <p class="deploy-note">部署完成后可通过上方命令面板管理新应用，或在下方输入名称直接删除。</p>
+        <p class="deploy-note">部署完成后可通过命令面板管理新应用，或在危险操作中直接删除。</p>
         <button type="button" class="btn btn-primary deploy-btn" id="deploy-submit-button">
             <span class="spinner" id="deploy-spinner" aria-hidden="true"></span>
             部署 / 更新应用
         </button>
     </section>
+    </div>
 
     <section class="card danger-zone">
         <h3>运行环境一键删除</h3>
@@ -134,6 +146,7 @@
         </div>
         <p class="danger-note">执行前请确认 Service Account Token 已填写，系统将调用当前所选运行环境代理命令。</p>
     </section>
+
 </div>
 
 <style>
@@ -348,8 +361,68 @@
 .no-targets-placeholder {
     color: #c0392b;
 }
-.deploy-card {
+.deploy-launcher {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    background: linear-gradient(135deg, rgba(255,117,24,0.05), rgba(255,117,24,0.12));
     border: 1px solid rgba(255,117,24,0.3);
+}
+.deploy-launcher h3 {
+    margin: 0 0 4px;
+}
+.deploy-launcher .subtitle {
+    margin: 0;
+    font-size: 14px;
+    color: var(--secondary-text);
+}
+.deploy-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.deploy-modal[aria-hidden="false"] {
+    display: flex;
+}
+.deploy-modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+.deploy-modal .deploy-card {
+    position: relative;
+    z-index: 10000;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid rgba(255,117,24,0.3);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+}
+.deploy-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.deploy-modal-header h3 {
+    margin: 0;
+}
+.close-modal {
+    padding: 8px 14px;
+    font-size: 14px;
 }
 .hardware-options {
     display: grid;
@@ -480,6 +553,13 @@
         width: 100%;
         text-align: center;
     }
+    .deploy-launcher {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .deploy-launcher .btn {
+        width: 100%;
+    }
 }
 </style>
 
@@ -511,9 +591,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const deployAppInput = document.getElementById('deploy-app-name');
     const targetWrapper = document.getElementById('cloud-target-wrapper');
     const dangerSuggestions = document.getElementById('danger-suggestions');
+    const deployModal = document.getElementById('deploy-modal');
+    const openDeployModalBtn = document.getElementById('open-deploy-modal');
+    const closeDeployModalBtn = document.getElementById('close-deploy-modal');
+    const deployModalBackdrop = document.getElementById('deploy-modal-backdrop');
 
     let currentTarget = terminalTargets.length ? terminalTargets[0].name : '';
     let selectedHardware = hardwarePresets.length ? hardwarePresets[0].key : '';
+
+    function openDeployModal() {
+        deployModal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDeployModal() {
+        deployModal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    }
+
+    if (openDeployModalBtn) {
+        openDeployModalBtn.addEventListener('click', openDeployModal);
+    }
+    if (closeDeployModalBtn) {
+        closeDeployModalBtn.addEventListener('click', closeDeployModal);
+    }
+    if (deployModalBackdrop) {
+        deployModalBackdrop.addEventListener('click', closeDeployModal);
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && deployModal && deployModal.getAttribute('aria-hidden') === 'false') {
+            closeDeployModal();
+        }
+    });
 
     function updateTargetButtonStates() {
         document.querySelectorAll('.mode-toggle').forEach(btn => {
@@ -740,6 +850,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok && payload.success) {
                 metaEl.textContent = `部署成功：${payload.app_name}`;
                 updateBadge('成功');
+                closeDeployModal();
                 if (payload.endpoint && payload.app_name) {
                     addTargetFromDeployment(payload.app_name, payload.endpoint);
                 }

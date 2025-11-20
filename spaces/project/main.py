@@ -188,6 +188,13 @@ def cloud_terminal():
             if not any(t['name'] == target_name for t in terminal_targets):
                 terminal_targets.append({'name': target_name, 'url': target_url})
 
+    quick_commands = [{'label': '查看部署', 'command': 'cerebrium app ls'}]
+    for target in terminal_targets:
+        quick_commands.extend([
+            {'label': f'{target["name"]} 日志', 'command': f'cerebrium logs {target["name"]} --tail 100', 'target': target['name']},
+            {'label': f'{target["name"]} 状态', 'command': f'cerebrium app get {target["name"]}', 'target': target['name']},
+        ])
+    quick_commands.append({'label': '列出文件', 'command': 'ls -la'})
     hardware_presets = [
         {
             'key': 'l40s',
@@ -205,6 +212,7 @@ def cloud_terminal():
     has_gpu_endpoint = bool(current_app.config.get('CEREBRIUM_CLOUD_TERMINAL_GPU_URL'))
     return render_template(
         'cloud_terminal.html',
+        quick_commands=quick_commands,
         terminal_targets=terminal_targets,
         hardware_presets=hardware_presets,
         has_gpu_endpoint=has_gpu_endpoint
