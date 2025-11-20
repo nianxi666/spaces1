@@ -517,6 +517,9 @@ def deploy_cloud_terminal_app():
 
             env = os.environ.copy()
             env['CEREBRIUM_SERVICE_ACCOUNT_TOKEN'] = token
+            # Also set CEREBRIUM_API_KEY and CEREBRIUM_TOKEN as alternatives to ensure CLI picks it up
+            env['CEREBRIUM_API_KEY'] = token
+            env['CEREBRIUM_TOKEN'] = token
             # Force unbuffered output
             env['PYTHONUNBUFFERED'] = '1'
 
