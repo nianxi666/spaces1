@@ -47,11 +47,6 @@ if os.path.exists(S3_CONFIG_FILE):
         S3_BUCKET_NAME = s3_config.get('S3_BUCKET_NAME')
 
 # --- Cloud Terminal Configuration ---
-DEFAULT_CPU_ENDPOINT = 'https://api.aws.us-east-1.cerebrium.ai/v4/p-d0cdeab4/cloud-terminal/run'
-DEFAULT_GPU_ENDPOINT = 'https://api.aws.us-east-1.cerebrium.ai/v4/p-d0cdeab4/cloud-terminal-gpu/run'
-
-CEREBRIUM_CLOUD_TERMINAL_CPU_URL = os.environ.get('CEREBRIUM_CLOUD_TERMINAL_CPU_URL', DEFAULT_CPU_ENDPOINT)
-CEREBRIUM_CLOUD_TERMINAL_GPU_URL = os.environ.get('CEREBRIUM_CLOUD_TERMINAL_GPU_URL', DEFAULT_GPU_ENDPOINT)
 try:
     CEREBRIUM_CLOUD_TERMINAL_TIMEOUT = float(os.environ.get('CEREBRIUM_CLOUD_TERMINAL_TIMEOUT', '60'))
 except (TypeError, ValueError):

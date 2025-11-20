@@ -260,46 +260,6 @@
         </div>
     </div>
 
-    <section class="card danger-zone elevation-1">
-        <div class="card-header">
-            <div class="icon-container danger">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-            </div>
-            <div>
-                <h3>危险操作</h3>
-                <p class="subtitle">删除应用不可恢复</p>
-            </div>
-        </div>
-
-        <div class="input-group">
-            <label class="input-label" for="danger-app-name">应用名称</label>
-            <div class="danger-input-row">
-                <input type="text" id="danger-app-name" class="material-input danger" placeholder="cloud-terminal" value="cloud-terminal">
-                <button type="button" class="btn-elevated danger" id="danger-delete-button">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        <line x1="10" y1="11" x2="10" y2="17"/>
-                        <line x1="14" y1="11" x2="14" y2="17"/>
-                    </svg>
-                    删除应用
-                </button>
-            </div>
-        </div>
-
-        <div class="suggestion-chips" id="danger-suggestions">
-            <span class="suggestion-label">快速选择：</span>
-            <button type="button" class="chip-outline danger" data-app="cloud-terminal">cloud-terminal</button>
-            {% if has_gpu_endpoint %}
-            <button type="button" class="chip-outline danger" data-app="cloud-terminal-gpu">cloud-terminal-gpu</button>
-            {% endif %}
-            <button type="button" class="chip-outline danger" data-app="cloud-terminal-stage">cloud-terminal-stage</button>
-        </div>
-    </section>
 </div>
 
 <style>
@@ -1198,7 +1158,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const deployButton = document.getElementById('deploy-submit-button');
     const deployAppInput = document.getElementById('deploy-app-name');
     const targetWrapper = document.getElementById('cloud-target-wrapper');
-    const dangerSuggestions = document.getElementById('danger-suggestions');
     const deployModal = document.getElementById('deploy-modal');
     const openDeployModalBtn = document.getElementById('open-deploy-modal');
     const closeDeployModalBtn = document.getElementById('close-deploy-modal');
@@ -1295,14 +1254,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 group.appendChild(btn);
             }
         }
-        if (dangerSuggestions && !dangerSuggestions.querySelector(`[data-app="${name}"]`)) {
-            const suggestionBtn = document.createElement('button');
-            suggestionBtn.type = 'button';
-            suggestionBtn.className = 'chip-outline danger';
-            suggestionBtn.dataset.app = name;
-            suggestionBtn.textContent = name;
-            dangerSuggestions.appendChild(suggestionBtn);
-        }
         setTarget(name);
     }
 
@@ -1313,10 +1264,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const btn = document.querySelector(`.chip-select[data-target="${targetName}"]`);
         btn?.parentElement?.removeChild(btn);
-        
-        document.querySelectorAll(`.chip-outline[data-app="${targetName}"]`).forEach(el => {
-            el.parentElement?.removeChild(el);
-        });
         
         if (currentTarget === targetName) {
             currentTarget = terminalTargets.length ? terminalTargets[0].name : '';
@@ -1574,68 +1521,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
             event.preventDefault();
             executeCommand();
-        }
-    });
-
-    if (dangerSuggestions) {
-        dangerSuggestions.addEventListener('click', (event) => {
-            const button = event.target.closest('.chip-outline');
-            if (button?.dataset.app) {
-                const input = document.getElementById('danger-app-name');
-                if (input) input.value = button.dataset.app;
-            }
-        });
-    }
-
-    const dangerDeleteBtn = document.getElementById('danger-delete-button');
-    dangerDeleteBtn?.addEventListener('click', async () => {
-        const token = tokenInput.value.trim();
-        const appName = document.getElementById('danger-app-name').value.trim();
-
-        if (!token) {
-            metaEl.textContent = '请输入 Service Account Token';
-            updateBadge('失败');
-            return;
-        }
-        if (!appName) {
-            metaEl.textContent = '请输入应用名称';
-            updateBadge('失败');
-            return;
-        }
-
-        if (!confirm(`确定要删除应用 "${appName}" 吗？此操作不可恢复。`)) {
-            return;
-        }
-
-        dangerDeleteBtn.disabled = true;
-        updateBadge('运行中');
-        metaEl.textContent = `正在删除 ${appName}...`;
-
-        try {
-            const response = await fetch('{{ url_for("api.delete_cloud_app") }}', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token, app_name: appName })
-            });
-            const payload = await response.json();
-            
-            const logBody = `${payload.stdout || ''}${payload.stderr ? `\n⚠️ stderr:\n${payload.stderr}` : ''}`.trim() || JSON.stringify(payload, null, 2);
-            outputEl.textContent = logBody;
-            
-            if (payload.success) {
-                metaEl.textContent = `✓ 已删除应用：${appName}`;
-                updateBadge('成功');
-                removeTargetFromUI(appName);
-            } else {
-                metaEl.textContent = payload.error || '删除失败';
-                updateBadge('失败');
-            }
-        } catch (error) {
-            outputEl.textContent = error.stack || error.message;
-            metaEl.textContent = '✗ 删除请求失败';
-            updateBadge('失败');
-        } finally {
-            dangerDeleteBtn.disabled = false;
         }
     });
 });

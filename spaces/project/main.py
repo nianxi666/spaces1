@@ -165,28 +165,68 @@ def cloud_terminal():
     if not session.get('logged_in'):
         return redirect(url_for('auth.login'))
 
-    def parse_app_name(url_value, fallback):
-        try:
-            # Extract the segment before /run as app name
-            path_segments = [seg for seg in url_value.split('/') if seg]
-            if 'run' in path_segments:
-                run_index = path_segments.index('run')
-                if run_index > 0:
-                    return path_segments[run_index - 1]
-            if path_segments:
-                return path_segments[-1]
-        except Exception:
-            pass
-        return fallback
+    # Define candidate endpoints
+    # These are the standard app names we expect.
+    candidate_apps = ['cloud-terminal', 'cloud-terminal-gpu']
+    project_id = current_app.config.get('CEREBRIUM_PROJECT_ID')
 
+    # Fallback if project_id is not set: attempt to extract from a known URL structure if available
+    # or rely on what the user might have provided in env vars
+    if not project_id:
+         # If no project ID, we can't construct URLs to probe, so we can't detect anything.
+         # However, the user's example had 'p-d0cdeab4'.
+         pass
+
+    # Construct potential URLs
+    potential_targets = []
+    if project_id:
+        for app_name in candidate_apps:
+            url = f"https://api.aws.us-east-1.cerebrium.ai/v4/{project_id}/{app_name}/run"
+            potential_targets.append({'name': app_name, 'url': url})
+    else:
+        # Fallback: if we have URLs in config (which we shouldn't rely on as per new requirement,
+        # but if project_id is missing, maybe we can try to use them if they exist)
+        # Actually, the requirement is "run environment do not preset".
+        # So if we don't have a project ID, we essentially find nothing.
+        # But let's check if the old config vars are still there, maybe we can extract project_id from them.
+        # (I removed the defaults from config.py but the env vars might still be there)
+        cpu_url = current_app.config.get('CEREBRIUM_CLOUD_TERMINAL_CPU_URL')
+        if cpu_url and '/v4/' in cpu_url:
+            try:
+                parts = cpu_url.split('/v4/')[1].split('/')
+                if parts:
+                    project_id = parts[0]
+                    # Now retry building targets
+                    for app_name in candidate_apps:
+                        url = f"https://api.aws.us-east-1.cerebrium.ai/v4/{project_id}/{app_name}/run"
+                        potential_targets.append({'name': app_name, 'url': url})
+            except Exception:
+                pass
+
+    # Server-side detection
     terminal_targets = []
-    for cfg_key in ('CEREBRIUM_CLOUD_TERMINAL_CPU_URL', 'CEREBRIUM_CLOUD_TERMINAL_GPU_URL'):
-        target_url = current_app.config.get(cfg_key)
-        if target_url:
-            target_name = parse_app_name(target_url, cfg_key.lower().replace('_url', ''))
-            # Avoid duplicates by name
-            if not any(t['name'] == target_name for t in terminal_targets):
-                terminal_targets.append({'name': target_name, 'url': target_url})
+    import requests
+
+    # We use a short timeout to avoid blocking the page load for too long
+    detection_timeout = 1.0
+
+    for target in potential_targets:
+        try:
+            # We send a HEAD request.
+            # If the service exists, it might return 405 (Method Not Allowed) if it only accepts POST,
+            # or 401 (Unauthorized) if it needs token.
+            # If it doesn't exist, it should return 404.
+            # If the server is down, connection might fail.
+            response = requests.post(target['url'], json={}, timeout=detection_timeout)
+
+            # 404 means specifically "Not Found" (app doesn't exist).
+            # 200-299 is success.
+            # 400, 401, 403, 405, 500 usually mean the endpoint is THERE, just maybe rejected our empty request.
+            if response.status_code != 404:
+                terminal_targets.append(target)
+        except requests.RequestException:
+            # If connection fails (timeout, DNS error), we assume it's not available.
+            pass
 
     quick_commands = [{'label': '查看部署', 'command': 'cerebrium app ls'}]
     for target in terminal_targets:
@@ -209,7 +249,9 @@ def cloud_terminal():
             'default_app_name': 'cloud-terminal-h100'
         }
     ]
-    has_gpu_endpoint = bool(current_app.config.get('CEREBRIUM_CLOUD_TERMINAL_GPU_URL'))
+    # Determine if we have a GPU endpoint detected
+    has_gpu_endpoint = any('gpu' in t['name'] for t in terminal_targets)
+
     return render_template(
         'cloud_terminal.html',
         quick_commands=quick_commands,
