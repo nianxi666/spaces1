@@ -3,381 +3,901 @@
 {% block content %}
 <div class="cloud-terminal-page">
     <div class="terminal-grid">
-        <section class="card terminal-form">
-            <h3>认证信息</h3>
-            <label class="field-label" for="cloud-terminal-token">Service Account Token</label>
-            <div class="token-input">
-                <input type="password" id="cloud-terminal-token" placeholder="粘贴以 eyJhbGci... 开头的密钥" autocomplete="off">
-                <button type="button" class="ghost-btn" id="toggle-token-visibility">显示</button>
+        <section class="card terminal-form elevation-1">
+            <div class="card-header">
+                <div class="icon-container primary">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 17l6-6-6-6M12 19h8"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3>终端控制</h3>
+                    <p class="subtitle">执行远程命令</p>
+                </div>
             </div>
-            <div class="token-actions">
-                <button type="button" class="btn-sm" id="remember-token">保存到浏览器</button>
-                <button type="button" class="btn-sm secondary" id="forget-token">清除缓存</button>
+
+            <div class="input-group">
+                <label class="input-label" for="cloud-terminal-token">Service Account Token</label>
+                <div class="input-with-action">
+                    <input type="password" id="cloud-terminal-token" class="material-input" placeholder="eyJhbGci..." autocomplete="off">
+                    <button type="button" class="icon-btn" id="toggle-token-visibility" title="显示/隐藏">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="button-group">
+                    <button type="button" class="btn-chip" id="remember-token">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        保存
+                    </button>
+                    <button type="button" class="btn-chip secondary" id="forget-token">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                        清除
+                    </button>
+                </div>
+                <p class="input-hint" id="token-hint">密钥保存在浏览器本地存储</p>
             </div>
-            <p class="token-hint" id="token-hint">密钥会保存在本地浏览器的 LocalStorage 中。</p>
 
             <div class="divider"></div>
-            <h3>终端命令</h3>
-            <label class="field-label">运行环境</label>
-            <div id="cloud-target-wrapper">
-                {% if terminal_targets %}
-                <div class="mode-toggle-group" role="group" aria-label="终端资源选择">
-                    {% for target in terminal_targets %}
-                    <button type="button" class="mode-toggle {% if loop.first %}active{% endif %}" data-target="{{ target.name }}">
-                        <span>{{ target.name }}</span>
-                        <small>{{ target.url }}</small>
+
+            <div class="input-group">
+                <label class="input-label">运行环境</label>
+                <div id="cloud-target-wrapper">
+                    {% if terminal_targets %}
+                    <div class="chip-group" role="group" aria-label="终端资源选择">
+                        {% for target in terminal_targets %}
+                        <button type="button" class="chip-select {% if loop.first %}active{% endif %}" data-target="{{ target.name }}">
+                            <span class="chip-label">{{ target.name }}</span>
+                            <span class="chip-sublabel">{{ target.url }}</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        <p>尚未配置云终端端点</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label class="input-label" for="cloud-terminal-command">命令</label>
+                <textarea id="cloud-terminal-command" class="material-input" rows="3" placeholder="cerebrium app ls"></textarea>
+            </div>
+
+            <div class="action-row">
+                <button type="button" class="btn-elevated primary" id="run-terminal-command">
+                    <svg class="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="2" x2="12" y2="6"/>
+                        <line x1="12" y1="18" x2="12" y2="22"/>
+                        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
+                        <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
+                        <line x1="2" y1="12" x2="6" y2="12"/>
+                        <line x1="18" y1="12" x2="22" y2="12"/>
+                        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/>
+                        <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+                    </svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                    执行命令
+                </button>
+                <button type="button" class="btn-text" id="clear-terminal-output">清空输出</button>
+            </div>
+        </section>
+
+        <section class="card terminal-output elevation-1">
+            <div class="card-header">
+                <div>
+                    <h3>输出</h3>
+                    <p class="subtitle" id="terminal-meta">等待执行</p>
+                </div>
+                <span class="status-badge" id="terminal-status-badge">待机</span>
+            </div>
+            
+            <div class="terminal-screen-wrapper">
+                <pre id="cloud-terminal-output" class="terminal-screen" aria-live="polite"><code>$ 等待执行命令...</code></pre>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">命令</span>
+                    <span class="stat-value" id="detail-command">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">运行 ID</span>
+                    <span class="stat-value" id="detail-run-id">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">耗时</span>
+                    <span class="stat-value" id="detail-runtime">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">代理</span>
+                    <span class="stat-value" id="detail-proxy">-</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="card terminal-history elevation-1">
+            <div class="card-header">
+                <div class="icon-container">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3>历史记录</h3>
+                    <p class="subtitle">最近 6 条命令</p>
+                </div>
+            </div>
+            <div class="history-list" id="cloud-terminal-history" aria-live="polite" aria-label="执行历史"></div>
+        </section>
+    </div>
+
+    <section class="card deploy-launcher elevation-1">
+        <div class="card-content-row">
+            <div class="icon-container accent">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <h3>一键部署云终端</h3>
+                <p class="subtitle">快速部署到 Cerebrium 云平台</p>
+            </div>
+            <button type="button" class="btn-elevated accent" id="open-deploy-modal">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                打开部署面板
+            </button>
+        </div>
+    </section>
+
+    <div class="modal" id="deploy-modal" aria-hidden="true" role="dialog" aria-labelledby="deploy-modal-title">
+        <div class="modal-backdrop" id="deploy-modal-backdrop"></div>
+        <div class="modal-container elevation-4" role="document">
+            <div class="modal-header">
+                <div class="icon-container accent">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    </svg>
+                </div>
+                <h2 id="deploy-modal-title">部署云终端</h2>
+                <button type="button" class="icon-btn close-btn" id="close-deploy-modal" aria-label="关闭">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="input-group">
+                    <label class="input-label" for="deploy-app-name">应用名称（可选）</label>
+                    <input type="text" id="deploy-app-name" class="material-input" placeholder="留空使用默认名称">
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">硬件配置</label>
+                    <div class="hardware-grid" id="deploy-hardware-options">
+                        {% for preset in hardware_presets %}
+                        <button type="button" class="hardware-card {% if loop.first %}active{% endif %}" data-hardware="{{ preset.key }}">
+                            <div class="hardware-icon">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/>
+                                    <rect x="9" y="9" width="6" height="6"/>
+                                    <line x1="9" y1="1" x2="9" y2="4"/>
+                                    <line x1="15" y1="1" x2="15" y2="4"/>
+                                    <line x1="9" y1="20" x2="9" y2="23"/>
+                                    <line x1="15" y1="20" x2="15" y2="23"/>
+                                    <line x1="20" y1="9" x2="23" y2="9"/>
+                                    <line x1="20" y1="14" x2="23" y2="14"/>
+                                    <line x1="1" y1="9" x2="4" y2="9"/>
+                                    <line x1="1" y1="14" x2="4" y2="14"/>
+                                </svg>
+                            </div>
+                            <div class="hardware-info">
+                                <strong>{{ preset.label }}</strong>
+                                <small>{{ preset.description }}</small>
+                            </div>
+                            <div class="check-indicator">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                            </div>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <p class="info-text">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="16" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                    部署完成后会自动添加到运行环境列表
+                </p>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-text" id="cancel-deploy">取消</button>
+                    <button type="button" class="btn-elevated primary" id="deploy-submit-button">
+                        <svg class="spinner" width="18" height="18" id="deploy-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="2" x2="12" y2="6"/>
+                            <line x1="12" y1="18" x2="12" y2="22"/>
+                            <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
+                            <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
+                            <line x1="2" y1="12" x2="6" y2="12"/>
+                            <line x1="18" y1="12" x2="22" y2="12"/>
+                            <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/>
+                            <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+                        </svg>
+                        开始部署
                     </button>
-                    {% endfor %}
                 </div>
-                {% else %}
-                <p class="subtitle no-targets-placeholder" style="color:#c0392b;">尚未配置任何云终端端点，请在下方部署或手动配置 URL。</p>
-                {% endif %}
             </div>
-            <label class="field-label" for="cloud-terminal-command">命令</label>
-            <textarea id="cloud-terminal-command" rows="3" placeholder="例如：cerebrium app ls"></textarea>
-            <div class="command-actions">
-                <button type="button" class="btn btn-primary" id="run-terminal-command">
-                    <span class="spinner" aria-hidden="true"></span>
-                    执行命令 (⌘ / Ctrl + Enter)
-                </button>
-                <button type="button" class="btn secondary" id="clear-terminal-output">清空输出</button>
-            </div>
-        </section>
-
-        <section class="card terminal-output">
-            <div class="terminal-output-header">
-                <div>
-                    <h3>实时输出</h3>
-                    <p class="subtitle" id="terminal-meta">尚未执行任何命令</p>
-                </div>
-                <div class="badge" id="terminal-status-badge">待机</div>
-            </div>
-            <pre id="cloud-terminal-output" class="terminal-screen" aria-live="polite"><code>等待执行命令…</code></pre>
-            <dl class="terminal-details">
-                <div>
-                    <dt>命令</dt>
-                    <dd id="detail-command">-</dd>
-                </div>
-                <div>
-                    <dt>运行 ID</dt>
-                    <dd id="detail-run-id">-</dd>
-                </div>
-                <div>
-                    <dt>耗时</dt>
-                    <dd id="detail-runtime">-</dd>
-                </div>
-                <div>
-                    <dt>代理耗时</dt>
-                    <dd id="detail-proxy">-</dd>
-                </div>
-            </dl>
-        </section>
-
-    <section class="card terminal-history">
-        <div class="section-head">
-            <h3>执行历史</h3>
-            <p class="subtitle">记录最近 6 条命令。</p>
         </div>
-        <div class="history" id="cloud-terminal-history" aria-live="polite" aria-label="执行历史"></div>
-    </section>
     </div>
 
-    <section class="card deploy-launcher">
-    <div>
-        <h3>一键部署云终端</h3>
-        <p class="subtitle">通过 VPS 执行 <code>cerebrium deploy</code>，支持覆盖同名应用。</p>
-    </div>
-    <button type="button" class="btn btn-primary" id="open-deploy-modal">打开部署面板</button>
-    </section>
-
-    <div class="deploy-modal" id="deploy-modal" aria-hidden="true" role="dialog" aria-labelledby="deploy-modal-title">
-    <div class="deploy-modal-backdrop" id="deploy-modal-backdrop"></div>
-    <section class="card deploy-card" role="document">
-        <div class="deploy-modal-header">
-            <h3 id="deploy-modal-title">一键部署云终端</h3>
-            <button type="button" class="ghost-btn close-modal" id="close-deploy-modal" aria-label="关闭部署面板">关闭</button>
+    <section class="card danger-zone elevation-1">
+        <div class="card-header">
+            <div class="icon-container danger">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <div>
+                <h3>危险操作</h3>
+                <p class="subtitle">删除应用不可恢复</p>
+            </div>
         </div>
-        <p class="subtitle">通过 VPS 执行 <code>cerebrium deploy</code>，支持覆盖同名应用。选择 H100 或 L40S 即可。</p>
-        <label class="field-label" for="deploy-app-name">应用名称（可选）</label>
-        <input type="text" id="deploy-app-name" placeholder="留空使用默认名称">
 
-        <label class="field-label">运行硬件</label>
-        <div class="hardware-options" id="deploy-hardware-options">
-            {% for preset in hardware_presets %}
-            <button type="button" class="hardware-btn {% if loop.first %}active{% endif %}" data-hardware="{{ preset.key }}">
-                <strong>{{ preset.label }}</strong>
-                <small>{{ preset.description }}</small>
-            </button>
-            {% endfor %}
-        </div>
-        <p class="deploy-note">部署完成后可通过命令面板管理新应用，或在危险操作中直接删除。</p>
-        <button type="button" class="btn btn-primary deploy-btn" id="deploy-submit-button">
-            <span class="spinner" id="deploy-spinner" aria-hidden="true"></span>
-            部署 / 更新应用
-        </button>
-    </section>
-    </div>
-
-    <section class="card danger-zone">
-        <h3>运行环境一键删除</h3>
-        <p class="subtitle">输入任意应用名称，即可触发 <code>cerebrium app delete &lt;name&gt; --force</code>。适合清理多容器 / 多环境部署，操作不可逆。</p>
-        <div class="danger-input-group">
-            <label class="field-label" for="danger-app-name">应用名称</label>
+        <div class="input-group">
+            <label class="input-label" for="danger-app-name">应用名称</label>
             <div class="danger-input-row">
-                <input type="text" id="danger-app-name" placeholder="例如：cloud-terminal" value="cloud-terminal">
-                <button type="button" class="danger-btn" id="danger-delete-button">
-                    删除该应用
+                <input type="text" id="danger-app-name" class="material-input danger" placeholder="cloud-terminal" value="cloud-terminal">
+                <button type="button" class="btn-elevated danger" id="danger-delete-button">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        <line x1="10" y1="11" x2="10" y2="17"/>
+                        <line x1="14" y1="11" x2="14" y2="17"/>
+                    </svg>
+                    删除应用
                 </button>
             </div>
         </div>
-        <div class="danger-suggestions" id="danger-suggestions">
-            <span class="suggestion-title">快捷选择：</span>
-            <button type="button" class="danger-suggestion" data-app="cloud-terminal">
-                cloud-terminal
-            </button>
-            {% if has_gpu_endpoint %}
-            <button type="button" class="danger-suggestion" data-app="cloud-terminal-gpu">
-                cloud-terminal-gpu
-            </button>
-            {% endif %}
-            <button type="button" class="danger-suggestion" data-app="cloud-terminal-stage">
-                cloud-terminal-stage
-            </button>
-        </div>
-        <p class="danger-note">执行前请确认 Service Account Token 已填写，系统将调用当前所选运行环境代理命令。</p>
-    </section>
 
+        <div class="suggestion-chips" id="danger-suggestions">
+            <span class="suggestion-label">快速选择：</span>
+            <button type="button" class="chip-outline danger" data-app="cloud-terminal">cloud-terminal</button>
+            {% if has_gpu_endpoint %}
+            <button type="button" class="chip-outline danger" data-app="cloud-terminal-gpu">cloud-terminal-gpu</button>
+            {% endif %}
+            <button type="button" class="chip-outline danger" data-app="cloud-terminal-stage">cloud-terminal-stage</button>
+        </div>
+    </section>
 </div>
 
 <style>
+:root {
+    --md-primary: #6750A4;
+    --md-primary-container: #EADDFF;
+    --md-on-primary: #FFFFFF;
+    --md-on-primary-container: #21005E;
+    
+    --md-secondary: #625B71;
+    --md-secondary-container: #E8DEF8;
+    --md-on-secondary: #FFFFFF;
+    
+    --md-accent: #FF6B00;
+    --md-accent-container: #FFDBCC;
+    --md-on-accent: #FFFFFF;
+    
+    --md-error: #BA1A1A;
+    --md-error-container: #FFDAD6;
+    --md-on-error: #FFFFFF;
+    
+    --md-surface: #FFFFFF;
+    --md-surface-variant: #F5F5F5;
+    --md-on-surface: #1C1B1F;
+    --md-on-surface-variant: #49454E;
+    --md-outline: #79747E;
+    --md-outline-variant: #C9C5CA;
+    
+    --md-success: #00695C;
+    --md-success-container: #B2DFDB;
+    
+    --md-warning: #F57C00;
+    --md-warning-container: #FFE0B2;
+    
+    --md-shadow-1: 0 1px 2px rgba(0,0,0,0.05);
+    --md-shadow-2: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    --md-shadow-3: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+    --md-shadow-4: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+}
+
+* {
+    box-sizing: border-box;
+}
+
 .cloud-terminal-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
+
 .card {
-    background: var(--system-background);
-    border: 1px solid var(--separator-color);
-    border-radius: 16px;
+    background: var(--md-surface);
+    border-radius: 12px;
     padding: 24px;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.04);
+    border: 1px solid var(--md-outline-variant);
+    transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+.elevation-1 { box-shadow: var(--md-shadow-1); }
+.elevation-2 { box-shadow: var(--md-shadow-2); }
+.elevation-3 { box-shadow: var(--md-shadow-3); }
+.elevation-4 { box-shadow: var(--md-shadow-4); }
+
 .terminal-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
 }
-.terminal-form textarea {
-    width: 100%;
-    border-radius: 12px;
-    border: 1px solid var(--separator-color);
-    padding: 14px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-    resize: vertical;
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
 }
-.field-label {
+
+.card-header h3 {
+    margin: 0;
+    font-size: 18px;
     font-weight: 600;
-    margin: 18px 0 8px;
-    display: block;
+    color: var(--md-on-surface);
+    letter-spacing: -0.01em;
 }
-.token-input {
+
+.card-header .subtitle {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--md-on-surface-variant);
+}
+
+.icon-container {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--md-surface-variant);
+    color: var(--md-on-surface-variant);
+    flex-shrink: 0;
+}
+
+.icon-container.primary {
+    background: var(--md-primary-container);
+    color: var(--md-primary);
+}
+
+.icon-container.accent {
+    background: var(--md-accent-container);
+    color: var(--md-accent);
+}
+
+.icon-container.danger {
+    background: var(--md-error-container);
+    color: var(--md-error);
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+.input-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--md-on-surface);
+    margin-bottom: 8px;
+    letter-spacing: 0.01em;
+}
+
+.material-input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--md-on-surface);
+    background: var(--md-surface);
+    border: 1.5px solid var(--md-outline);
+    border-radius: 8px;
+    outline: none;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.material-input:focus {
+    border-color: var(--md-primary);
+    box-shadow: 0 0 0 3px var(--md-primary-container);
+}
+
+.material-input::placeholder {
+    color: var(--md-on-surface-variant);
+    opacity: 0.6;
+}
+
+.material-input.danger {
+    border-color: var(--md-outline);
+}
+
+.material-input.danger:focus {
+    border-color: var(--md-error);
+    box-shadow: 0 0 0 3px var(--md-error-container);
+}
+
+textarea.material-input {
+    resize: vertical;
+    min-height: 80px;
+    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+}
+
+.input-with-action {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-with-action input {
+    padding-right: 48px;
+}
+
+.input-with-action .icon-btn {
+    position: absolute;
+    right: 8px;
+}
+
+.icon-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--md-on-surface-variant);
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.icon-btn:hover {
+    background: var(--md-surface-variant);
+    color: var(--md-on-surface);
+}
+
+.icon-btn:active {
+    transform: scale(0.95);
+}
+
+.close-btn {
+    width: 40px;
+    height: 40px;
+}
+
+.close-btn:hover {
+    background: var(--md-error-container);
+    color: var(--md-error);
+}
+
+.button-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.btn-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--md-primary);
+    background: var(--md-primary-container);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-chip:hover {
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+    box-shadow: var(--md-shadow-2);
+}
+
+.btn-chip.secondary {
+    color: var(--md-on-surface-variant);
+    background: var(--md-surface-variant);
+}
+
+.btn-chip.secondary:hover {
+    background: var(--md-outline);
+    color: var(--md-surface);
+}
+
+.input-hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--md-on-surface-variant);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.divider {
+    height: 1px;
+    background: var(--md-outline-variant);
+    margin: 24px 0;
+}
+
+.chip-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.chip-select {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px 16px;
+    background: var(--md-surface);
+    border: 1.5px solid var(--md-outline);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: left;
+}
+
+.chip-select:hover {
+    border-color: var(--md-primary);
+    background: var(--md-primary-container);
+}
+
+.chip-select.active {
+    background: var(--md-primary);
+    border-color: var(--md-primary);
+    color: var(--md-on-primary);
+    box-shadow: var(--md-shadow-2);
+}
+
+.chip-label {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.chip-sublabel {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--md-on-surface-variant);
+}
+
+.empty-state svg {
+    margin: 0 auto 12px;
+    opacity: 0.4;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 14px;
+}
+
+.action-row {
     display: flex;
     gap: 12px;
     align-items: center;
-}
-.token-input input {
-    flex: 1;
-    padding: 12px 14px;
-    border-radius: 10px;
-    border: 1px solid var(--separator-color);
-    font-family: inherit;
-}
-.ghost-btn {
-    border: 1px solid var(--separator-color);
-    background: transparent;
-    padding: 10px 16px;
-    border-radius: 10px;
-    cursor: pointer;
-}
-.btn-sm {
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: none;
-    background: #ff7518;
-    color: #fff;
-    cursor: pointer;
-}
-.btn-sm.secondary {
-    background: #f2f2f2;
-    color: #444;
-}
-.token-actions {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: 12px;
-}
-.token-hint {
-    color: var(--secondary-text);
-    margin-top: 4px;
-    font-size: 13px;
-}
-.mode-toggle-group {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-.mode-toggle {
-    flex: 1;
-    min-width: 140px;
-    border-radius: 12px;
-    border: 1px solid var(--separator-color);
-    background: var(--system-background-secondary);
-    padding: 12px 16px;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    text-align: left;
-}
-.mode-toggle.active {
-    border-color: #ff7518;
-    background: rgba(255,117,24,0.08);
-    color: #ff7518;
-}
-.command-actions {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
     margin-top: 16px;
 }
-.command-actions .btn.secondary {
-    background: #f3f3f3;
-    color: var(--primary-text);
+
+.btn-elevated {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--md-shadow-2);
+    letter-spacing: 0.02em;
 }
+
+.btn-elevated:hover {
+    box-shadow: var(--md-shadow-3);
+    transform: translateY(-1px);
+}
+
+.btn-elevated:active {
+    transform: translateY(0);
+    box-shadow: var(--md-shadow-1);
+}
+
+.btn-elevated.primary {
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+}
+
+.btn-elevated.primary:hover {
+    background: linear-gradient(0deg, rgba(0,0,0,0.08), rgba(0,0,0,0.08)), var(--md-primary);
+}
+
+.btn-elevated.accent {
+    background: var(--md-accent);
+    color: var(--md-on-accent);
+}
+
+.btn-elevated.accent:hover {
+    background: linear-gradient(0deg, rgba(0,0,0,0.08), rgba(0,0,0,0.08)), var(--md-accent);
+}
+
+.btn-elevated.danger {
+    background: var(--md-error);
+    color: var(--md-on-error);
+}
+
+.btn-elevated.danger:hover {
+    background: linear-gradient(0deg, rgba(0,0,0,0.08), rgba(0,0,0,0.08)), var(--md-error);
+}
+
+.btn-text {
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--md-primary);
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-text:hover {
+    background: var(--md-primary-container);
+}
+
+.btn-icon {
+    flex-shrink: 0;
+}
+
 .spinner {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.4);
-    border-top-color: #fff;
+    display: none;
     animation: spin 1s linear infinite;
-    margin-right: 8px;
+}
+
+.btn-elevated:disabled .spinner {
+    display: block;
+}
+
+.btn-elevated:disabled .btn-icon {
     display: none;
 }
-.terminal-output {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+
+.btn-elevated:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
 }
-.terminal-output-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
+
+.terminal-screen-wrapper {
+    margin: 16px 0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--md-outline-variant);
+}
+
 .terminal-screen {
-    background: #111;
-    color: #0f0;
-    min-height: 280px;
-    border-radius: 12px;
-    padding: 18px;
+    background: #1E1E1E;
+    color: #22C55E;
+    padding: 20px;
+    margin: 0;
+    min-height: 200px;
+    max-height: 400px;
     overflow: auto;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-    font-size: 14px;
+    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
     white-space: pre-wrap;
+    word-wrap: break-word;
 }
-.terminal-details {
+
+.terminal-screen code {
+    font-family: inherit;
+}
+
+.stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 12px;
-    margin: 0;
+    margin-top: 16px;
 }
-.terminal-details dt {
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--md-on-surface-variant);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.stat-value {
+    font-size: 14px;
     font-weight: 600;
-    color: var(--secondary-text);
+    color: var(--md-on-surface);
+    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
 }
-.terminal-details dd {
-    margin: 4px 0 0;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-}
-.badge {
-    border-radius: 999px;
+
+.status-badge {
     padding: 6px 12px;
     font-size: 12px;
-    background: #f0f0f0;
+    font-weight: 600;
+    border-radius: 6px;
+    background: var(--md-surface-variant);
+    color: var(--md-on-surface-variant);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
-.badge.running {
-    background: #fff5cc;
-    color: #b8860b;
+
+.status-badge.running {
+    background: var(--md-warning-container);
+    color: var(--md-warning);
 }
-.badge.success {
-    background: #e6f4ea;
-    color: #1b813e;
+
+.status-badge.success {
+    background: var(--md-success-container);
+    color: var(--md-success);
 }
-.badge.error {
-    background: #ffe7e7;
-    color: #c0392b;
+
+.status-badge.error {
+    background: var(--md-error-container);
+    color: var(--md-error);
 }
-.section-head {
-    margin-bottom: 16px;
-}
-.section-head h3 {
-    margin: 0 0 4px;
-}
-.section-head .subtitle {
-    margin: 0;
-    color: var(--secondary-text);
-    font-size: 14px;
-}
-.terminal-history {
-    grid-column: 1 / -1;
-}
-.history {
+
+.history-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
 }
+
 .history-item {
-    border: 1px solid var(--separator-color);
-    border-radius: 12px;
-    padding: 12px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--md-outline-variant);
+    background: var(--md-surface);
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+.history-item:hover {
+    border-color: var(--md-outline);
+    box-shadow: var(--md-shadow-1);
+}
+
 .history-item.success {
-    border-color: rgba(27,129,62,0.3);
+    border-left: 3px solid var(--md-success);
 }
+
 .history-item.error {
-    border-color: rgba(192,57,43,0.3);
+    border-left: 3px solid var(--md-error);
 }
-.history-item .history-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-}
-.no-targets-placeholder {
-    color: #c0392b;
-}
-.deploy-launcher {
+
+.history-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 6px;
+    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--md-on-surface);
+}
+
+.history-head time {
+    font-size: 11px;
+    color: var(--md-on-surface-variant);
+}
+
+.history-meta {
+    font-size: 12px;
+    color: var(--md-on-surface-variant);
+    margin-bottom: 4px;
+}
+
+.history-summary {
+    font-size: 12px;
+    color: var(--md-on-surface-variant);
+}
+
+.deploy-launcher {
+    background: linear-gradient(135deg, var(--md-accent-container) 0%, #FFF 100%);
+    border-color: var(--md-accent);
+}
+
+.card-content-row {
+    display: flex;
+    align-items: center;
     gap: 16px;
-    background: linear-gradient(135deg, rgba(255,117,24,0.05), rgba(255,117,24,0.12));
-    border: 1px solid rgba(255,117,24,0.3);
 }
-.deploy-launcher h3 {
+
+.flex-1 {
+    flex: 1;
+}
+
+.card-content-row h3 {
     margin: 0 0 4px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--md-on-surface);
 }
-.deploy-launcher .subtitle {
+
+.card-content-row .subtitle {
     margin: 0;
-    font-size: 14px;
-    color: var(--secondary-text);
+    font-size: 13px;
+    color: var(--md-on-surface-variant);
 }
-.deploy-modal {
+
+.modal {
     position: fixed;
     top: 0;
     left: 0;
@@ -389,10 +909,12 @@
     justify-content: center;
     padding: 20px;
 }
-.deploy-modal[aria-hidden="false"] {
+
+.modal[aria-hidden="false"] {
     display: flex;
 }
-.deploy-modal-backdrop {
+
+.modal-backdrop {
     position: absolute;
     top: 0;
     left: 0;
@@ -400,165 +922,253 @@
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(4px);
+    animation: fadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.deploy-modal .deploy-card {
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-container {
     position: relative;
     z-index: 10000;
-    max-width: 600px;
+    background: var(--md-surface);
+    border-radius: 16px;
+    max-width: 560px;
     width: 100%;
     max-height: 90vh;
     overflow-y: auto;
-    border: 1px solid rgba(255,117,24,0.3);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.deploy-modal-header {
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    gap: 12px;
+    padding: 24px 24px 16px;
+    border-bottom: 1px solid var(--md-outline-variant);
 }
-.deploy-modal-header h3 {
+
+.modal-header h2 {
+    flex: 1;
     margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--md-on-surface);
 }
-.close-modal {
-    padding: 8px 14px;
-    font-size: 14px;
+
+.modal-body {
+    padding: 24px;
 }
-.hardware-options {
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--md-outline-variant);
+}
+
+.hardware-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 12px;
-    margin-bottom: 12px;
 }
-.hardware-btn {
+
+.hardware-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 20px;
+    background: var(--md-surface);
+    border: 2px solid var(--md-outline);
     border-radius: 12px;
-    border: 1px solid var(--separator-color);
-    padding: 12px 16px;
-    text-align: left;
-    background: var(--system-background-secondary);
     cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: center;
+}
+
+.hardware-card:hover {
+    border-color: var(--md-primary);
+    box-shadow: var(--md-shadow-2);
+}
+
+.hardware-card.active {
+    background: var(--md-primary-container);
+    border-color: var(--md-primary);
+    border-width: 2px;
+}
+
+.hardware-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--md-surface-variant);
+    color: var(--md-on-surface-variant);
+}
+
+.hardware-card.active .hardware-icon {
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+}
+
+.hardware-info {
     display: flex;
     flex-direction: column;
     gap: 4px;
 }
-.hardware-btn.active {
-    border-color: #ff7518;
-    background: rgba(255,117,24,0.1);
-    color: #ff7518;
-}
-.hardware-btn strong {
+
+.hardware-info strong {
     font-size: 15px;
+    font-weight: 600;
+    color: var(--md-on-surface);
 }
-.hardware-btn small {
-    font-size: 13px;
-    color: var(--secondary-text);
+
+.hardware-info small {
+    font-size: 12px;
+    color: var(--md-on-surface-variant);
 }
-.deploy-card input {
-    width: 100%;
-    border-radius: 10px;
-    border: 1px solid var(--separator-color);
-    padding: 10px 14px;
-    font-family: inherit;
-    margin-bottom: 12px;
+
+.check-indicator {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+    display: none;
+    align-items: center;
+    justify-content: center;
 }
-.deploy-note {
-    font-size: 13px;
-    color: var(--secondary-text);
-    margin: 12px 0;
+
+.hardware-card.active .check-indicator {
+    display: flex;
 }
-.deploy-btn {
-    display: inline-flex;
+
+.info-text {
+    display: flex;
     align-items: center;
     gap: 8px;
+    padding: 12px;
+    background: var(--md-primary-container);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--md-on-primary-container);
+    margin: 16px 0 0;
 }
-#deploy-spinner {
-    display: none;
-    border-color: rgba(255,255,255,0.3);
-}
+
 .danger-zone {
-    border: 1px solid rgba(192, 57, 43, 0.3);
-    background: #fff5f5;
+    background: linear-gradient(135deg, var(--md-error-container) 0%, #FFF 100%);
+    border-color: var(--md-error);
 }
-.danger-input-group {
-    margin: 16px 0;
-}
+
 .danger-input-row {
     display: flex;
     gap: 12px;
-    flex-wrap: wrap;
+    align-items: flex-end;
 }
+
 .danger-input-row input {
     flex: 1;
-    min-width: 200px;
-    border-radius: 10px;
-    border: 1px solid rgba(192, 57, 43, 0.6);
-    padding: 12px 14px;
-    font-family: inherit;
-    background: #fff;
 }
-.danger-btn {
-    min-width: 160px;
-    padding: 12px 18px;
-    border-radius: 10px;
-    border: 1px solid rgba(192, 57, 43, 0.4);
-    background: linear-gradient(135deg, #f0483e, #c0392b);
-    color: #fff;
-    font-weight: 600;
-    cursor: pointer;
-}
-.danger-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 20px rgba(192, 57, 43, 0.3);
-}
-.danger-suggestions {
+
+.suggestion-chips {
     display: flex;
     align-items: center;
+    gap: 8px;
     flex-wrap: wrap;
-    gap: 10px;
+    margin-top: 12px;
 }
-.danger-suggestion {
-    border-radius: 20px;
+
+.suggestion-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--md-on-surface-variant);
+}
+
+.chip-outline {
     padding: 6px 12px;
-    border: 1px solid rgba(192, 57, 43, 0.25);
-    background: rgba(192, 57, 43, 0.08);
+    font-size: 13px;
+    font-weight: 500;
+    background: transparent;
+    border: 1.5px solid var(--md-outline);
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 14px;
-    color: #c0392b;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.suggestion-title {
-    font-size: 13px;
-    color: #c0392b;
-    font-weight: 600;
+
+.chip-outline:hover {
+    background: var(--md-surface-variant);
+    border-color: var(--md-on-surface-variant);
 }
-.danger-note {
-    color: #c0392b;
-    font-size: 13px;
-    margin-top: 10px;
+
+.chip-outline.danger {
+    border-color: var(--md-error);
+    color: var(--md-error);
 }
-.divider {
-    height: 1px;
-    background: var(--separator-color);
-    margin: 24px 0;
+
+.chip-outline.danger:hover {
+    background: var(--md-error);
+    color: var(--md-on-error);
 }
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
+
 @media (max-width: 768px) {
-    .token-input {
-        flex-direction: column;
-        align-items: stretch;
+    .cloud-terminal-page {
+        padding: 16px;
     }
-    .ghost-btn {
-        width: 100%;
-        text-align: center;
+    
+    .terminal-grid {
+        grid-template-columns: 1fr;
     }
-    .deploy-launcher {
+    
+    .card-content-row {
         flex-direction: column;
         align-items: flex-start;
     }
-    .deploy-launcher .btn {
+    
+    .card-content-row .btn-elevated {
         width: 100%;
+    }
+    
+    .action-row {
+        flex-direction: column;
+    }
+    
+    .action-row button {
+        width: 100%;
+    }
+    
+    .danger-input-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .hardware-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .modal-container {
+        max-height: 95vh;
     }
 }
 </style>
@@ -581,13 +1191,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const detailRuntime = document.getElementById('detail-runtime');
     const detailProxy = document.getElementById('detail-proxy');
     const historyContainer = document.getElementById('cloud-terminal-history');
-    const spinner = runButton.querySelector('.spinner');
     const tokenHint = document.getElementById('token-hint');
     const terminalTargets = {{ terminal_targets | tojson | safe }};
     const hardwarePresets = {{ hardware_presets | tojson | safe }};
-    const hardwareButtons = document.querySelectorAll('.hardware-btn');
+    const hardwareButtons = document.querySelectorAll('.hardware-card');
     const deployButton = document.getElementById('deploy-submit-button');
-    const deploySpinner = document.getElementById('deploy-spinner');
     const deployAppInput = document.getElementById('deploy-app-name');
     const targetWrapper = document.getElementById('cloud-target-wrapper');
     const dangerSuggestions = document.getElementById('danger-suggestions');
@@ -595,38 +1203,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const openDeployModalBtn = document.getElementById('open-deploy-modal');
     const closeDeployModalBtn = document.getElementById('close-deploy-modal');
     const deployModalBackdrop = document.getElementById('deploy-modal-backdrop');
+    const cancelDeployBtn = document.getElementById('cancel-deploy');
 
     let currentTarget = terminalTargets.length ? terminalTargets[0].name : '';
     let selectedHardware = hardwarePresets.length ? hardwarePresets[0].key : '';
 
     function openDeployModal() {
-        deployModal.setAttribute('aria-hidden', 'false');
+        deployModal?.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
     }
 
     function closeDeployModal() {
-        deployModal.setAttribute('aria-hidden', 'true');
+        deployModal?.setAttribute('aria-hidden', 'true');
         document.body.style.overflow = '';
     }
 
-    if (openDeployModalBtn) {
-        openDeployModalBtn.addEventListener('click', openDeployModal);
-    }
-    if (closeDeployModalBtn) {
-        closeDeployModalBtn.addEventListener('click', closeDeployModal);
-    }
-    if (deployModalBackdrop) {
-        deployModalBackdrop.addEventListener('click', closeDeployModal);
-    }
+    openDeployModalBtn?.addEventListener('click', openDeployModal);
+    closeDeployModalBtn?.addEventListener('click', closeDeployModal);
+    cancelDeployBtn?.addEventListener('click', closeDeployModal);
+    deployModalBackdrop?.addEventListener('click', closeDeployModal);
 
     document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && deployModal && deployModal.getAttribute('aria-hidden') === 'false') {
+        if (event.key === 'Escape' && deployModal?.getAttribute('aria-hidden') === 'false') {
             closeDeployModal();
         }
     });
 
     function updateTargetButtonStates() {
-        document.querySelectorAll('.mode-toggle').forEach(btn => {
+        document.querySelectorAll('.chip-select').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.target === currentTarget);
         });
     }
@@ -638,16 +1242,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (targetWrapper) {
         targetWrapper.addEventListener('click', (event) => {
-            const button = event.target.closest('.mode-toggle');
-            if (button && button.dataset.target) {
+            const button = event.target.closest('.chip-select');
+            if (button?.dataset.target) {
                 setTarget(button.dataset.target);
             }
         });
     }
 
-    if (currentTarget) {
-        setTarget(currentTarget);
-    }
+    if (currentTarget) setTarget(currentTarget);
 
     function setHardwareOption(key) {
         if (!key) return;
@@ -656,23 +1258,21 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.toggle('active', btn.dataset.hardware === key);
         });
         const preset = hardwarePresets.find(p => p.key === key);
-        const placeholder = preset && preset.default_app_name ? `默认：${preset.default_app_name}` : '留空使用默认名称';
-        deployAppInput.placeholder = placeholder;
+        const placeholder = preset?.default_app_name ? `默认：${preset.default_app_name}` : '留空使用默认名称';
+        if (deployAppInput) deployAppInput.placeholder = placeholder;
     }
 
     hardwareButtons.forEach(btn => {
         btn.addEventListener('click', () => setHardwareOption(btn.dataset.hardware));
     });
-    if (selectedHardware) {
-        setHardwareOption(selectedHardware);
-    }
+    if (selectedHardware) setHardwareOption(selectedHardware);
 
     function ensureTargetGroup() {
-        let group = targetWrapper ? targetWrapper.querySelector('.mode-toggle-group') : null;
+        let group = targetWrapper?.querySelector('.chip-group');
         if (!group && targetWrapper) {
             targetWrapper.innerHTML = '';
             group = document.createElement('div');
-            group.className = 'mode-toggle-group';
+            group.className = 'chip-group';
             group.setAttribute('role', 'group');
             group.setAttribute('aria-label', '终端资源选择');
             targetWrapper.appendChild(group);
@@ -689,16 +1289,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (group) {
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'mode-toggle';
+                btn.className = 'chip-select';
                 btn.dataset.target = name;
-                btn.innerHTML = `<span>${name}</span><small>${endpoint}</small>`;
+                btn.innerHTML = `<span class="chip-label">${name}</span><span class="chip-sublabel">${endpoint}</span>`;
                 group.appendChild(btn);
             }
         }
         if (dangerSuggestions && !dangerSuggestions.querySelector(`[data-app="${name}"]`)) {
             const suggestionBtn = document.createElement('button');
             suggestionBtn.type = 'button';
-            suggestionBtn.className = 'danger-suggestion';
+            suggestionBtn.className = 'chip-outline danger';
             suggestionBtn.dataset.app = name;
             suggestionBtn.textContent = name;
             dangerSuggestions.appendChild(suggestionBtn);
@@ -709,26 +1309,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function removeTargetFromUI(targetName) {
         if (!targetName) return;
         const idx = terminalTargets.findIndex(t => t.name === targetName);
-        if (idx >= 0) {
-            terminalTargets.splice(idx, 1);
-        }
-        const btn = document.querySelector(`.mode-toggle[data-target="${targetName}"]`);
-        if (btn && btn.parentElement) {
-            btn.parentElement.removeChild(btn);
-        }
-        document.querySelectorAll(`.danger-suggestion[data-app="${targetName}"]`).forEach(el => {
-            if (el.parentElement) {
-                el.parentElement.removeChild(el);
-            }
+        if (idx >= 0) terminalTargets.splice(idx, 1);
+        
+        const btn = document.querySelector(`.chip-select[data-target="${targetName}"]`);
+        btn?.parentElement?.removeChild(btn);
+        
+        document.querySelectorAll(`.chip-outline[data-app="${targetName}"]`).forEach(el => {
+            el.parentElement?.removeChild(el);
         });
+        
         if (currentTarget === targetName) {
             currentTarget = terminalTargets.length ? terminalTargets[0].name : '';
         }
-        if (!terminalTargets.length) {
-            if (targetWrapper) {
-                targetWrapper.innerHTML = '<p class="subtitle no-targets-placeholder" style="color:#c0392b;">尚未配置任何云终端端点，请在下方部署或手动配置 URL。</p>';
-            }
-            metaEl.textContent = '已删除所有云终端环境，请刷新页面或重新部署。';
+        
+        if (!terminalTargets.length && targetWrapper) {
+            targetWrapper.innerHTML = '<div class="empty-state"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p>尚未配置云终端端点</p></div>';
+            metaEl.textContent = '已删除所有云终端环境';
             updateBadge('待机');
         } else if (currentTarget) {
             setTarget(currentTarget);
@@ -738,41 +1334,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
     if (savedToken) {
         tokenInput.value = savedToken;
-        tokenHint.textContent = '已从浏览器中读取密钥。';
+        tokenHint.textContent = '已从浏览器读取密钥';
     }
 
-    rememberButton.addEventListener('click', () => {
+    rememberButton?.addEventListener('click', () => {
         const value = tokenInput.value.trim();
         if (!value) {
-            tokenHint.textContent = '请输入密钥后再保存。';
+            tokenHint.textContent = '请先输入密钥';
             return;
         }
         localStorage.setItem(TOKEN_STORAGE_KEY, value);
-        tokenHint.textContent = '✅ 密钥仅保存在本地浏览器。';
+        tokenHint.textContent = '✓ 密钥已保存到本地';
     });
 
-    forgetButton.addEventListener('click', () => {
+    forgetButton?.addEventListener('click', () => {
         localStorage.removeItem(TOKEN_STORAGE_KEY);
         tokenInput.value = '';
-        tokenHint.textContent = '🗑️ 已清除本地缓存。';
+        tokenHint.textContent = '✓ 已清除本地缓存';
     });
 
-    toggleTokenButton.addEventListener('click', () => {
-        const show = tokenInput.type === 'password';
-        tokenInput.type = show ? 'text' : 'password';
-        toggleTokenButton.textContent = show ? '隐藏' : '显示';
+    let tokenVisible = false;
+    toggleTokenButton?.addEventListener('click', () => {
+        tokenVisible = !tokenVisible;
+        tokenInput.type = tokenVisible ? 'text' : 'password';
     });
 
     function updateBadge(state) {
         statusBadge.classList.remove('running', 'success', 'error');
         statusBadge.textContent = state;
-        if (state === '运行中') {
-            statusBadge.classList.add('running');
-        } else if (state === '成功') {
-            statusBadge.classList.add('success');
-        } else if (state === '失败') {
-            statusBadge.classList.add('error');
-        }
+        if (state === '运行中') statusBadge.classList.add('running');
+        else if (state === '成功') statusBadge.classList.add('success');
+        else if (state === '失败') statusBadge.classList.add('error');
     }
 
     function appendHistory(entry) {
@@ -783,14 +1375,16 @@ document.addEventListener('DOMContentLoaded', () => {
         head.className = 'history-head';
         const commandSpan = document.createElement('span');
         commandSpan.textContent = entry.command;
-        const timeSpan = document.createElement('span');
+        const timeSpan = document.createElement('time');
         timeSpan.textContent = entry.time;
         head.append(commandSpan, timeSpan);
 
         const metaLine = document.createElement('div');
-        metaLine.textContent = `模式：${entry.variant.toUpperCase()} ｜ 返回码：${entry.returncode ?? '-'}`;
+        metaLine.className = 'history-meta';
+        metaLine.textContent = `${entry.variant} · 返回码 ${entry.returncode ?? '-'}`;
 
         const summaryLine = document.createElement('div');
+        summaryLine.className = 'history-summary';
         summaryLine.textContent = entry.summary || '';
 
         item.append(head, metaLine, summaryLine);
@@ -804,33 +1398,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const token = tokenInput.value.trim();
         const appName = deployAppInput.value.trim();
         if (!token) {
-            metaEl.textContent = '请输入 Service Account Token。';
+            metaEl.textContent = '请输入 Service Account Token';
             updateBadge('失败');
             return;
         }
         if (!selectedHardware) {
-            metaEl.textContent = '请选择硬件配置。';
+            metaEl.textContent = '请选择硬件配置';
             updateBadge('失败');
             return;
         }
 
         deployButton.disabled = true;
-        deploySpinner.style.display = 'inline-block';
         updateBadge('运行中');
-        metaEl.textContent = '正在通过 VPS 调用 cerebrium deploy...';
+        metaEl.textContent = '正在部署到 Cerebrium...';
 
         try {
             const response = await fetch('{{ url_for("api.deploy_cloud_terminal_app") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token,
-                    app_name: appName,
-                    hardware: selectedHardware
-                })
+                body: JSON.stringify({ token, app_name: appName, hardware: selectedHardware })
             });
             const payload = await response.json();
-            const logBody = `${payload.stdout || ''}${payload.stderr ? `\nstderr:\n${payload.stderr}` : ''}`.trim() || JSON.stringify(payload, null, 2);
+            const logBody = `${payload.stdout || ''}${payload.stderr ? `\n⚠️ stderr:\n${payload.stderr}` : ''}`.trim() || JSON.stringify(payload, null, 2);
             outputEl.textContent = logBody;
             detailCommand.textContent = `deploy ${payload.app_name || appName || '-'}`;
             detailRunId.textContent = '-';
@@ -848,7 +1437,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (response.ok && payload.success) {
-                metaEl.textContent = `部署成功：${payload.app_name}`;
+                metaEl.textContent = `✓ 部署成功：${payload.app_name}`;
                 updateBadge('成功');
                 closeDeployModal();
                 if (payload.endpoint && payload.app_name) {
@@ -860,10 +1449,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             outputEl.textContent = error.stack || error.message;
-            metaEl.textContent = '部署请求失败。';
+            metaEl.textContent = '✗ 部署请求失败';
             updateBadge('失败');
         } finally {
-            deploySpinner.style.display = 'none';
             deployButton.disabled = false;
         }
     }
@@ -881,50 +1469,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!providedCommand) {
-            metaEl.textContent = '请输入命令后再执行。';
+            metaEl.textContent = '请输入命令';
             updateBadge('失败');
             statusBadge.classList.add('error');
             return;
         }
         if (!token) {
-            metaEl.textContent = '请输入 Service Account Token。';
+            metaEl.textContent = '请输入 Service Account Token';
             updateBadge('失败');
             return;
         }
         if (!targetUsed && terminalTargets.length) {
-            metaEl.textContent = '请选择运行环境。';
+            metaEl.textContent = '请选择运行环境';
             updateBadge('失败');
             return;
         }
 
         runButton.disabled = true;
-        spinner.style.display = 'inline-block';
         updateBadge('运行中');
         metaEl.textContent = '正在发送到云端...';
 
-        // 如果命令包含 cerebrium，自动注入 token 并确保 CLI 存在
         let finalCommand = providedCommand;
         if (providedCommand.includes('cerebrium ')) {
             const escaped = token.replace(/"/g, '\\"');
-            finalCommand = `export CEREBRIUM_SERVICE_ACCOUNT_TOKEN=\"${escaped}\" && pip install -q cerebrium --upgrade && ${providedCommand}`;
+            finalCommand = `export CEREBRIUM_SERVICE_ACCOUNT_TOKEN="${escaped}" && pip install -q cerebrium --upgrade && ${providedCommand}`;
         }
 
         try {
             const response = await fetch('{{ url_for("api.proxy_cloud_terminal_command") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token,
-                    command: finalCommand,
-                    target: targetUsed
-                })
+                body: JSON.stringify({ token, command: finalCommand, target: targetUsed })
             });
             const payload = await response.json();
             const remote = payload.payload || {};
             const result = remote.result || remote;
 
             if (!response.ok || !payload.success) {
-                const summary = payload.error || '远程服务返回错误。';
+                const summary = payload.error || '远程服务返回错误';
                 updateBadge('失败');
                 metaEl.textContent = summary;
                 outputEl.textContent = JSON.stringify(remote, null, 2);
@@ -941,26 +1523,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const stdout = result.stdout || '';
             const stderr = result.stderr || remote.stderr || '';
-            const body = `${stdout}${stderr ? `\n⚠️ stderr:\n${stderr}` : ''}`.trim() || JSON.stringify(remote, null, 2);
+            const body = `$ ${result.command || providedCommand}\n${stdout}${stderr ? `\n⚠️ stderr:\n${stderr}` : ''}`.trim() || JSON.stringify(remote, null, 2);
 
             outputEl.textContent = body;
             detailCommand.textContent = result.command || providedCommand;
             detailRunId.textContent = remote.run_id || '-';
             let runtimeMs = Number(result.run_time_ms);
-            if (!Number.isFinite(runtimeMs)) {
-                runtimeMs = Number(remote.run_time_ms);
-            }
-            detailRuntime.textContent = Number.isFinite(runtimeMs)
-                ? `${runtimeMs.toFixed(2)} ms`
-                : '-';
+            if (!Number.isFinite(runtimeMs)) runtimeMs = Number(remote.run_time_ms);
+            detailRuntime.textContent = Number.isFinite(runtimeMs) ? `${runtimeMs.toFixed(2)} ms` : '-';
             const proxyMs = Number(payload.proxy_latency_ms);
-            detailProxy.textContent = Number.isFinite(proxyMs)
-                ? `${proxyMs} ms`
-                : '-';
+            detailProxy.textContent = Number.isFinite(proxyMs) ? `${proxyMs} ms` : '-';
 
             const success = result.success !== false;
             updateBadge(success ? '成功' : '失败');
-            metaEl.textContent = `云端返回码 ${result.returncode ?? '-'} ｜ 环境：${targetUsed || '默认'}`;
+            metaEl.textContent = `返回码 ${result.returncode ?? '-'} · ${targetUsed || '默认环境'}`;
             appendHistory({
                 command: result.command || providedCommand,
                 time: new Date().toLocaleTimeString(),
@@ -970,11 +1546,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 summary: success ? '执行完成' : (stderr || '执行失败')
             });
 
-            // 如果是删除命令且成功，前端移除对应环境
             if (success) {
                 const lowerCommand = (result.command || providedCommand).toLowerCase();
                 const deleteMatch = lowerCommand.match(/cerebrium\s+app\s+delete\s+([^\s]+)/);
-                if (deleteMatch && deleteMatch[1]) {
+                if (deleteMatch?.[1]) {
                     removeTargetFromUI(deleteMatch[1]);
                 }
             }
@@ -983,109 +1558,86 @@ document.addEventListener('DOMContentLoaded', () => {
             metaEl.textContent = error.message;
             outputEl.textContent = error.stack || error.message;
         } finally {
-            spinner.style.display = 'none';
             runButton.disabled = false;
         }
     }
 
-    runButton.addEventListener('click', () => executeCommand());
-    if (deployButton) {
-        deployButton.addEventListener('click', deployCloudTerminalApp);
-    }
-    clearButton.addEventListener('click', () => {
-        outputEl.textContent = '等待执行命令…';
-        detailCommand.textContent = '-';
-        detailRunId.textContent = '-';
-        detailRuntime.textContent = '-';
-        detailProxy.textContent = '-';
-        metaEl.textContent = '输出已清空。';
+    runButton?.addEventListener('click', () => executeCommand());
+    deployButton?.addEventListener('click', deployCloudTerminalApp);
+    clearButton?.addEventListener('click', () => {
+        outputEl.textContent = '$ 等待执行命令...';
+        metaEl.textContent = '输出已清空';
         updateBadge('待机');
     });
-    commandInput.addEventListener('keydown', (event) => {
+
+    commandInput?.addEventListener('keydown', (event) => {
         if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
             event.preventDefault();
             executeCommand();
         }
     });
 
-    const dangerInput = document.getElementById('danger-app-name');
-    const dangerDeleteButton = document.getElementById('danger-delete-button');
-
-    if (dangerSuggestions && dangerInput) {
+    if (dangerSuggestions) {
         dangerSuggestions.addEventListener('click', (event) => {
-            const button = event.target.closest('.danger-suggestion');
-            if (!button) return;
-            const appName = button.dataset.app;
-            if (appName) {
-                dangerInput.value = appName;
+            const button = event.target.closest('.chip-outline');
+            if (button?.dataset.app) {
+                const input = document.getElementById('danger-app-name');
+                if (input) input.value = button.dataset.app;
             }
         });
     }
 
-    if (dangerDeleteButton && dangerInput) {
-        dangerDeleteButton.addEventListener('click', () => {
-            const appName = dangerInput.value.trim();
-            if (!appName) {
-                metaEl.textContent = '请输入要删除的应用名称。';
-                updateBadge('失败');
-                return;
-            }
-            if (!confirm(`确定删除 ${appName} 吗？该操作不可撤销。`)) {
-                return;
-            }
-            if (!tokenInput.value.trim()) {
-                metaEl.textContent = '请输入 Service Account Token。';
-                updateBadge('失败');
-                return;
-            }
-            runButton.disabled = true;
-            spinner.style.display = 'inline-block';
-            updateBadge('运行中');
-            metaEl.textContent = `正在删除 ${appName} ...`;
-            fetch('{{ url_for("api.delete_cloud_app") }}', {
+    const dangerDeleteBtn = document.getElementById('danger-delete-button');
+    dangerDeleteBtn?.addEventListener('click', async () => {
+        const token = tokenInput.value.trim();
+        const appName = document.getElementById('danger-app-name').value.trim();
+
+        if (!token) {
+            metaEl.textContent = '请输入 Service Account Token';
+            updateBadge('失败');
+            return;
+        }
+        if (!appName) {
+            metaEl.textContent = '请输入应用名称';
+            updateBadge('失败');
+            return;
+        }
+
+        if (!confirm(`确定要删除应用 "${appName}" 吗？此操作不可恢复。`)) {
+            return;
+        }
+
+        dangerDeleteBtn.disabled = true;
+        updateBadge('运行中');
+        metaEl.textContent = `正在删除 ${appName}...`;
+
+        try {
+            const response = await fetch('{{ url_for("api.delete_cloud_app") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token: tokenInput.value.trim(),
-                    app_name: appName
-                })
-            })
-            .then(res => res.json().then(body => ({ ok: res.ok, status: res.status, body })))
-            .then(({ ok, status, body }) => {
-                const log = (body.stdout || '') + (body.stderr ? `\nstderr:\n${body.stderr}` : '');
-                outputEl.textContent = log || JSON.stringify(body, null, 2);
-                detailCommand.textContent = `cerebrium app delete ${appName}`;
-                detailRunId.textContent = '-';
-                detailRuntime.textContent = '-';
-                detailProxy.textContent = '-';
-                appendHistory({
-                    command: `delete ${appName}`,
-                    time: new Date().toLocaleTimeString(),
-                    variant: 'cli',
-                    success: ok && body.success,
-                    returncode: body.returncode,
-                    summary: body.success ? '删除请求已执行' : (body.error || '删除失败')
-                });
-                if (ok && body.success) {
-                    metaEl.textContent = `删除 ${appName} 完成。`;
-                    updateBadge('成功');
-                    removeTargetFromUI(appName);
-                } else {
-                    metaEl.textContent = body.error || `删除失败 (HTTP ${status})`;
-                    updateBadge('失败');
-                }
-            })
-            .catch(err => {
-                outputEl.textContent = err.stack || err.message;
-                metaEl.textContent = '删除请求失败';
-                updateBadge('失败');
-            })
-            .finally(() => {
-                spinner.style.display = 'none';
-                runButton.disabled = false;
+                body: JSON.stringify({ token, app_name: appName })
             });
-        });
-    }
+            const payload = await response.json();
+            
+            const logBody = `${payload.stdout || ''}${payload.stderr ? `\n⚠️ stderr:\n${payload.stderr}` : ''}`.trim() || JSON.stringify(payload, null, 2);
+            outputEl.textContent = logBody;
+            
+            if (payload.success) {
+                metaEl.textContent = `✓ 已删除应用：${appName}`;
+                updateBadge('成功');
+                removeTargetFromUI(appName);
+            } else {
+                metaEl.textContent = payload.error || '删除失败';
+                updateBadge('失败');
+            }
+        } catch (error) {
+            outputEl.textContent = error.stack || error.message;
+            metaEl.textContent = '✗ 删除请求失败';
+            updateBadge('失败');
+        } finally {
+            dangerDeleteBtn.disabled = false;
+        }
+    });
 });
 </script>
 {% endblock %}
