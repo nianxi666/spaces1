@@ -12,6 +12,7 @@ def run(command: str):
         包含命令输出、错误信息和返回码的字典
     """
     try:
+        # 执行命令
         result = subprocess.run(
             command,
             shell=True,
@@ -35,11 +36,11 @@ def run(command: str):
             "returncode": -1,
             "command": command
         }
-    except Exception as exc:
+    except Exception as e:
         return {
             "success": False,
             "stdout": "",
-            "stderr": str(exc),
+            "stderr": str(e),
             "returncode": -1,
             "command": command
         }

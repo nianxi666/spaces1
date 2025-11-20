@@ -5,7 +5,7 @@ import threading
 import tempfile
 from datetime import datetime
 from flask import (
-    Blueprint, request, jsonify, url_for, current_app, Response
+    Blueprint, request, jsonify, url_for, current_app, Response, stream_with_context
 )
 from werkzeug.utils import secure_filename
 import time
@@ -39,19 +39,19 @@ HARDWARE_PROFILES = {
     },
     'l40s': {
         'display_name': 'NVIDIA L40S (24GB)',
-        'compute': 'L4', # Cerebrium 使用 L4 枚举来表示 L40S GPU
+        'compute': 'ADA_L40',
         'cpu': 4.0,
         'memory': 32.0,
         'docker_image': 'nvidia/cuda:12.1.0-runtime-ubuntu22.04',
-        'default_app_name': 'cloud-terminal-gpu'
+        'default_app_name': 'cloud-terminal'
     },
     'h100': {
         'display_name': 'NVIDIA H100 (80GB)',
-        'compute': 'H100',
+        'compute': 'HOPPER_H100',
         'cpu': 8.0,
         'memory': 60.0,
         'docker_image': 'nvidia/cuda:12.1.0-runtime-ubuntu22.04',
-        'default_app_name': 'cloud-terminal-gpu'
+        'default_app_name': 'cloud-terminal'
     }
 }
 
@@ -390,70 +390,90 @@ def deploy_cloud_terminal_app():
     if not preset:
         return jsonify({'success': False, 'error': '未知的硬件类型'}), 400
 
-    cleaned_name = preset.get('default_app_name') or 'cloud-terminal'
+    # Allow app_name override from request, otherwise use default from preset
+    request_app_name = (data.get('app_name') or '').strip()
+    cleaned_name = request_app_name if request_app_name else (preset.get('default_app_name') or 'cloud-terminal')
 
     source_dir = current_app.config.get('CLOUD_TERMINAL_SOURCE_DIR')
     if not source_dir or not os.path.isdir(source_dir):
         return jsonify({'success': False, 'error': '云终端源码目录不存在，请联系管理员配置 CLOUD_TERMINAL_SOURCE_DIR'}), 500
 
-    ok, cli_error = ensure_cerebrium_cli_available()
-    if not ok:
-        return jsonify({'success': False, 'error': f'安装 cerebrium CLI 失败: {cli_error}'}), 500
+    # Capture config values outside the generator to avoid context issues
+    timeout_val = current_app.config.get('CLOUD_TERMINAL_DEPLOY_TIMEOUT', 900)
+    default_project_id = current_app.config.get('CEREBRIUM_PROJECT_ID')
 
-    tmp_root = tempfile.mkdtemp(prefix='cloud-terminal-deploy-')
-    deploy_dir = os.path.join(tmp_root, 'app')
-    try:
-        shutil.copytree(source_dir, deploy_dir, dirs_exist_ok=True)
-        toml_path = os.path.join(deploy_dir, 'cerebrium.toml')
-        with open(toml_path, 'w', encoding='utf-8') as toml_file:
-            toml_file.write(build_cerebrium_toml(cleaned_name, preset))
+    def generate_logs():
+        tmp_root = None
+        try:
+            yield "Starting deployment process...\n"
 
-        env = os.environ.copy()
-        env['CEREBRIUM_SERVICE_ACCOUNT_TOKEN'] = token
-        timeout = current_app.config.get('CLOUD_TERMINAL_DEPLOY_TIMEOUT', 900)
-        def generate_logs():
-            try:
-                proc = subprocess.Popen(
-                    ['cerebrium', 'deploy'],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    cwd=deploy_dir,
-                    env=env
-                )
+            # 1. Check CLI availability
+            yield "Checking Cerebrium CLI...\n"
+            ok, cli_error = ensure_cerebrium_cli_available()
+            if not ok:
+                yield f"Error: Failed to install/find cerebrium CLI: {cli_error}\n"
+                yield f"JSON_RESULT:{json.dumps({'success': False, 'error': cli_error})}"
+                return
 
-                # Yield log lines as they come
-                for line in proc.stdout:
-                    yield line
+            # 2. Prepare directory
+            yield "Preparing deployment directory...\n"
+            tmp_root = tempfile.mkdtemp(prefix='cloud-terminal-deploy-')
+            deploy_dir = os.path.join(tmp_root, 'app')
 
-                proc.wait(timeout=timeout)
+            shutil.copytree(source_dir, deploy_dir, dirs_exist_ok=True)
+            toml_path = os.path.join(deploy_dir, 'cerebrium.toml')
+            with open(toml_path, 'w', encoding='utf-8') as toml_file:
+                toml_file.write(build_cerebrium_toml(cleaned_name, preset))
 
-                # After completion, verify success
-                success = proc.returncode == 0
-                project_id = decode_project_id(token) or current_app.config.get('CEREBRIUM_PROJECT_ID')
-                endpoint_url = build_terminal_endpoint(project_id, cleaned_name)
+            env = os.environ.copy()
+            env['CEREBRIUM_SERVICE_ACCOUNT_TOKEN'] = token
+            # Force unbuffered output
+            env['PYTHONUNBUFFERED'] = '1'
 
-                result_info = {
-                    'success': success,
-                    'returncode': proc.returncode,
-                    'app_name': cleaned_name,
-                    'hardware': hardware_key,
-                    'endpoint': endpoint_url,
-                    'project_id': project_id
-                }
+            yield "Running deployment command...\n"
+            proc = subprocess.Popen(
+                ['cerebrium', 'deploy', '-y'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                cwd=deploy_dir,
+                env=env,
+                bufsize=1 # Line buffered
+            )
 
-                yield f"\n--- DEPLOYMENT COMPLETE ---\nJSON_RESULT:{json.dumps(result_info)}"
+            # Yield log lines as they come
+            for line in iter(proc.stdout.readline, ''):
+                yield line
 
-            except Exception as e:
-                yield f"\nError during deployment: {str(e)}"
-            finally:
-                shutil.rmtree(tmp_root, ignore_errors=True)
+            proc.wait(timeout=timeout_val)
 
-        return Response(generate_logs(), mimetype='text/plain')
+            # After completion, verify success
+            success = proc.returncode == 0
+            project_id = decode_project_id(token) or default_project_id
+            endpoint_url = build_terminal_endpoint(project_id, cleaned_name)
 
-    except Exception as exc:
-        shutil.rmtree(tmp_root, ignore_errors=True)
-        return jsonify({'success': False, 'error': f'准备部署目录时失败: {exc}'}), 500
+            result_info = {
+                'success': success,
+                'returncode': proc.returncode,
+                'app_name': cleaned_name,
+                'hardware': hardware_key,
+                'endpoint': endpoint_url,
+                'project_id': project_id
+            }
+
+            yield f"\n--- DEPLOYMENT COMPLETE ---\nJSON_RESULT:{json.dumps(result_info)}"
+
+        except Exception as e:
+            yield f"\nError during deployment: {str(e)}\n"
+            yield f"JSON_RESULT:{json.dumps({'success': False, 'error': str(e)})}"
+        finally:
+            if tmp_root and os.path.exists(tmp_root):
+                try:
+                    shutil.rmtree(tmp_root, ignore_errors=True)
+                except Exception:
+                    pass
+
+    return Response(stream_with_context(generate_logs()), mimetype='text/plain')
 
 
 IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}

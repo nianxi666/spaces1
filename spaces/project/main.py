@@ -249,13 +249,13 @@ def cloud_terminal():
             'key': 'l40s',
             'label': 'L40S (24GB)',
             'description': '低成本 GPU，适合实时部署',
-            'default_app_name': 'cloud-terminal-gpu'
+            'default_app_name': 'cloud-terminal'
         },
         {
             'key': 'h100',
             'label': 'H100 (80GB)',
             'description': '最高性能 GPU，适合重度任务',
-            'default_app_name': 'cloud-terminal-gpu'
+            'default_app_name': 'cloud-terminal'
         }
     ]
     # Determine if we have a GPU endpoint detected

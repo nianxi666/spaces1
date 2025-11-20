@@ -62,21 +62,6 @@
         </div>
     </div>
 
-    <!-- Danger Zone -->
-    <div class="profile-section danger-zone">
-        <div class="profile-item-vertical">
-            <span class="item-label">危险区域</span>
-            <p>此操作会将您的账户加入删除队列，待管理员审核后，您的账户和所有相关数据将被永久删除。</p>
-            <form method="post" action="{{ url_for('auth.delete_account') }}" onsubmit="return confirm('您确定要请求删除您的账户吗？');">
-                <button type="submit" class="btn btn-danger" {% if session.username == 'admin' %}disabled{% endif %}>
-                    请求删除我的账户
-                </button>
-                {% if session.username == 'admin' %}
-                <small class="form-text text-muted mt-2">管理员账户不能被删除。</small>
-                {% endif %}
-            </form>
-        </div>
-    </div>
 </div>
 
 </div>
