@@ -168,7 +168,12 @@ def cloud_terminal():
     # Define candidate endpoints
     # These are the standard app names we expect.
     candidate_apps = ['cloud-terminal', 'cloud-terminal-gpu']
+    db = load_db()
     project_id = current_app.config.get('CEREBRIUM_PROJECT_ID')
+
+    if not project_id:
+        # Fallback: Try to get project_id from settings
+        project_id = db.get('settings', {}).get('cerebrium_project_id')
 
     # Fallback if project_id is not set: attempt to extract from a known URL structure if available
     # or rely on what the user might have provided in env vars

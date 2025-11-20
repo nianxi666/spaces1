@@ -1211,6 +1211,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (currentTarget) setTarget(currentTarget);
 
+    async function refreshAppList() {
+        const token = tokenInput.value.trim();
+        if (!token) return;
+
+        try {
+            const response = await fetch('{{ url_for("api.list_cloud_terminal_apps") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+            });
+            const data = await response.json();
+
+            if (data.success && data.apps.length > 0) {
+                // Update terminalTargets and UI
+                terminalTargets.length = 0; // Clear existing array
+                data.apps.forEach(app => {
+                    terminalTargets.push({ name: app.name, url: app.url });
+                });
+
+                const group = ensureTargetGroup();
+                if (group) {
+                    group.innerHTML = ''; // Clear existing buttons
+                    terminalTargets.forEach(target => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'chip-select';
+                        btn.dataset.target = target.name;
+                        btn.innerHTML = `<span class="chip-label">${target.name}</span><span class="chip-sublabel">${target.url}</span>`;
+                        group.appendChild(btn);
+                    });
+
+                    // If we have targets and none selected (or current invalid), select first
+                    if (!currentTarget || !terminalTargets.find(t => t.name === currentTarget)) {
+                        setTarget(terminalTargets[0].name);
+                    } else {
+                        updateTargetButtonStates();
+                    }
+
+                    // Update event listeners for new buttons
+                    // Actually event listener is on wrapper, so it's fine
+                }
+                // Re-attach click listener logic handled by wrapper delegation
+            }
+        } catch (e) {
+            console.error("Failed to refresh app list", e);
+        }
+    }
+
+    // Initial load check
+    if (savedToken) {
+        refreshAppList();
+    }
+
+    rememberButton?.addEventListener('click', () => {
+        // ... existing logic
+        refreshAppList(); // Trigger refresh on save
+    });
+
     function setHardwareOption(key) {
         if (!key) return;
         selectedHardware = key;

@@ -373,6 +373,96 @@ def build_terminal_endpoint(project_id, app_name):
     return f"{base}/{project_id}/{app_name}/run"
 
 
+@api_bp.route('/cloud-terminal/apps', methods=['POST'])
+def list_cloud_terminal_apps():
+    """
+    Lists cloud terminal apps using the provided service account token.
+    """
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    data = request.get_json(silent=True) or {}
+    token = (data.get('token') or '').strip()
+
+    if not token:
+        return jsonify({'success': False, 'error': '请填写 Service Account Token'}), 400
+
+    # Decode Project ID from token to construct endpoints if needed
+    project_id = decode_project_id(token)
+    if not project_id:
+        return jsonify({'success': False, 'error': '无效的 Token'}), 400
+
+    try:
+        # Use CLI to list apps
+        proc = subprocess.run(
+            ['cerebrium', '--service-account-token', token, 'app', 'list'],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if proc.returncode != 0:
+             return jsonify({'success': False, 'error': f'Failed to list apps: {proc.stderr}'}), 500
+
+        apps = []
+        lines = proc.stdout.splitlines()
+        # Expected format:
+        # ╭───────────────────────────  Apps  ───────────────────────────╮
+        # │                             ╷        ╷                       │
+        # │   Id                        │ Status │    Last Updated       │
+        # │  ═══════════════════════════╪════════╪═════════════════════  │
+        # │   p-d0cdeab4-cloud-terminal │ Ready  │ 2025-11-20 09:35:15   │
+        # │                             ╵        ╵                       │
+        # ╰──────────────────────────────────────────────────────────────╯
+
+        # Regex to match the content rows
+        # Looking for lines starting with │ and containing 3 columns separated by │
+        import re
+        # Matches: |  id  | status | date |
+        # The id might contain hyphens.
+        row_regex = re.compile(r'^│\s+([\w-]+)\s+│\s+(\w+)\s+│\s+(.+)\s+│$')
+
+        for line in lines:
+            line = line.strip()
+            match = row_regex.match(line)
+            if match:
+                full_id, status, last_updated = match.groups()
+
+                if full_id == 'Id':
+                    continue
+
+                # Filter based on project ID prefix to be safe, though CLI scopes to project usually
+                if full_id.startswith(f"{project_id}-"):
+                    app_name = full_id[len(project_id)+1:] # Remove prefix and dash
+                else:
+                    app_name = full_id
+
+                # Construct run endpoint
+                # https://api.aws.us-east-1.cerebrium.ai/v4/{project_id}/{app_name}/run
+                # Note: If app_name is 'cloud-terminal', url is .../cloud-terminal/run
+                # But the full_id is the name in some contexts?
+                # Actually, cerebrium CLI output 'Id' usually *is* the app name if using just 'cerebrium deploy'.
+                # But the output showed 'p-d0cdeab4-cloud-terminal'.
+                # Cerebrium names apps as {project_id}-{name} internally sometimes or just {name}.
+                # The run URL uses the short name usually.
+                # Let's assume the short name is what we want.
+
+                endpoint = f"https://api.aws.us-east-1.cerebrium.ai/v4/{project_id}/{app_name}/run"
+
+                apps.append({
+                    'name': app_name,
+                    'full_id': full_id,
+                    'status': status,
+                    'last_updated': last_updated.strip(),
+                    'url': endpoint
+                })
+
+        return jsonify({'success': True, 'apps': apps})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @api_bp.route('/cloud-terminal/deploy', methods=['POST'])
 def deploy_cloud_terminal_app():
     if not session.get('logged_in'):
@@ -432,7 +522,7 @@ def deploy_cloud_terminal_app():
 
             yield "Running deployment command...\n"
             proc = subprocess.Popen(
-                ['cerebrium', 'deploy', '-y'],
+                ['cerebrium', '--service-account-token', token, 'deploy', '-y'],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -451,6 +541,18 @@ def deploy_cloud_terminal_app():
             success = proc.returncode == 0
             project_id = decode_project_id(token) or default_project_id
             endpoint_url = build_terminal_endpoint(project_id, cleaned_name)
+
+            # Store project_id in settings if deployment was successful
+            if success and project_id:
+                try:
+                    db = load_db()
+                    if 'settings' not in db:
+                        db['settings'] = {}
+                    if db['settings'].get('cerebrium_project_id') != project_id:
+                        db['settings']['cerebrium_project_id'] = project_id
+                        save_db(db)
+                except Exception as e:
+                    yield f"Warning: Failed to save project ID to settings: {e}\n"
 
             result_info = {
                 'success': success,
