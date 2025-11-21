@@ -24,6 +24,7 @@ from .s3_utils import (
     list_files_for_user,
     get_s3_config
 )
+from .netmind_proxy import NetMindClient
 from flask import session
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -1036,3 +1037,51 @@ def get_task_status_api(task_id):
         return jsonify({'error': 'Unauthorized'}), 403
 
     return jsonify(task)
+
+
+@api_bp.route('/v1/chat/completions', methods=['POST'])
+def netmind_chat_completions():
+    """
+    OpenAI-compatible endpoint for NetMind chat completions.
+    Authenticated via PumpkinAI User Bearer Token.
+    """
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Missing or invalid Authorization header'}), 401
+
+    token = auth_header[7:]
+    if not token:
+        return jsonify({'error': 'Missing token'}), 401
+
+    user = get_user_by_token(token)
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Missing request body'}), 400
+
+    messages = data.get('messages')
+    model = data.get('model')
+    stream = data.get('stream', False)
+
+    if not messages or not model:
+        return jsonify({'error': 'Missing required parameters: messages, model'}), 400
+
+    # Security/Rate Limiting could go here
+
+    db = load_db()
+    client = NetMindClient()
+
+    try:
+        response = client.chat_completion(db, messages, model, stream=stream)
+
+        if stream:
+            return Response(response, mimetype='text/event-stream')
+        else:
+            # For sync response, OpenAI object needs to be serialized to JSON
+            # response is a ChatCompletion object from openai library
+            return jsonify(json.loads(response.model_dump_json()))
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

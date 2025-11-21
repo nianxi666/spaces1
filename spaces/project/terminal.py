@@ -107,7 +107,7 @@ def handle_users_command(args):
             return f"Error: User '{username}' already exists."
 
         users[username] = {
-            'password': generate_password_hash(password),
+            'password_hash': generate_password_hash(password),
             'is_admin': False
         }
         save_db(db)

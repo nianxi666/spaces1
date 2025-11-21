@@ -262,6 +262,8 @@ def add_edit_space(space_id=None):
             space['cover_type'] = cover_type
             space['card_type'] = card_type
             space['cerebrium_timeout_seconds'] = timeout_seconds
+            if card_type == 'netmind':
+                space['netmind_model'] = request.form.get('netmind_model', '').strip()
         else: # Creating a new space
             db['spaces'][new_id] = {
                 'id': new_id,
@@ -271,7 +273,8 @@ def add_edit_space(space_id=None):
                 'cover_type': cover_type,
                 'card_type': card_type,
                 'cerebrium_timeout_seconds': timeout_seconds,
-                'templates': {} # Initialize with an empty templates dict
+                'templates': {}, # Initialize with an empty templates dict
+                'netmind_model': request.form.get('netmind_model', '').strip() if card_type == 'netmind' else ''
             }
         save_db(db)
         flash(f"Space '{request.form['name']}' 已保存。", 'success')
@@ -451,6 +454,59 @@ def manage_keys():
         flash(f'读取文件时出错: {e}', 'error')
 
     return render_template('admin_keys.html', keys_content=keys_content)
+
+@admin_bp.route('/netmind', methods=['GET', 'POST'])
+def netmind_settings():
+    db = load_db()
+    if 'netmind_settings' not in db:
+        db['netmind_settings'] = {
+            'keys': [],
+            'ad_suffix': '',
+            'base_url': 'https://inference-api.netmind.ai/v1'
+        }
+
+    if request.method == 'POST':
+        db['netmind_settings']['base_url'] = request.form.get('base_url', '').strip()
+        db['netmind_settings']['ad_suffix'] = request.form.get('ad_suffix', '')
+        save_db(db)
+        flash('NetMind 配置已更新。', 'success')
+        return redirect(url_for('admin.netmind_settings'))
+
+    return render_template('admin_netmind.html', settings=db['netmind_settings'])
+
+@admin_bp.route('/netmind/key/add', methods=['POST'])
+def netmind_add_key():
+    db = load_db()
+    if 'netmind_settings' not in db:
+        flash('请先初始化设置。', 'error')
+        return redirect(url_for('admin.netmind_settings'))
+
+    new_key = request.form.get('new_key', '').strip()
+    if new_key:
+        if new_key not in db['netmind_settings']['keys']:
+            db['netmind_settings']['keys'].append(new_key)
+            save_db(db)
+            flash('密钥已添加。', 'success')
+        else:
+            flash('密钥已存在。', 'warning')
+    else:
+        flash('密钥不能为空。', 'error')
+
+    return redirect(url_for('admin.netmind_settings'))
+
+@admin_bp.route('/netmind/key/delete', methods=['POST'])
+def netmind_delete_key():
+    db = load_db()
+    key_to_delete = request.form.get('key_to_delete')
+
+    if key_to_delete and key_to_delete in db.get('netmind_settings', {}).get('keys', []):
+        db['netmind_settings']['keys'].remove(key_to_delete)
+        save_db(db)
+        flash('密钥已删除。', 'success')
+    else:
+        flash('未找到密钥。', 'error')
+
+    return redirect(url_for('admin.netmind_settings'))
 
 
 @admin_bp.route('/s3_settings', methods=['GET', 'POST'])

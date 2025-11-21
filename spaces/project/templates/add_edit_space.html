@@ -18,9 +18,21 @@
             <select name="card_type" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
                 <option value="standard" {% if card_type == 'standard' %}selected{% endif %}>标准命令型 (Inferless/Modal)</option>
                 <option value="cerebrium" {% if card_type == 'cerebrium' %}selected{% endif %}>Cerebrium API 型</option>
+                <option value="netmind" {% if card_type == 'netmind' %}selected{% endif %}>NetMind 聊天型</option>
             </select>
-            <small style="color: #666;">Cerebrium 类型使用外部 API 请求与网盘文件。</small>
+            <small style="color: #666;">NetMind 类型使用 API 代理进行聊天对话。</small>
         </div>
+
+        <div id="netmind-settings" style="margin-bottom: 15px; {% if card_type != 'netmind' %}display: none;{% endif %}">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">NetMind 模型 ID</label>
+            <input type="text"
+                   name="netmind_model"
+                   value="{{ space.netmind_model if space and space.netmind_model else '' }}"
+                   placeholder="例如: gpt-4-turbo 或 llama-3-70b"
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            <small style="color: #666;">请输入要使用的模型 ID，这将传递给 NetMind API。</small>
+        </div>
+
         {% set timeout_seconds = space.cerebrium_timeout_seconds if space and space.cerebrium_timeout_seconds is not none else 300 %}
         {% set timeout_minutes = (timeout_seconds / 60) | int %}
         <div id="cerebrium-settings" style="margin-bottom: 15px; {% if card_type != 'cerebrium' %}display: none;{% endif %}">
@@ -88,13 +100,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const spaceId = "{{ space.id if space else '' }}";
     const cardTypeSelect = document.querySelector('select[name="card_type"]');
     const cerebriumSettings = document.getElementById('cerebrium-settings');
+    const netmindSettings = document.getElementById('netmind-settings');
 
-    if (cardTypeSelect && cerebriumSettings) {
-        const toggleCerebriumSettings = () => {
-            cerebriumSettings.style.display = cardTypeSelect.value === 'cerebrium' ? 'block' : 'none';
+    if (cardTypeSelect) {
+        const toggleSettings = () => {
+            const val = cardTypeSelect.value;
+            if (cerebriumSettings) cerebriumSettings.style.display = val === 'cerebrium' ? 'block' : 'none';
+            if (netmindSettings) netmindSettings.style.display = val === 'netmind' ? 'block' : 'none';
         };
-        cardTypeSelect.addEventListener('change', toggleCerebriumSettings);
-        toggleCerebriumSettings();
+        cardTypeSelect.addEventListener('change', toggleSettings);
+        toggleSettings();
     }
 
     function updateCoverPreview(url, type) {

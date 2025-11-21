@@ -1,0 +1,155 @@
+{% extends "layout.html" %}
+{% block title %}NetMind 设置 - 南瓜AI 管理面板{% endblock %}
+{% block content %}
+<div class="admin-panel-container">
+    <div class="page-header">
+        <h2>NetMind 设置</h2>
+        <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-secondary">返回面板</a>
+    </div>
+
+    <div class="settings-card">
+        <h3>基本配置</h3>
+        <form method="POST" action="{{ url_for('admin.netmind_settings') }}">
+            <div class="form-group">
+                <label for="base_url">NetMind API Base URL</label>
+                <input type="text" id="base_url" name="base_url" class="form-control" value="{{ settings.base_url }}" placeholder="https://inference-api.netmind.ai/v1">
+                <small>这是连接到 NetMind 服务的 API 地址。</small>
+            </div>
+            <div class="form-group">
+                <label for="ad_suffix">广告后缀 (可选)</label>
+                <textarea id="ad_suffix" name="ad_suffix" class="form-control" rows="3" placeholder="例如：\n\n(✨ 本回复由 PumpkinAI 提供 ✨)">{{ settings.ad_suffix }}</textarea>
+                <small>此内容将自动追加到 AI 回复的末尾。</small>
+            </div>
+            <button type="submit" class="btn btn-primary">保存配置</button>
+        </form>
+    </div>
+
+    <div class="settings-card">
+        <h3>API 密钥池</h3>
+        <p>系统将轮询使用这些密钥，遇到 401/429 错误时自动切换。</p>
+
+        <form method="POST" action="{{ url_for('admin.netmind_add_key') }}" class="add-key-form">
+            <div class="input-group">
+                <input type="text" name="new_key" class="form-control" placeholder="输入新的 NetMind API Key" required>
+                <button type="submit" class="btn btn-success">添加密钥</button>
+            </div>
+        </form>
+
+        <div class="key-list">
+            {% if settings['keys'] %}
+                {% for key in settings['keys'] %}
+                <div class="key-item">
+                    <span class="key-value">{{ key[:8] }}...{{ key[-4:] }}</span>
+                    <form method="POST" action="{{ url_for('admin.netmind_delete_key') }}" style="display:inline;">
+                        <input type="hidden" name="key_to_delete" value="{{ key }}">
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('确定要删除此密钥吗？')">删除</button>
+                    </form>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="no-keys">暂无密钥，请添加。</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.admin-panel-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+.page-header h2 {
+    color: #FF7518;
+    margin: 0;
+}
+.settings-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+.settings-card h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #2C2C2C;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+.form-group {
+    margin-bottom: 20px;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+}
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    text-decoration: none;
+    color: white;
+}
+.btn-primary { background: #FF7518; }
+.btn-secondary { background: #6c757d; }
+.btn-success { background: #28a745; }
+.btn-danger { background: #dc3545; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+.add-key-form {
+    margin-bottom: 20px;
+}
+.input-group {
+    display: flex;
+    gap: 10px;
+}
+.key-list {
+    border: 1px solid #eee;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.key-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    background: #f9f9f9;
+}
+.key-item:last-child {
+    border-bottom: none;
+}
+.key-value {
+    font-family: monospace;
+    color: #555;
+}
+.no-keys {
+    padding: 20px;
+    text-align: center;
+    color: #999;
+    margin: 0;
+}
+</style>
+{% endblock %}

@@ -193,6 +193,14 @@ def init_db():
     if 'sensitive_words' not in db:
         db['sensitive_words'] = []
 
+    # Initialize netmind_settings if they don't exist
+    if 'netmind_settings' not in db:
+        db['netmind_settings'] = {
+            'keys': [],
+            'ad_suffix': '',
+            'base_url': 'https://inference-api.netmind.ai/v1' # Default NetMind base URL
+        }
+
     save_db(db)
 
 def backup_db():
