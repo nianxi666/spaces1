@@ -8,20 +8,6 @@
     </div>
 
     <div class="card" style="padding:20px;margin-bottom:30px;">
-        <h3 style="margin-top:0;">云终端 Service Token</h3>
-        <p style="color:#666;font-size:14px;margin-bottom:15px;">该 Token 将用于“云终端”功能的所有部署操作。</p>
-        <form method="post" action="{{ url_for('admin.update_user_service_token', username=target_user) }}">
-            <div class="form-row">
-                <label>Cerebrium Service Account Token</label>
-                <textarea name="service_token" rows="3" placeholder="粘贴用于部署的 Service Account Token" style="font-family: monospace;">{{ user.cerebrium_service_token }}</textarea>
-            </div>
-            <div class="config-actions" style="margin-top:10px;">
-                <button type="submit" class="btn-action primary">保存 Token</button>
-            </div>
-        </form>
-    </div>
-
-    <div class="card" style="padding:20px;margin-bottom:30px;">
         <h3 style="margin-top:0;">已分配的 GPU</h3>
         {% if user.cerebrium_configs %}
             <div class="config-grid">

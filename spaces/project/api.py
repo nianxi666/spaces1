@@ -211,48 +211,36 @@ def proxy_cloud_terminal_command():
 
     data = request.get_json(silent=True) or {}
     command = (data.get('command') or '').strip()
-    token = (data.get('token') or '').strip()
     target_name = (data.get('target') or '').strip()
 
     if not command:
         return jsonify({'success': False, 'error': '请输入要执行的命令'}), 400
 
-    if not token:
-        return jsonify({'success': False, 'error': '请填写 Service Account Token'}), 400
+    username = session['username']
+    db = load_db()
+    user = db.get('users', {}).get(username)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
 
-    def parse_app_name(url_value, fallback):
-        try:
-            path_segments = [seg for seg in url_value.split('/') if seg]
-            if 'run' in path_segments:
-                idx = path_segments.index('run')
-                if idx > 0:
-                    return path_segments[idx - 1]
-            if path_segments:
-                return path_segments[-1]
-        except Exception:
-            pass
-        return fallback
+    configs = user.get('cerebrium_configs', [])
+    if not configs:
+        return jsonify({'success': False, 'error': '未配置云终端环境，请联系管理员添加 GPU 配置'}), 400
 
-    targets = []
-    for cfg_key in ('CEREBRIUM_CLOUD_TERMINAL_CPU_URL', 'CEREBRIUM_CLOUD_TERMINAL_GPU_URL'):
-        url_value = current_app.config.get(cfg_key)
-        if url_value:
-            name = parse_app_name(url_value, cfg_key.lower().replace('_url', ''))
-            if not any(t['name'] == name for t in targets):
-                targets.append({'name': name, 'url': url_value})
-
-    if not targets:
-        return jsonify({'success': False, 'error': '云终端端点未配置'}), 503
-
-    selected_target = None
+    selected_config = None
     if target_name:
-        selected_target = next((t for t in targets if t['name'] == target_name), None)
-        if not selected_target:
-            return jsonify({'success': False, 'error': f'未找到名称为 {target_name} 的云终端配置'}), 404
-    else:
-        selected_target = targets[0]
+        selected_config = next((c for c in configs if c.get('name') == target_name), None)
 
-    target_url = selected_target['url']
+    # If no target specified or not found, default to first
+    if not selected_config:
+        if target_name:
+             return jsonify({'success': False, 'error': f'未找到名为 {target_name} 的环境配置'}), 404
+        selected_config = configs[0]
+
+    target_url = selected_config.get('api_url')
+    token = selected_config.get('api_token')
+
+    if not target_url or not token:
+        return jsonify({'success': False, 'error': '选定的环境配置不完整（缺少 URL 或 Token）'}), 500
 
     timeout = current_app.config.get('CEREBRIUM_CLOUD_TERMINAL_TIMEOUT', 60)
     headers = {
@@ -366,17 +354,10 @@ def decode_project_id(token_value):
         return None
 
 
-def build_terminal_endpoint(project_id, app_name):
-    if not project_id or not app_name:
-        return None
-    base = 'https://api.aws.us-east-1.cerebrium.ai/v4'
-    return f"{base}/{project_id}/{app_name}/run"
-
-
 @api_bp.route('/cloud-terminal/apps', methods=['POST'])
 def list_cloud_terminal_apps():
     """
-    Lists cloud terminal apps using the provided service account token.
+    Lists configured cloud terminal apps from user settings (not probing CLI).
     """
     if not session.get('logged_in'):
         return jsonify({'success': False, 'error': 'Authentication required'}), 401
@@ -387,222 +368,18 @@ def list_cloud_terminal_apps():
     if not user:
         return jsonify({'success': False, 'error': 'User not found'}), 404
 
-    token = user.get('cerebrium_service_token', '').strip()
+    configs = user.get('cerebrium_configs', [])
+    apps = []
+    for cfg in configs:
+        apps.append({
+            'name': cfg.get('name', 'Unnamed'),
+            'url': cfg.get('api_url', ''),
+            'full_id': cfg.get('id'), # Using config ID as unique ref
+            'status': 'Configured',
+            'last_updated': cfg.get('updated_at', cfg.get('created_at'))
+        })
 
-    if not token:
-        return jsonify({'success': False, 'error': '请联系管理员分配 Cerebrium Service Token'}), 400
-
-    # Decode Project ID from token to construct endpoints if needed
-    project_id = decode_project_id(token)
-    if not project_id:
-        return jsonify({'success': False, 'error': '无效的 Service Token 配置'}), 400
-
-    try:
-        # Use CLI to list apps
-        proc = subprocess.run(
-            ['cerebrium', '--service-account-token', token, 'app', 'list'],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
-
-        if proc.returncode != 0:
-             return jsonify({'success': False, 'error': f'Failed to list apps: {proc.stderr}'}), 500
-
-        apps = []
-        lines = proc.stdout.splitlines()
-        # Expected format:
-        # ╭───────────────────────────  Apps  ───────────────────────────╮
-        # │                             ╷        ╷                       │
-        # │   Id                        │ Status │    Last Updated       │
-        # │  ═══════════════════════════╪════════╪═════════════════════  │
-        # │   p-d0cdeab4-cloud-terminal │ Ready  │ 2025-11-20 09:35:15   │
-        # │                             ╵        ╵                       │
-        # ╰──────────────────────────────────────────────────────────────╯
-
-        # Regex to match the content rows
-        # Looking for lines starting with │ and containing 3 columns separated by │
-        import re
-        # Matches: |  id  | status | date |
-        # The id might contain hyphens.
-        row_regex = re.compile(r'^│\s+([\w-]+)\s+│\s+(\w+)\s+│\s+(.+)\s+│$')
-
-        for line in lines:
-            line = line.strip()
-            match = row_regex.match(line)
-            if match:
-                full_id, status, last_updated = match.groups()
-
-                if full_id == 'Id':
-                    continue
-
-                # Filter based on project ID prefix to be safe, though CLI scopes to project usually
-                if full_id.startswith(f"{project_id}-"):
-                    app_name = full_id[len(project_id)+1:] # Remove prefix and dash
-                else:
-                    app_name = full_id
-
-                # Construct run endpoint
-                # https://api.aws.us-east-1.cerebrium.ai/v4/{project_id}/{app_name}/run
-                # Note: If app_name is 'cloud-terminal', url is .../cloud-terminal/run
-                # But the full_id is the name in some contexts?
-                # Actually, cerebrium CLI output 'Id' usually *is* the app name if using just 'cerebrium deploy'.
-                # But the output showed 'p-d0cdeab4-cloud-terminal'.
-                # Cerebrium names apps as {project_id}-{name} internally sometimes or just {name}.
-                # The run URL uses the short name usually.
-                # Let's assume the short name is what we want.
-
-                endpoint = f"https://api.aws.us-east-1.cerebrium.ai/v4/{project_id}/{app_name}/run"
-
-                apps.append({
-                    'name': app_name,
-                    'full_id': full_id,
-                    'status': status,
-                    'last_updated': last_updated.strip(),
-                    'url': endpoint
-                })
-
-        return jsonify({'success': True, 'apps': apps})
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@api_bp.route('/cloud-terminal/deploy', methods=['POST'])
-def deploy_cloud_terminal_app():
-    if not session.get('logged_in'):
-        return jsonify({'success': False, 'error': 'Authentication required'}), 401
-
-    username = session['username']
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if not user:
-        return jsonify({'success': False, 'error': 'User not found'}), 404
-
-    token = user.get('cerebrium_service_token', '').strip()
-
-    if not token:
-        return jsonify({'success': False, 'error': '请联系管理员分配 Cerebrium Service Token'}), 400
-
-    data = request.get_json(silent=True) or {}
-    # token is now loaded from DB, not request
-    hardware_key = (data.get('hardware') or DEFAULT_HARDWARE_KEY).lower()
-    # App name is fixed based on hardware profile
-
-    preset = HARDWARE_PROFILES.get(hardware_key)
-    if not preset:
-        return jsonify({'success': False, 'error': '未知的硬件类型'}), 400
-
-    # Allow app_name override from request, otherwise use default from preset
-    request_app_name = (data.get('app_name') or '').strip()
-    cleaned_name = request_app_name if request_app_name else (preset.get('default_app_name') or 'cloud-terminal')
-
-    source_dir = current_app.config.get('CLOUD_TERMINAL_SOURCE_DIR')
-    if not source_dir or not os.path.isdir(source_dir):
-        return jsonify({'success': False, 'error': '云终端源码目录不存在，请联系管理员配置 CLOUD_TERMINAL_SOURCE_DIR'}), 500
-
-    # Capture config values outside the generator to avoid context issues
-    timeout_val = current_app.config.get('CLOUD_TERMINAL_DEPLOY_TIMEOUT', 900)
-    default_project_id = current_app.config.get('CEREBRIUM_PROJECT_ID')
-
-    def generate_logs():
-        tmp_root = None
-        try:
-            yield "Starting deployment process...\n"
-
-            # 1. Check CLI availability
-            yield "Checking Cerebrium CLI...\n"
-            ok, cli_error = ensure_cerebrium_cli_available()
-            if not ok:
-                yield f"Error: Failed to install/find cerebrium CLI: {cli_error}\n"
-                yield f"JSON_RESULT:{json.dumps({'success': False, 'error': cli_error})}"
-                return
-
-            # 2. Prepare directory
-            yield "Preparing deployment directory...\n"
-            tmp_root = tempfile.mkdtemp(prefix='cloud-terminal-deploy-')
-            deploy_dir = os.path.join(tmp_root, 'app')
-
-            shutil.copytree(source_dir, deploy_dir, dirs_exist_ok=True)
-            toml_path = os.path.join(deploy_dir, 'cerebrium.toml')
-            with open(toml_path, 'w', encoding='utf-8') as toml_file:
-                toml_file.write(build_cerebrium_toml(cleaned_name, preset))
-
-            env = os.environ.copy()
-            # Set HOME to tmp_root to isolate auth config
-            env['HOME'] = tmp_root
-            env['PYTHONUNBUFFERED'] = '1'
-
-            yield "Configuring authentication...\n"
-            auth_proc = subprocess.run(
-                ['cerebrium', 'save-auth-config', token],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                cwd=deploy_dir,
-                env=env
-            )
-            if auth_proc.returncode != 0:
-                yield f"Auth Error: {auth_proc.stdout}\n"
-                yield f"JSON_RESULT:{json.dumps({'success': False, 'error': 'Authentication failed'})}"
-                return
-
-            yield "Running deployment command...\n"
-            proc = subprocess.Popen(
-                ['cerebrium', 'deploy', '-y'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                cwd=deploy_dir,
-                env=env,
-                bufsize=1 # Line buffered
-            )
-
-            # Yield log lines as they come
-            for line in iter(proc.stdout.readline, ''):
-                yield line
-
-            proc.wait(timeout=timeout_val)
-
-            # After completion, verify success
-            success = proc.returncode == 0
-            project_id = decode_project_id(token) or default_project_id
-            endpoint_url = build_terminal_endpoint(project_id, cleaned_name)
-
-            # Store project_id in settings if deployment was successful
-            if success and project_id:
-                try:
-                    db = load_db()
-                    if 'settings' not in db:
-                        db['settings'] = {}
-                    if db['settings'].get('cerebrium_project_id') != project_id:
-                        db['settings']['cerebrium_project_id'] = project_id
-                        save_db(db)
-                except Exception as e:
-                    yield f"Warning: Failed to save project ID to settings: {e}\n"
-
-            result_info = {
-                'success': success,
-                'returncode': proc.returncode,
-                'app_name': cleaned_name,
-                'hardware': hardware_key,
-                'endpoint': endpoint_url,
-                'project_id': project_id
-            }
-
-            yield f"\n--- DEPLOYMENT COMPLETE ---\nJSON_RESULT:{json.dumps(result_info)}"
-
-        except Exception as e:
-            yield f"\nError during deployment: {str(e)}\n"
-            yield f"JSON_RESULT:{json.dumps({'success': False, 'error': str(e)})}"
-        finally:
-            if tmp_root and os.path.exists(tmp_root):
-                try:
-                    shutil.rmtree(tmp_root, ignore_errors=True)
-                except Exception:
-                    pass
-
-    return Response(stream_with_context(generate_logs()), mimetype='text/plain')
+    return jsonify({'success': True, 'apps': apps})
 
 
 IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}

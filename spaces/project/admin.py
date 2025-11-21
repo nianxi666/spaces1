@@ -103,19 +103,6 @@ def manage_user_cerebrium(username):
 
     return render_template('admin_user_cerebrium.html', target_user=username, user=user)
 
-@admin_bp.route('/users/<username>/cerebrium/service_token', methods=['POST'])
-def update_user_service_token(username):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if not user:
-        flash('未找到用户。', 'error')
-        return redirect(url_for('admin.manage_users'))
-
-    token = request.form.get('service_token', '').strip()
-    user['cerebrium_service_token'] = token
-    save_db(db)
-    flash('Service Token 已更新。', 'success')
-    return redirect(url_for('admin.manage_user_cerebrium', username=username))
 
 @admin_bp.route('/users/<username>/cerebrium/add', methods=['POST'])
 def add_user_cerebrium_config(username):
