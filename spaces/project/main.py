@@ -409,14 +409,7 @@ def ai_project_view(ai_project_id):
     space_card_type = ai_project.get('card_type', 'standard')
     cerebrium_timeout_seconds = ai_project.get('cerebrium_timeout_seconds', 300) or 300
 
-    if space_card_type == 'netmind':
-        return render_template(
-            'space_netmind_chat.html',
-            ai_project=ai_project,
-            api_key=api_key,
-            server_domain=db.get('settings', {}).get('server_domain', request.url_root.rstrip('/')),
-            announcement=announcement
-        )
+    announcement = db.get('announcement', {})
 
     if username:
         user_data = db["users"].get(username, {})
@@ -447,7 +440,14 @@ def ai_project_view(ai_project_id):
                     except ValueError:
                         pass
 
-    announcement = db.get('announcement', {})
+    if space_card_type == 'netmind':
+        return render_template(
+            'space_netmind_chat.html',
+            ai_project=ai_project,
+            api_key=api_key,
+            server_domain=db.get('settings', {}).get('server_domain', request.url_root.rstrip('/')),
+            announcement=announcement
+        )
 
     s3_public_base_url = None
     s3_config = get_s3_config()
