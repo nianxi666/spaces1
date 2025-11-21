@@ -198,7 +198,7 @@ def init_db():
         db['netmind_settings'] = {
             'keys': [],
             'ad_suffix': '',
-            'base_url': 'https://inference-api.netmind.ai/v1' # Default NetMind base URL
+            'base_url': 'https://api.netmind.ai/inference-api/openai/v1' # Default NetMind base URL
         }
 
     save_db(db)

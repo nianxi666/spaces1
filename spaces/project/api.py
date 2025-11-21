@@ -1086,4 +1086,9 @@ def netmind_chat_completions():
             return jsonify(json.loads(response.model_dump_json()))
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        # If it's an OpenAI API error with a status code, return that
+        if hasattr(e, 'status_code') and e.status_code:
+            return jsonify({'error': str(e)}), e.status_code
         return jsonify({'error': str(e)}), 500

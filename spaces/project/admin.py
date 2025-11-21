@@ -462,7 +462,7 @@ def netmind_settings():
         db['netmind_settings'] = {
             'keys': [],
             'ad_suffix': '',
-            'base_url': 'https://inference-api.netmind.ai/v1'
+            'base_url': 'https://api.netmind.ai/inference-api/openai/v1'
         }
 
     if request.method == 'POST':
