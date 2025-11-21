@@ -16,37 +16,6 @@
                 </div>
             </div>
 
-            <div class="input-group">
-                <label class="input-label" for="cloud-terminal-token">Service Account Token</label>
-                <div class="input-with-action">
-                    <input type="password" id="cloud-terminal-token" class="material-input" placeholder="eyJhbGci..." autocomplete="off">
-                    <button type="button" class="icon-btn" id="toggle-token-visibility" title="显示/隐藏">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                    </button>
-                </div>
-                <div class="button-group">
-                    <button type="button" class="btn-chip" id="remember-token">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                            <polyline points="17 21 17 13 7 13 7 21"/>
-                            <polyline points="7 3 7 8 15 8"/>
-                        </svg>
-                        保存
-                    </button>
-                    <button type="button" class="btn-chip secondary" id="forget-token">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"/>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        </svg>
-                        清除
-                    </button>
-                </div>
-                <p class="input-hint" id="token-hint">密钥保存在浏览器本地存储</p>
-            </div>
-
             <div class="divider"></div>
 
             <div class="input-group">
@@ -1147,14 +1116,9 @@ textarea.material-input {
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const TOKEN_STORAGE_KEY = 'cloudTerminalServiceToken';
-    const tokenInput = document.getElementById('cloud-terminal-token');
     const commandInput = document.getElementById('cloud-terminal-command');
     const runButton = document.getElementById('run-terminal-command');
     const clearButton = document.getElementById('clear-terminal-output');
-    const toggleTokenButton = document.getElementById('toggle-token-visibility');
-    const rememberButton = document.getElementById('remember-token');
-    const forgetButton = document.getElementById('forget-token');
     const outputEl = document.getElementById('cloud-terminal-output');
     const metaEl = document.getElementById('terminal-meta');
     const statusBadge = document.getElementById('terminal-status-badge');
@@ -1163,7 +1127,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const detailRuntime = document.getElementById('detail-runtime');
     const detailProxy = document.getElementById('detail-proxy');
     const historyContainer = document.getElementById('cloud-terminal-history');
-    const tokenHint = document.getElementById('token-hint');
     const terminalTargets = {{ terminal_targets | tojson | safe }};
     const hardwarePresets = {{ hardware_presets | tojson | safe }};
     const hardwareButtons = document.querySelectorAll('.hardware-card');
@@ -1233,14 +1196,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentTarget) setTarget(currentTarget);
 
     async function refreshAppList() {
-        const token = tokenInput.value.trim();
-        if (!token) return;
-
         try {
             const response = await fetch('{{ url_for("api.list_cloud_terminal_apps") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token })
+                body: JSON.stringify({})
             });
             const data = await response.json();
 
@@ -1281,23 +1241,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Initial load check
-    if (savedToken) {
-        refreshAppList();
-    }
-
-    rememberButton?.addEventListener('click', () => {
-        // ... existing logic
-        refreshAppList(); // Trigger refresh on save
-    });
+    refreshAppList();
 
     refreshTargetsBtn?.addEventListener('click', () => {
-        const token = tokenInput.value.trim();
-        if (!token) {
-            metaEl.textContent = '请输入 Service Account Token 以刷新列表';
-            updateBadge('失败');
-            return;
-        }
-
         // Add spinning animation to the button
         const svg = refreshTargetsBtn.querySelector('svg');
         if(svg) svg.classList.add('spinner');
@@ -1384,33 +1330,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    const savedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-    if (savedToken) {
-        tokenInput.value = savedToken;
-        tokenHint.textContent = '已从浏览器读取密钥';
-    }
-
-    rememberButton?.addEventListener('click', () => {
-        const value = tokenInput.value.trim();
-        if (!value) {
-            tokenHint.textContent = '请先输入密钥';
-            return;
-        }
-        localStorage.setItem(TOKEN_STORAGE_KEY, value);
-        tokenHint.textContent = '✓ 密钥已保存到本地';
-    });
-
-    forgetButton?.addEventListener('click', () => {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        tokenInput.value = '';
-        tokenHint.textContent = '✓ 已清除本地缓存';
-    });
-
-    let tokenVisible = false;
-    toggleTokenButton?.addEventListener('click', () => {
-        tokenVisible = !tokenVisible;
-        tokenInput.type = tokenVisible ? 'text' : 'password';
-    });
+    // Token handling logic removed as token is now managed by backend
 
     function updateBadge(state) {
         statusBadge.classList.remove('running', 'success', 'error');
@@ -1448,7 +1368,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function deployCloudTerminalApp() {
-        const token = tokenInput.value.trim();
         // We still send the appName from the input (which is now read-only and set by JS)
         // but backend will also enforce it.
         const appName = deployAppInput.value.trim();
@@ -1459,16 +1378,6 @@ document.addEventListener('DOMContentLoaded', () => {
             deployErrorMsg.textContent = '';
         }
 
-        if (!token) {
-            // Ensure deployErrorMsg is visible inside the modal
-            if (deployErrorMsg) {
-                deployErrorMsg.textContent = '请先在主界面输入 Service Account Token';
-                deployErrorMsg.style.display = 'block';
-            }
-            metaEl.textContent = '请输入 Service Account Token';
-            updateBadge('失败');
-            return;
-        }
         if (!selectedHardware) {
             if (deployErrorMsg) {
                 deployErrorMsg.textContent = '请选择一个硬件配置';
@@ -1488,7 +1397,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('{{ url_for("api.deploy_cloud_terminal_app") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token, app_name: appName, hardware: selectedHardware })
+                body: JSON.stringify({ app_name: appName, hardware: selectedHardware })
             });
 
             if (!response.ok) {
@@ -1570,7 +1479,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function executeCommand(commandOverride, targetOverride, options = {}) {
-        const token = tokenInput.value.trim();
         const providedCommand = (commandOverride ?? commandInput.value).trim();
         if (targetOverride && targetOverride !== currentTarget) {
             setTarget(targetOverride);
@@ -1587,11 +1495,6 @@ document.addEventListener('DOMContentLoaded', () => {
             statusBadge.classList.add('error');
             return;
         }
-        if (!token) {
-            metaEl.textContent = '请输入 Service Account Token';
-            updateBadge('失败');
-            return;
-        }
         if (!targetUsed && terminalTargets.length) {
             metaEl.textContent = '请选择运行环境';
             updateBadge('失败');
@@ -1603,16 +1506,15 @@ document.addEventListener('DOMContentLoaded', () => {
         metaEl.textContent = '正在发送到云端...';
 
         let finalCommand = providedCommand;
-        if (providedCommand.includes('cerebrium ')) {
-            const escaped = token.replace(/"/g, '\\"');
-            finalCommand = `export CEREBRIUM_SERVICE_ACCOUNT_TOKEN="${escaped}" && pip install -q cerebrium --upgrade && ${providedCommand}`;
-        }
+        // Token injection for direct command execution is handled by backend if needed,
+        // but for direct SSH-like execution, we rely on backend proxy.
+        // If command includes cerebrium CLI calls, backend sets auth.
 
         try {
             const response = await fetch('{{ url_for("api.proxy_cloud_terminal_command") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token, command: finalCommand, target: targetUsed })
+                body: JSON.stringify({ command: finalCommand, target: targetUsed })
             });
             const payload = await response.json();
             const remote = payload.payload || {};

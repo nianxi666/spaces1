@@ -381,16 +381,21 @@ def list_cloud_terminal_apps():
     if not session.get('logged_in'):
         return jsonify({'success': False, 'error': 'Authentication required'}), 401
 
-    data = request.get_json(silent=True) or {}
-    token = (data.get('token') or '').strip()
+    username = session['username']
+    db = load_db()
+    user = db.get('users', {}).get(username)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    token = user.get('cerebrium_service_token', '').strip()
 
     if not token:
-        return jsonify({'success': False, 'error': '请填写 Service Account Token'}), 400
+        return jsonify({'success': False, 'error': '请联系管理员分配 Cerebrium Service Token'}), 400
 
     # Decode Project ID from token to construct endpoints if needed
     project_id = decode_project_id(token)
     if not project_id:
-        return jsonify({'success': False, 'error': '无效的 Token'}), 400
+        return jsonify({'success': False, 'error': '无效的 Service Token 配置'}), 400
 
     try:
         # Use CLI to list apps
@@ -468,13 +473,21 @@ def deploy_cloud_terminal_app():
     if not session.get('logged_in'):
         return jsonify({'success': False, 'error': 'Authentication required'}), 401
 
-    data = request.get_json(silent=True) or {}
-    token = (data.get('token') or '').strip()
-    hardware_key = (data.get('hardware') or DEFAULT_HARDWARE_KEY).lower()
-    # App name is fixed based on hardware profile
+    username = session['username']
+    db = load_db()
+    user = db.get('users', {}).get(username)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    token = user.get('cerebrium_service_token', '').strip()
 
     if not token:
-        return jsonify({'success': False, 'error': '缺少 Service Account Token'}), 400
+        return jsonify({'success': False, 'error': '请联系管理员分配 Cerebrium Service Token'}), 400
+
+    data = request.get_json(silent=True) or {}
+    # token is now loaded from DB, not request
+    hardware_key = (data.get('hardware') or DEFAULT_HARDWARE_KEY).lower()
+    # App name is fixed based on hardware profile
 
     preset = HARDWARE_PROFILES.get(hardware_key)
     if not preset:

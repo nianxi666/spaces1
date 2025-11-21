@@ -161,6 +161,8 @@ def init_db():
             user_data['last_chat_read_time'] = 0
         if 'cerebrium_configs' not in user_data:
             user_data['cerebrium_configs'] = []
+        if 'cerebrium_service_token' not in user_data:
+            user_data['cerebrium_service_token'] = ""
 
     # Initialize articles if they don't exist
     if 'articles' not in db:
