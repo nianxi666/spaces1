@@ -24,7 +24,7 @@ from .s3_utils import (
     list_files_for_user,
     get_s3_config
 )
-from .netmind_proxy import NetMindClient
+from project.netmind_proxy import NetMindClient
 from flask import session
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -1039,6 +1039,8 @@ def get_task_status_api(task_id):
     return jsonify(task)
 
 
+# No prefix needed since it's under api_bp which has url_prefix='/api'
+# So the route is /api/v1/chat/completions
 @api_bp.route('/v1/chat/completions', methods=['POST'])
 def netmind_chat_completions():
     """
