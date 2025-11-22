@@ -20,6 +20,17 @@ from .netmind_config import (
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
+def ensure_pro_settings(db):
+    if 'pro_settings' not in db:
+        db['pro_settings'] = {
+            'enabled': False,
+            'task_description': ''
+        }
+    else:
+        db['pro_settings'].setdefault('enabled', False)
+        db['pro_settings'].setdefault('task_description', '')
+    return db['pro_settings']
+
 def ensure_netmind_settings(db):
     if 'netmind_settings' not in db:
         db['netmind_settings'] = {
@@ -110,10 +121,25 @@ def system_stats():
         # In case psutil fails for some reason
         return jsonify({'error': str(e)}), 500
 
+@admin_bp.route('/pro_settings', methods=['GET', 'POST'])
+def manage_pro_settings():
+    db = load_db()
+    settings = ensure_pro_settings(db)
+
+    if request.method == 'POST':
+        settings['enabled'] = request.form.get('enabled') == 'on'
+        settings['task_description'] = request.form.get('task_description', '')
+        save_db(db)
+        flash('Pro 会员设置已保存。', 'success')
+        return redirect(url_for('admin.manage_pro_settings'))
+
+    return render_template('admin_pro_settings.html', settings=settings)
+
 @admin_bp.route('/users')
 def manage_users():
     db = load_db()
     users = db.get('users', {})
+    pro_settings = ensure_pro_settings(db)
     users_list = []
 
     now = datetime.utcnow()
@@ -135,7 +161,33 @@ def manage_users():
 
         users_list.append(user_info)
 
-    return render_template('admin_users.html', users=users_list)
+    return render_template('admin_users.html', users=users_list, pro_enabled=pro_settings.get('enabled'))
+
+@admin_bp.route('/users/approve_pro/<username>', methods=['POST'])
+def approve_pro_user(username):
+    db = load_db()
+    user = db.get('users', {}).get(username)
+    if user:
+        user['is_pro'] = True
+        user['pro_submission_status'] = 'approved'
+        save_db(db)
+        flash(f'用户 {username} 已升级为 Pro 会员。', 'success')
+    else:
+        flash('未找到用户。', 'error')
+    return redirect(url_for('admin.manage_users'))
+
+@admin_bp.route('/users/reject_pro/<username>', methods=['POST'])
+def reject_pro_user(username):
+    db = load_db()
+    user = db.get('users', {}).get(username)
+    if user:
+        user['is_pro'] = False
+        user['pro_submission_status'] = 'rejected'
+        save_db(db)
+        flash(f'已拒绝用户 {username} 的 Pro 会员申请。', 'success')
+    else:
+        flash('未找到用户。', 'error')
+    return redirect(url_for('admin.manage_users'))
 
 @admin_bp.route('/users/<username>/custom-gpu')
 def manage_user_custom_gpu(username):
