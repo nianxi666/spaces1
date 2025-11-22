@@ -162,9 +162,6 @@ def profile():
 
 @main_bp.route('/cloud-terminal')
 def cloud_terminal():
-    if not session.get('logged_in'):
-        return redirect(url_for('auth.login'))
-
     # Define candidate endpoints
     # These are the standard app names we expect.
     candidate_apps = ['cloud-terminal', 'cloud-terminal-gpu']
