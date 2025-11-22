@@ -139,29 +139,62 @@ def manage_pro_settings():
 def manage_users():
     db = load_db()
     users = db.get('users', {})
+    daily_active_users = db.get('daily_active_users', {})
     pro_settings = ensure_pro_settings(db)
-    users_list = []
 
+    # Date filter
+    filter_date = request.args.get('date')
+
+    if filter_date:
+        # If a date is selected, only show users active on that day
+        # daily_active_users is structure: {"2023-10-27": ["username1", "username2"], ...}
+        active_users_for_date = daily_active_users.get(filter_date, [])
+        filtered_users = {u: users[u] for u in active_users_for_date if u in users}
+    else:
+        filtered_users = users
+
+    users_list = []
     now = datetime.utcnow()
     online_threshold = timedelta(minutes=5)
 
-    for username, user_data in users.items():
+    for username, user_data in filtered_users.items():
         user_info = {'username': username, **user_data}
 
         # Check for online status
         user_info['is_online'] = False
+        user_info['last_seen_relative'] = "从未"
+
         last_seen_iso = user_data.get('last_seen')
         if last_seen_iso:
             try:
                 last_seen_dt = datetime.fromisoformat(last_seen_iso)
-                if now - last_seen_dt < online_threshold:
+                diff = now - last_seen_dt
+
+                if diff < online_threshold:
                     user_info['is_online'] = True
+
+                # Format relative time
+                total_seconds = int(diff.total_seconds())
+                if total_seconds < 60:
+                     user_info['last_seen_relative'] = "刚刚"
+                elif total_seconds < 3600:
+                     user_info['last_seen_relative'] = f"{total_seconds // 60} 分钟前"
+                elif total_seconds < 86400:
+                     user_info['last_seen_relative'] = f"{total_seconds // 3600} 小时前"
+                else:
+                     user_info['last_seen_relative'] = f"{total_seconds // 86400} 天前"
+
             except (ValueError, TypeError):
                 pass # Ignore invalid format
 
         users_list.append(user_info)
 
-    return render_template('admin_users.html', users=users_list, pro_enabled=pro_settings.get('enabled'))
+    return render_template(
+        'admin_users.html',
+        users=users_list,
+        pro_enabled=pro_settings.get('enabled'),
+        selected_date=filter_date
+    )
 
 @admin_bp.route('/users/approve_pro/<username>', methods=['POST'])
 def approve_pro_user(username):

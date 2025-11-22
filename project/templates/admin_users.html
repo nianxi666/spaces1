@@ -1,0 +1,343 @@
+{% extends "layout.html" %}
+{% block title %}用户管理 - 南瓜AI{% endblock %}
+{% block content %}
+<div class="admin-panel-container">
+    <div class="page-header">
+        <h2>用户管理</h2>
+    </div>
+
+    <div class="filter-section">
+        <form action="{{ url_for('admin.manage_users') }}" method="get" class="date-filter-form">
+            <div class="form-group">
+                <label for="date-picker">按日期筛选:</label>
+                <input type="date" id="date-picker" name="date" value="{{ selected_date if selected_date else '' }}" class="date-input">
+                <button type="submit" class="btn-filter">筛选</button>
+                {% if selected_date %}
+                    <a href="{{ url_for('admin.manage_users') }}" class="btn-reset">显示全部</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <div class="users-section">
+        <div class="table-container">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>在线状态</th>
+                        <th>用户名</th>
+                        <th>最后活动</th>
+                        <th>注册时间</th>
+                        <th>推理次数</th>
+                        <th>运行次数</th>
+                        {% if pro_enabled %}
+                        <th>Pro 状态</th>
+                        {% endif %}
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td class="status-cell">
+                            <div class="status-wrapper">
+                                {% if user.is_online %}
+                                    <span class="online-indicator online" title="在线"></span>
+                                    <span class="status-text online">在线</span>
+                                {% else %}
+                                    <span class="online-indicator offline" title="离线"></span>
+                                    <span class="status-text offline">离线</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="font-medium">{{ user.username }}</td>
+                        <td class="text-muted">{{ user.last_seen_relative }}</td>
+                        <td class="text-muted">{{ user.created_at | format_datetime if user.created_at else 'N/A' }}</td>
+                        <td>{{ user.get('inference_count', 0) }}</td>
+                        <td>{{ user.get('run_count', 0) }}</td>
+                        {% if pro_enabled %}
+                        <td>
+                            {% if user.is_pro %}
+                                <span class="badge badge-success">PRO</span>
+                            {% elif user.pro_submission_status == 'pending' %}
+                                <span class="badge badge-warning">待审核</span>
+                                <div class="mt-1 text-xs">
+                                    <a href="{{ user.pro_submission_link }}" target="_blank" class="link-action">查看链接</a>
+                                </div>
+                            {% elif user.pro_submission_status == 'rejected' %}
+                                <span class="badge badge-danger">已拒绝</span>
+                            {% else %}
+                                <span class="badge badge-secondary">-</span>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{{ url_for('admin.manage_user_custom_gpu', username=user.username) }}" class="btn-icon" title="管理专用 GPU">
+                                    GPU
+                                </a>
+
+                                {% if pro_enabled and user.pro_submission_status == 'pending' %}
+                                    <form action="{{ url_for('admin.approve_pro_user', username=user.username) }}" method="post" class="inline-form">
+                                        <button type="submit" class="btn-icon success" title="通过">✓</button>
+                                    </form>
+                                    <form action="{{ url_for('admin.reject_pro_user', username=user.username) }}" method="post" class="inline-form">
+                                        <button type="submit" class="btn-icon danger" title="拒绝">✗</button>
+                                    </form>
+                                {% endif %}
+
+                                <form action="{{ url_for('admin.delete_user', username=user.username) }}" method="post" onsubmit="return confirm('确定要删除这个用户吗？');" class="inline-form">
+                                    <button type="submit" class="btn-icon delete" title="删除用户">🗑️</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            没有找到符合条件的用户
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+.admin-panel-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 30px 20px;
+}
+
+.page-header {
+    margin-bottom: 30px;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 15px;
+}
+
+.page-header h2 {
+    color: #FF7518; /* Pumpkin Orange */
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+/* Filter Section */
+.filter-section {
+    margin-bottom: 25px;
+    background: #fff;
+    padding: 15px 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    border-left: 4px solid #FF7518;
+}
+
+.date-filter-form .form-group {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.date-filter-form label {
+    font-weight: 600;
+    color: #555;
+}
+
+.date-input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.btn-filter {
+    padding: 8px 20px;
+    background: #FF7518;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.btn-filter:hover {
+    background: #e66000;
+}
+
+.btn-reset {
+    color: #666;
+    text-decoration: none;
+    font-size: 14px;
+    border-bottom: 1px dashed #999;
+}
+
+.btn-reset:hover {
+    color: #333;
+    border-bottom-style: solid;
+}
+
+/* Table Styles */
+.table-container {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.users-table thead {
+    background: #f8f9fa;
+    border-bottom: 2px solid #eaeaea;
+}
+
+.users-table th {
+    padding: 18px 20px;
+    text-align: left;
+    color: #444;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+}
+
+.users-table tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s ease;
+}
+
+.users-table tbody tr:hover {
+    background: #fff8f3; /* Very light orange tint */
+}
+
+.users-table td {
+    padding: 16px 20px;
+    color: #333;
+    vertical-align: middle;
+}
+
+.font-medium {
+    font-weight: 500;
+}
+
+.text-muted {
+    color: #888;
+    font-size: 13px;
+}
+
+/* Status Indicator */
+.status-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.online-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.online-indicator.online {
+    background-color: #10b981; /* Green */
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.online-indicator.offline {
+    background-color: #d1d5db; /* Gray */
+}
+
+.status-text {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.status-text.online {
+    color: #059669;
+}
+
+.status-text.offline {
+    color: #6b7280;
+}
+
+/* Badges */
+.badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.badge-success { background-color: #d1fae5; color: #065f46; }
+.badge-warning { background-color: #fef3c7; color: #92400e; }
+.badge-danger { background-color: #fee2e2; color: #991b1b; }
+.badge-secondary { background-color: #f3f4f6; color: #4b5563; }
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.inline-form {
+    margin: 0;
+}
+
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid #eee;
+    background: white;
+    color: #555;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.btn-icon:hover {
+    background: #f9f9f9;
+    border-color: #ddd;
+    transform: translateY(-1px);
+}
+
+.btn-icon.success { color: #10b981; border-color: #d1fae5; background: #ecfdf5; }
+.btn-icon.success:hover { background: #d1fae5; }
+
+.btn-icon.danger { color: #ef4444; border-color: #fee2e2; background: #fef2f2; }
+.btn-icon.danger:hover { background: #fee2e2; }
+
+.btn-icon.delete { color: #6b7280; }
+.btn-icon.delete:hover { color: #ef4444; background: #fff1f2; border-color: #fecaca; }
+
+.link-action {
+    color: #3b82f6;
+    text-decoration: none;
+}
+.link-action:hover {
+    text-decoration: underline;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px !important;
+    color: #888;
+    font-style: italic;
+}
+</style>
+{% endblock %}

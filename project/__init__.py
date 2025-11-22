@@ -94,6 +94,18 @@ def create_app(test_config=None):
                     except (ValueError, TypeError):
                         pass # If format is invalid, update it anyway
 
+                # Track daily active users
+                today_str = now.strftime('%Y-%m-%d')
+                if 'daily_active_users' not in db:
+                    db['daily_active_users'] = {}
+
+                if today_str not in db['daily_active_users']:
+                    db['daily_active_users'][today_str] = []
+
+                if session['username'] not in db['daily_active_users'][today_str]:
+                    db['daily_active_users'][today_str].append(session['username'])
+                    needs_update = True
+
                 if needs_update:
                     user['last_seen'] = now.isoformat()
                     save_db(db)

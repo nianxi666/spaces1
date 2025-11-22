@@ -75,6 +75,7 @@ def get_default_db_structure():
             "show_on_projects": False
         },
         "user_states": {},
+        "daily_active_users": {},
         "sensitive_words": [],
         "netmind_settings": {
             "keys": [],
@@ -209,6 +210,10 @@ def init_db():
     # Initialize user_states if they don't exist
     if 'user_states' not in db:
         db['user_states'] = {}
+
+    # Initialize daily_active_users if they don't exist
+    if 'daily_active_users' not in db:
+        db['daily_active_users'] = {}
 
     # Initialize sensitive_words if they don't exist
     if 'sensitive_words' not in db:
