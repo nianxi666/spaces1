@@ -41,6 +41,9 @@
             <button id="muteBtn" class="btn" title="全局禁言">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
             </button>
+            <button id="toggleChatBtn" class="btn" title="开启/关闭聊天功能">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </button>
             <a href="{{ url_for('admin.add_edit_space') }}" class="btn btn-primary" title="添加AI项目">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </a>
@@ -711,6 +714,28 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             console.error('禁言操作失败:', error);
             alert('禁言操作失败，请查看控制台日志。');
+        }
+    });
+
+    const toggleChatBtn = document.getElementById('toggleChatBtn');
+    toggleChatBtn.addEventListener('click', async () => {
+        if (!confirm('确定要切换聊天功能的开启状态吗？\n关闭后，所有用户的聊天图标和功能将消失。')) {
+            return;
+        }
+        try {
+            const response = await fetch("{{ url_for('api.toggle_chat_enabled') }}", {
+                method: 'POST'
+            });
+            const result = await response.json();
+            if (result.success) {
+                alert(result.message);
+                // Optional: Update button style/icon to reflect state if needed
+            } else {
+                alert('操作失败: ' + result.error);
+            }
+        } catch (error) {
+            console.error('切换聊天状态失败:', error);
+            alert('操作失败，请查看控制台日志。');
         }
     });
 });

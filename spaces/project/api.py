@@ -1182,6 +1182,11 @@ def get_chat_messages():
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
     db = load_db()
+
+    # Check if chat is enabled
+    if not db.get('settings', {}).get('chat_enabled', True) and not session.get('is_admin'):
+        return jsonify({'success': False, 'error': 'Chat is disabled'}), 403
+
     # Return the last 50 messages
     messages = db.get('chat_messages', [])[-50:]
     # Enrich messages with user info
@@ -1209,6 +1214,9 @@ def post_chat_message():
         return jsonify({'success': False, 'error': 'Message cannot be empty'}), 400
 
     db = load_db()
+
+    if not db.get('settings', {}).get('chat_enabled', True) and not session.get('is_admin'):
+        return jsonify({'success': False, 'error': '聊天功能已关闭。'}), 403
 
     if db.get('settings', {}).get('chat_is_muted', False) and not session.get('is_admin'):
         return jsonify({'success': False, 'error': '聊天室当前处于禁言状态。'}), 403
@@ -1258,6 +1266,26 @@ def delete_chat_message(message_id):
     save_db(db)
 
     return jsonify({'success': True, 'message': 'Message deleted'})
+
+@api_bp.route('/chat/toggle_enabled', methods=['POST'])
+def toggle_chat_enabled():
+    if not session.get('logged_in') or not session.get('is_admin'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    db = load_db()
+    # Default to True if not set
+    current_status = db.get('settings', {}).get('chat_enabled', True)
+
+    if 'settings' not in db:
+        db['settings'] = {}
+
+    db['settings']['chat_enabled'] = not current_status
+    save_db(db)
+
+    new_status = not current_status
+    message = '聊天功能已开启。' if new_status else '聊天功能已关闭。'
+
+    return jsonify({'success': True, 'message': message, 'chat_enabled': new_status})
 
 @api_bp.route('/chat/mute', methods=['POST'])
 def toggle_chat_mute():
