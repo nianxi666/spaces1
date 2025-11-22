@@ -2,7 +2,7 @@ import os
 from datetime import timedelta
 
 # --- Flask App Configuration ---
-SECRET_KEY = b'\x8a\x9b\x1f\xda\x0c\xd7\x8e\x9a\xf1\x1b\x1f\x9e\xee\x8f\x1c\x8a\x8f\x9b\xec\x9f\x1a\x9e\x8c\xbf'
+SECRET_KEY = os.environ.get('SECRET_KEY') or b'\x8a\x9b\x1f\xda\x0c\xd7\x8e\x9a\xf1\x1b\x1f\x9e\xee\x8f\x1c\x8a\x8f\x9b\xec\x9f\x1a\x9e\x8c\xbf'
 PERMANENT_SESSION_LIFETIME = timedelta(days=30)
 MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100MB
 
@@ -23,12 +23,12 @@ COVER_FOLDER = os.path.join('static', 'covers')
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov', 'avi', 'zip', 'rar'}
 
 # --- GitHub OAuth Configuration ---
-GITHUB_CLIENT_ID = 'Ov23liV6gfkow8BmfuWD'
-GITHUB_CLIENT_SECRET = '47b29514faa4b8e72dc2c5eefcb2d432842e2ac9'
+GITHUB_CLIENT_ID = os.environ.get('GITHUB_CLIENT_ID', 'your_github_client_id')
+GITHUB_CLIENT_SECRET = os.environ.get('GITHUB_CLIENT_SECRET', 'your_github_client_secret')
 
 # --- LinuxDo OAuth Configuration ---
-LINUXDO_CLIENT_ID = 'pv66FXkfUEthBlidZtLIoKs6fkSB3hRq'
-LINUXDO_CLIENT_SECRET = 'HOrPv6Uo4IhWCTaBDO44eDxQIZhxFBL4'
+LINUXDO_CLIENT_ID = os.environ.get('LINUXDO_CLIENT_ID', 'your_linuxdo_client_id')
+LINUXDO_CLIENT_SECRET = os.environ.get('LINUXDO_CLIENT_SECRET', 'your_linuxdo_client_secret')
 
 # --- S3 Configuration ---
 import json
@@ -42,12 +42,15 @@ MODAL_DRIVE_BASE_URL = os.environ.get('MODAL_DRIVE_BASE_URL')
 MODAL_DRIVE_AUTH_TOKEN = os.environ.get('MODAL_DRIVE_AUTH_TOKEN')
 
 if os.path.exists(S3_CONFIG_FILE):
-    with open(S3_CONFIG_FILE, 'r') as f:
-        s3_config = json.load(f)
-        S3_ENDPOINT_URL = s3_config.get('S3_ENDPOINT_URL')
-        S3_ACCESS_KEY_ID = s3_config.get('S3_ACCESS_KEY_ID')
-        S3_SECRET_ACCESS_KEY = s3_config.get('S3_SECRET_ACCESS_KEY')
-        S3_BUCKET_NAME = s3_config.get('S3_BUCKET_NAME')
+    try:
+        with open(S3_CONFIG_FILE, 'r') as f:
+            s3_config = json.load(f)
+            S3_ENDPOINT_URL = s3_config.get('S3_ENDPOINT_URL')
+            S3_ACCESS_KEY_ID = s3_config.get('S3_ACCESS_KEY_ID')
+            S3_SECRET_ACCESS_KEY = s3_config.get('S3_SECRET_ACCESS_KEY')
+            S3_BUCKET_NAME = s3_config.get('S3_BUCKET_NAME')
+    except Exception:
+        pass
 
 # --- Cloud Terminal Configuration ---
 try:
