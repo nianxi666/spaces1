@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /chat
+Disallow: /chat/history
+
+Sitemap: https://pumpkinai.space/sitemap.xml

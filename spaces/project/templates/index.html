@@ -1,0 +1,210 @@
+{% extends "layout.html" %}
+
+{% block meta_description %}
+<meta name="description" content="浏览所有南瓜AI上的AI项目。发现、分享和运行各种富有创造力的AI应用，从图像生成到智能对话，开启你的AI探索之旅。">
+{% endblock %}
+
+{% block title %}探索 - 南瓜AI{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto pb-10" x-data="{ activeStory: null }">
+
+    <!-- Banner Section -->
+    {% if banner and banner.enabled and banner.image_url %}
+    <div class="mb-8 rounded-3xl overflow-hidden shadow-lg border border-gray-100 transform transition hover:scale-[1.01] duration-500 animate-fade-in-up">
+        <a href="{{ banner.link_url or '#' }}" target="_blank" rel="noopener noreferrer" class="block relative group">
+            <div class="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors"></div>
+            <img src="{{ banner.image_url }}" alt="Homepage Banner" class="w-full h-auto object-cover">
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Admin Announcement (Dismissible) -->
+    {% if latest_admin_message %}
+    <div x-data="{ show: true }" x-show="show" x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100 transform scale-100" x-transition:leave-end="opacity-0 transform scale-90" class="mb-8 animate-fade-in-up delay-100">
+        <div class="glass p-4 rounded-2xl flex items-start gap-4 relative overflow-hidden">
+            <div class="bg-pumpkin-100 text-pumpkin-600 p-2 rounded-xl flex-shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
+            </div>
+            <div class="flex-1">
+                <h4 class="font-bold text-gray-900 text-sm mb-1">管理员消息</h4>
+                <p class="text-gray-600 text-sm leading-relaxed">{{ latest_admin_message.content }}</p>
+            </div>
+            <button @click="show = false" class="text-gray-400 hover:text-gray-600 transition-colors p-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Stories Bar -->
+    <div class="mb-8 -mx-4 px-4 overflow-x-auto hide-scrollbar flex gap-4 snap-x snap-mandatory py-2 animate-fade-in-up delay-100">
+        {% for category in categories %}
+        <div class="snap-center shrink-0 flex flex-col items-center gap-2 cursor-pointer group w-[72px]" title="{{ category.name }}">
+            <div class="w-[68px] h-[68px] rounded-full p-[3px] bg-gradient-to-tr from-pumpkin-400 via-rose-500 to-purple-500 group-hover:from-pumpkin-500 group-hover:via-rose-600 group-hover:to-purple-600 transition-all shadow-md group-hover:shadow-lg transform group-hover:-translate-y-1 duration-300">
+                <div class="w-full h-full rounded-full bg-white border-2 border-white flex items-center justify-center overflow-hidden relative">
+                     <span class="text-2xl transform group-hover:scale-110 transition-transform duration-300">{{ category.icon }}</span>
+                </div>
+            </div>
+            <span class="text-xs font-medium text-gray-600 group-hover:text-gray-900 truncate w-full text-center">{{ category.name }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Projects Feed -->
+    <div class="space-y-10">
+        {% for ai_project in ai_projects %}
+        <article class="glass rounded-[2rem] overflow-hidden hover:shadow-2xl transition-all duration-500 group animate-fade-in-up" style="animation-delay: {{ loop.index0 * 100 + 200 }}ms">
+            <!-- Card Header -->
+            <div class="px-5 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 p-0.5 shadow-inner">
+                        <div class="w-full h-full rounded-full bg-white flex items-center justify-center text-lg">
+                            🎃
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-gray-900 text-base leading-tight">{{ ai_project.name }}</h3>
+                        <p class="text-xs text-gray-500 font-medium mt-0.5">AI 工具</p>
+                    </div>
+                </div>
+                <button class="text-gray-400 hover:text-gray-900 transition-colors p-2 rounded-full hover:bg-gray-50">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path></svg>
+                </button>
+            </div>
+
+            <!-- Card Image -->
+            <a href="{{ url_for('main.ai_project_view', ai_project_id=ai_project.id) }}" class="block relative aspect-square bg-gray-100 overflow-hidden">
+                {% if ai_project.cover %}
+                    {% set cover_url = ai_project.cover if ai_project.cover.startswith('http') else to_s3_url(ai_project.cover) %}
+                    {% if ai_project.cover_type == 'video' %}
+                        <video src="{{ cover_url }}" autoplay muted loop playsinline class="w-full h-full object-cover"></video>
+                    {% else %}
+                        <img src="{{ cover_url }}"
+                             alt="{{ ai_project.name }}"
+                             class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                             loading="lazy"
+                             onerror="this.parentElement.innerHTML='<div class=\'w-full h-full flex items-center justify-center bg-gray-50 text-6xl text-gray-200\'>🤖</div>'">
+                    {% endif %}
+                {% else %}
+                    <div class="w-full h-full flex items-center justify-center bg-gray-50 text-6xl text-gray-200">
+                        🤖
+                    </div>
+                {% endif %}
+
+                <!-- Hover Overlay with CTA -->
+                <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                    <span class="px-6 py-2.5 bg-white/90 backdrop-blur-md rounded-full text-sm font-bold text-gray-900 shadow-xl transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                        立即运行
+                    </span>
+                </div>
+            </a>
+
+            <!-- Card Actions -->
+            <div class="px-5 py-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-4">
+                        <button class="like-button group/btn flex items-center gap-1.5 text-gray-700 hover:text-red-500 transition-colors focus:outline-none" data-id="{{ ai_project.id }}">
+                            <div class="p-2 rounded-full group-hover/btn:bg-red-50 transition-colors relative">
+                                <svg class="w-6 h-6 action-icon transition-transform duration-200 group-active/btn:scale-75 {% if ai_project.is_liked %}text-red-500 fill-current{% endif %}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                                </svg>
+                            </div>
+                        </button>
+
+                        <a href="{{ url_for('main.ai_project_view', ai_project_id=ai_project.id) }}" class="group/btn flex items-center gap-1.5 text-gray-700 hover:text-blue-500 transition-colors">
+                             <div class="p-2 rounded-full group-hover/btn:bg-blue-50 transition-colors">
+                                <svg class="w-6 h-6 transition-transform duration-200 group-active/btn:scale-75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                                </svg>
+                             </div>
+                        </a>
+
+                         <button class="group/btn flex items-center gap-1.5 text-gray-700 hover:text-green-500 transition-colors">
+                             <div class="p-2 rounded-full group-hover/btn:bg-green-50 transition-colors">
+                                <svg class="w-6 h-6 transition-transform duration-200 group-active/btn:scale-75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                </svg>
+                             </div>
+                        </button>
+                    </div>
+
+                    <a href="{{ url_for('main.ai_project_view', ai_project_id=ai_project.id) }}" class="text-gray-400 hover:text-pumpkin-500 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"></path></svg>
+                    </a>
+                </div>
+
+                <div class="space-y-2">
+                    <p class="text-sm text-gray-800 leading-relaxed">
+                        <span class="font-bold mr-1">{{ ai_project.name }}</span>
+                        {{ ai_project.description or '探索AI的无限可能...' }}
+                    </p>
+                    <div class="flex items-center gap-2 pt-1">
+                        <span class="px-2.5 py-0.5 rounded-md bg-gray-100 text-gray-500 text-[10px] font-bold tracking-wide uppercase">AI 项目</span>
+                        <span class="text-[10px] text-gray-400">• {{ loop.index }} 分钟前</span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+
+        {% if not ai_projects %}
+        <div class="text-center py-20 opacity-60">
+            <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">📭</div>
+            <h3 class="text-lg font-medium text-gray-900">暂无项目</h3>
+            <p class="text-gray-500 text-sm">稍后再来看看吧</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Re-attach like button listeners
+    const likeButtons = document.querySelectorAll('.like-button');
+    likeButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation(); // Prevent card click
+
+            const spaceId = this.dataset.id;
+            const icon = this.querySelector('.action-icon');
+            const btnContainer = this;
+
+            // Optimistic UI update
+            const wasLiked = this.classList.contains('liked') || icon.classList.contains('text-red-500');
+
+            // Toggle Visuals
+            if (wasLiked) {
+                icon.classList.remove('text-red-500', 'fill-current');
+            } else {
+                icon.classList.add('text-red-500', 'fill-current');
+                // Pulse animation
+                icon.style.transform = 'scale(1.4)';
+                setTimeout(() => icon.style.transform = 'scale(1)', 200);
+            }
+
+            fetch(`/api/space/${spaceId}/like`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update state correctly based on server
+                    if (data.is_liked) {
+                        icon.classList.add('text-red-500', 'fill-current');
+                    } else {
+                        icon.classList.remove('text-red-500', 'fill-current');
+                    }
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    });
+});
+</script>
+{% endblock %}

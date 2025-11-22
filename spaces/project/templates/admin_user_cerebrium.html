@@ -1,0 +1,148 @@
+{% extends "layout.html" %}
+{% block title %}管理 {{ target_user }} 的专用 GPU{% endblock %}
+{% block content %}
+<div class="admin-panel-container">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <h2>为 {{ target_user }} 配置专用 GPU</h2>
+        <a href="{{ url_for('admin.manage_users') }}" class="btn-action secondary">返回用户列表</a>
+    </div>
+
+    <div class="card" style="padding:20px;margin-bottom:30px;">
+        <h3 style="margin-top:0;">已分配的 GPU</h3>
+        {% if user.cerebrium_configs %}
+            <div class="config-grid">
+                {% for config in user.cerebrium_configs %}
+                <form class="config-card" method="post" action="{{ url_for('admin.edit_user_custom_gpu_config', username=target_user, config_id=config.id) }}">
+                    <div class="form-row">
+                        <label>名称</label>
+                        <input type="text" name="name" value="{{ config.name }}" required>
+                    </div>
+                    <div class="form-row">
+                        <label>API 地址</label>
+                        <input type="text" name="api_url" value="{{ config.api_url }}" required>
+                    </div>
+                    <div class="form-row">
+                        <label>密钥 (Service Token)</label>
+                        <textarea name="api_token" rows="2" required>{{ config.api_token }}</textarea>
+                    </div>
+                    <div class="config-actions">
+                        <button type="submit" class="btn-action primary">保存</button>
+                        <button type="submit"
+                                formaction="{{ url_for('admin.delete_user_custom_gpu_config', username=target_user, config_id=config.id) }}"
+                                formmethod="post"
+                                class="btn-action delete"
+                                onclick="return confirm('确认删除该 GPU 配置吗？');">
+                            删除
+                        </button>
+                    </div>
+                    {% if config.created_at %}
+                    <small class="timestamp">创建于 {{ config.created_at }}</small>
+                    {% endif %}
+                    {% if config.updated_at %}
+                    <small class="timestamp">更新于 {{ config.updated_at }}</small>
+                    {% endif %}
+                </form>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color:#666;">暂未为该用户分配任何专用 GPU。使用下方表单添加。</p>
+        {% endif %}
+    </div>
+
+    <div class="card" style="padding:20px;">
+        <h3 style="margin-top:0;">添加新的 GPU 配置</h3>
+        <form method="post" action="{{ url_for('admin.add_user_custom_gpu_config', username=target_user) }}" class="config-card">
+            <div class="form-row">
+                <label>名称</label>
+                <input type="text" name="name" placeholder="例如：A100 - 东部1" required>
+            </div>
+            <div class="form-row">
+                <label>API 地址</label>
+                <input type="text" name="api_url" placeholder="https://api.example.com/v4/xxx" required>
+            </div>
+            <div class="form-row">
+                <label>密钥 (Service Token)</label>
+                <textarea name="api_token" rows="2" placeholder="粘贴对应的 Service Account Token" required></textarea>
+            </div>
+            <div class="config-actions">
+                <button type="submit" class="btn-action primary">添加 GPU</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.config-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 16px;
+    background: #fafafa;
+}
+
+.form-row label {
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: block;
+    color: #444;
+}
+
+.form-row input,
+.form-row textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.config-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-action.primary {
+    background: #6c63ff;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-action.secondary {
+    background: #f0f0f0;
+    color: #333;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+}
+
+.btn-action.delete {
+    background: #ffe8e8;
+    color: #c0392b;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-action.primary:hover { background: #5851d8; }
+.btn-action.secondary:hover { background: #e2e2e2; }
+.btn-action.delete:hover { background: #ffd1d1; }
+
+.timestamp {
+    color: #888;
+}
+</style>
+{% endblock %}

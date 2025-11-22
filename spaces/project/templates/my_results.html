@@ -1,0 +1,178 @@
+{% extends "layout.html" %}
+{% block title %}我的文件{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2 style="color: #333; margin: 0;">我的文件</h2>
+</div>
+
+<div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px;">
+    <h3 style="margin-top: 0;">上传新文件</h3>
+    <div class="form-group">
+        <input type="file" id="file-input" class="form-control-file">
+    </div>
+    <button id="upload-button" class="btn btn-primary">上传</button>
+    <div id="upload-status" style="margin-top: 10px;"></div>
+</div>
+
+{% if files %}
+<div style="background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden;">
+    <table class="responsive-table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr>
+                <th style="padding: 15px; text-align: left; border-bottom: 1px solid #ddd; width: 80px;">预览</th>
+                <th style="padding: 15px; text-align: left; border-bottom: 1px solid #ddd;">文件名</th>
+                <th style="padding: 15px; text-align: left; border-bottom: 1px solid #ddd;">大小</th>
+                <th style="padding: 15px; text-align: left; border-bottom: 1px solid #ddd;">修改日期</th>
+                <th style="padding: 15px; text-align: center; border-bottom: 1px solid #ddd;">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in files %}
+            <tr>
+                <td data-label="预览" style="padding: 15px; text-align: center;">
+                    {% if file.preview_url and (file.is_image or file.is_video) %}
+                        <a href="{{ url_for('results.download_s3_file', object_key=file.key) }}" target="_blank">
+                            {% if file.is_image %}
+                                <img src="{{ file.preview_url }}" alt="预览" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
+                            {% else %}
+                                <video src="{{ file.preview_url }}#t=0.1" muted loop playsinline style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; background-color: #000;"></video>
+                            {% endif %}
+                        </a>
+                    {% else %}
+                        <div style="width: 50px; height: 50px; background-color: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; border: 1px solid #ddd;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                        </div>
+                    {% endif %}
+                </td>
+                <td data-label="文件名" style="padding: 15px;">{{ file.filename }}</td>
+                <td data-label="大小" style="padding: 15px;">
+                    {% if file.size > 1024*1024 %}
+                        {{ "%.2f"|format(file.size / (1024*1024)) }} MB
+                    {% elif file.size > 1024 %}
+                        {{ "%.2f"|format(file.size / 1024) }} KB
+                    {% else %}
+                        {{ file.size }} Bytes
+                    {% endif %}
+                </td>
+                <td data-label="修改日期" style="padding: 15px;">{{ file.last_modified.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                <td data-label="操作" style="padding: 15px; text-align: center;" class="mobile-actions">
+                    <a href="{{ url_for('results.download_s3_file', object_key=file.key) }}" target="_blank" class="btn btn-primary btn-sm">预览/下载</a>
+                    <button class="btn btn-secondary btn-sm rename-btn" data-old-key="{{ file.key }}" data-current-filename="{{ file.filename }}">重命名</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div style="background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center;">
+    <p style="color: #666; margin: 0;">您的S3存储桶中还没有文件。</p>
+</div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.rename-btn').forEach(button => {
+        button.addEventListener('click', async (event) => {
+            const oldKey = event.target.dataset.oldKey;
+            const currentFilename = event.target.dataset.currentFilename;
+
+            const newFilename = prompt('请输入新的文件名:', currentFilename);
+
+            if (newFilename && newFilename.trim() !== '' && newFilename !== currentFilename) {
+                try {
+                    const response = await fetch("{{ url_for('api.rename_s3_object_route') }}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            old_key: oldKey,
+                            new_filename: newFilename
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        alert('文件重命名成功！');
+                        location.reload();
+                    } else {
+                        alert(`重命名失败: ${result.error || '未知错误'}`);
+                    }
+                } catch (error) {
+                    alert(`请求失败: ${error}`);
+                }
+            } else if (newFilename === currentFilename) {
+                // User entered the same name, do nothing.
+            } else {
+                // User cancelled or entered empty name.
+            }
+        });
+    });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const fileInput = document.getElementById('file-input');
+    const uploadButton = document.getElementById('upload-button');
+    const uploadStatus = document.getElementById('upload-status');
+
+    uploadButton.addEventListener('click', async () => {
+        const file = fileInput.files[0];
+        if (!file) {
+            uploadStatus.textContent = '请先选择一个文件。';
+            uploadStatus.style.color = 'red';
+            return;
+        }
+
+        uploadStatus.textContent = '正在获取上传许可...';
+        uploadStatus.style.color = 'blue';
+        uploadButton.disabled = true;
+
+        try {
+            // 1. Get pre-signed URL from our server
+            const presignedUrlResponse = await fetch(`/api/generate-upload-url?fileName=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type || 'application/octet-stream')}`);
+            if (!presignedUrlResponse.ok) {
+                throw new Error('无法从服务器获取上传URL。');
+            }
+            const data = await presignedUrlResponse.json();
+            if (!data.success) {
+                throw new Error(data.error || '生成上传URL失败。');
+            }
+
+            const { presigned_url } = data;
+            uploadStatus.textContent = '正在上传...';
+
+            // 2. Upload file directly to S3
+            const uploadResponse = await fetch(presigned_url, {
+                method: 'PUT',
+                body: file,
+                headers: {
+                    'Content-Type': file.type || 'application/octet-stream'
+                }
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error('上传到S3失败。');
+            }
+
+            uploadStatus.textContent = '上传成功！正在刷新页面...';
+            uploadStatus.style.color = 'green';
+
+            // Reload the page to show the new file
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+
+        } catch (error) {
+            console.error('Upload failed:', error);
+            uploadStatus.textContent = `上传失败: ${error.message}`;
+            uploadStatus.style.color = 'red';
+            uploadButton.disabled = false;
+        }
+    });
+});
+</script>
+{% endblock %}
