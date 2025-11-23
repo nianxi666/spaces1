@@ -9,6 +9,7 @@ from datetime import datetime
 from flask import (
     Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, current_app, send_from_directory, Response
 )
+from urllib.parse import urlparse, urljoin
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 from .database import load_db, save_db
@@ -30,6 +31,20 @@ def sw_js():
 @main_bp.route('/ads.txt')
 def ads_txt():
     return send_from_directory(current_app.static_folder, 'ads.txt')
+
+@main_bp.route('/set-language/<lang_code>')
+def set_language(lang_code):
+    if lang_code in ['zh', 'en']:
+        session['locale'] = lang_code
+    else:
+        session['locale'] = 'en' # Default fallback
+
+    # Safe redirect
+    target = request.referrer
+    if not target or urlparse(target).netloc != urlparse(request.host_url).netloc:
+        target = url_for('main.index')
+
+    return redirect(target)
 
 @main_bp.route('/sitemap.xml')
 def sitemap():

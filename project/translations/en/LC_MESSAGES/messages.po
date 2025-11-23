@@ -1,0 +1,207 @@
+# English translations for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-11-23 06:30+0000\n"
+"PO-Revision-Date: 2025-11-23 06:30+0000\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: project/templates/layout.html:4 project/templates/login.html:2
+#: project/templates/login.html:16
+msgid "南瓜AI"
+msgstr "Pumpkin AI"
+
+#: project/templates/layout.html:10
+msgid "南瓜AI是一个充满创意的AI项目社区，探索最新、最有趣的AI应用和工具。"
+msgstr "Pumpkin AI is a creative community for AI projects, exploring the latest and most interesting AI applications and tools."
+
+#: project/templates/layout.html:128 project/templates/index.html:7
+msgid "探索"
+msgstr "Explore"
+
+#: project/templates/layout.html:129
+msgid "文章"
+msgstr "Articles"
+
+#: project/templates/layout.html:144
+msgid "网盘"
+msgstr "Drive"
+
+#: project/templates/layout.html:150 project/templates/cloud_terminal.html:2
+msgid "云终端"
+msgstr "Cloud Terminal"
+
+#: project/templates/layout.html:157 project/templates/layout.html:234
+msgid "切换语言"
+msgstr "Switch Language"
+
+#: project/templates/layout.html:183 project/templates/layout.html:260
+msgid "聊天室"
+msgstr "Chat"
+
+#: project/templates/layout.html:189 project/templates/layout.html:266
+msgid "管理面板"
+msgstr "Admin Panel"
+
+#: project/templates/layout.html:216 project/templates/layout.html:266
+msgid "个人资料"
+msgstr "Profile"
+
+#: project/templates/layout.html:218 project/templates/layout.html:268
+msgid "设置"
+msgstr "Settings"
+
+#: project/templates/layout.html:221 project/templates/layout.html:271
+msgid "退出登录"
+msgstr "Logout"
+
+#: project/templates/layout.html:225 project/templates/layout.html:275
+#: project/templates/login.html:2 project/templates/login.html:48
+msgid "登录"
+msgstr "Login"
+
+#: project/templates/layout.html:226 project/templates/layout.html:276
+#: project/templates/login.html:57
+msgid "注册"
+msgstr "Register"
+
+#: project/templates/cloud_terminal.html:8
+msgid "云终端控制台"
+msgstr "Cloud Terminal Console"
+
+#: project/templates/cloud_terminal.html:9
+msgid "管理和执行远程 GPU 环境命令"
+msgstr "Manage and execute remote GPU environment commands"
+
+#: project/templates/cloud_terminal.html:24
+#: project/templates/cloud_terminal.html:78
+msgid "执行命令"
+msgstr "Run Command"
+
+#: project/templates/cloud_terminal.html:31
+msgid "目标环境"
+msgstr "Target Environment"
+
+#: project/templates/cloud_terminal.html:33
+msgid "刷新列表"
+msgstr "Refresh List"
+
+#: project/templates/cloud_terminal.html:55
+msgid "你的云GPU机器正在启动中，请稍后再来。"
+msgstr "Your GPU instance is starting, please check back later."
+
+#: project/templates/cloud_terminal.html:57
+msgid "有问题可联系站长"
+msgstr "For issues, contact admin"
+
+#: project/templates/cloud_terminal.html:57
+msgid "点击跳转到聊天群聊"
+msgstr "Click to join chat"
+
+#: project/templates/cloud_terminal.html:66
+msgid "Shell 命令"
+msgstr "Shell Command"
+
+#: project/templates/cloud_terminal.html:69
+msgid "CMD + ENTER to run"
+msgstr "CMD + ENTER to run"
+
+#: project/templates/cloud_terminal.html:83
+msgid "登录后执行"
+msgstr "Login to Execute"
+
+#: project/templates/cloud_terminal.html:87
+msgid "清空"
+msgstr "Clear"
+
+#: project/templates/cloud_terminal.html:101
+msgid "等待输入..."
+msgstr "Waiting for input..."
+
+#: project/templates/cloud_terminal.html:117
+msgid "本次运行详情"
+msgstr "Execution Details"
+
+#: project/templates/cloud_terminal.html:124
+msgid "耗时"
+msgstr "Duration"
+
+#: project/templates/cloud_terminal.html:128
+msgid "网络延迟"
+msgstr "Latency"
+
+#: project/templates/cloud_terminal.html:138
+msgid "执行历史"
+msgstr "History"
+
+#: project/templates/cloud_terminal.html:143
+msgid "暂无历史记录"
+msgstr "No history available"
+
+#: project/templates/index.html:4
+msgid "浏览所有南瓜AI上的AI项目。发现、分享和运行各种富有创造力的AI应用，从图像生成到智能对话，开启你的AI探索之旅。"
+msgstr "Browse all AI projects on Pumpkin AI. Discover, share, and run creative AI applications, from image generation to intelligent chat."
+
+#: project/templates/index.html:30
+msgid "管理员消息"
+msgstr "Admin Message"
+
+#: project/templates/index.html:68
+msgid "AI 工具"
+msgstr "AI Tools"
+
+#: project/templates/index.html:98
+msgid "立即运行"
+msgstr "Run Now"
+
+#: project/templates/index.html:141
+msgid "探索AI的无限可能..."
+msgstr "Explore infinite possibilities..."
+
+#: project/templates/index.html:144
+msgid "AI 项目"
+msgstr "AI Project"
+
+#: project/templates/index.html:145
+msgid "分钟前"
+msgstr "mins ago"
+
+#: project/templates/index.html:155
+msgid "暂无项目"
+msgstr "No Projects"
+
+#: project/templates/index.html:156
+msgid "稍后再来看看吧"
+msgstr "Check back later"
+
+#: project/templates/login.html:17
+msgid "欢迎回来，请登录您的账户"
+msgstr "Welcome back, please login to your account"
+
+#: project/templates/login.html:28 project/templates/login.html:33
+msgid "用户名"
+msgstr "Username"
+
+#: project/templates/login.html:37 project/templates/login.html:42
+msgid "密码"
+msgstr "Password"
+
+#: project/templates/login.html:55
+msgid "还没有账户？"
+msgstr "Don't have an account?"
+
+#: project/templates/login.html:57
+msgid "立即注册"
+msgstr "Register Now"

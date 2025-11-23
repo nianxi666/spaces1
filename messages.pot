@@ -1,0 +1,164 @@
+# Translations template for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-11-23 06:30+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: project/templates/cloud_terminal.html:2
+msgid "云终端"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:2 project/templates/index.html:7
+#: project/templates/login.html:2 project/templates/login.html:16
+msgid "南瓜AI"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:8
+msgid "云终端控制台"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:9
+msgid "管理和执行远程 GPU 环境命令"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:24
+#: project/templates/cloud_terminal.html:78
+msgid "执行命令"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:31
+msgid "目标环境"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:33
+msgid "刷新列表"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:55
+msgid "你的云GPU机器正在启动中，请稍后再来。"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:57
+msgid "有问题可联系站长"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:57
+msgid "点击跳转到聊天群聊"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:66
+msgid "Shell 命令"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:69
+msgid "CMD + ENTER to run"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:83
+msgid "登录后执行"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:87
+msgid "清空"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:101
+msgid "等待输入..."
+msgstr ""
+
+#: project/templates/cloud_terminal.html:117
+msgid "本次运行详情"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:124
+msgid "耗时"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:128
+msgid "网络延迟"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:138
+msgid "执行历史"
+msgstr ""
+
+#: project/templates/cloud_terminal.html:143
+msgid "暂无历史记录"
+msgstr ""
+
+#: project/templates/index.html:4
+msgid "浏览所有南瓜AI上的AI项目。发现、分享和运行各种富有创造力的AI应用，从图像生成到智能对话，开启你的AI探索之旅。"
+msgstr ""
+
+#: project/templates/index.html:7
+msgid "探索"
+msgstr ""
+
+#: project/templates/index.html:30
+msgid "管理员消息"
+msgstr ""
+
+#: project/templates/index.html:68
+msgid "AI 工具"
+msgstr ""
+
+#: project/templates/index.html:98
+msgid "立即运行"
+msgstr ""
+
+#: project/templates/index.html:141
+msgid "探索AI的无限可能..."
+msgstr ""
+
+#: project/templates/index.html:144
+msgid "AI 项目"
+msgstr ""
+
+#: project/templates/index.html:145
+msgid "分钟前"
+msgstr ""
+
+#: project/templates/index.html:155
+msgid "暂无项目"
+msgstr ""
+
+#: project/templates/index.html:156
+msgid "稍后再来看看吧"
+msgstr ""
+
+#: project/templates/login.html:2 project/templates/login.html:48
+msgid "登录"
+msgstr ""
+
+#: project/templates/login.html:17
+msgid "欢迎回来，请登录您的账户"
+msgstr ""
+
+#: project/templates/login.html:28 project/templates/login.html:33
+msgid "用户名"
+msgstr ""
+
+#: project/templates/login.html:37 project/templates/login.html:42
+msgid "密码"
+msgstr ""
+
+#: project/templates/login.html:55
+msgid "还没有账户？"
+msgstr ""
+
+#: project/templates/login.html:57
+msgid "立即注册"
+msgstr ""

@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="zh-CN" class="scroll-smooth">
+<html lang="{{ get_locale() or 'zh-CN' }}" class="scroll-smooth">
 <head>
-    <title>{% block title %}南瓜AI{% endblock %}</title>
+    <title>{% block title %}{{ _('南瓜AI') }}{% endblock %}</title>
     <meta name="baidu-site-verification" content="codeva-woywxjPQ5o" />
     <meta name="baidu_union_verify" content="bda8fde006c264232a8c8db61b7c51ef">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     {% block meta_description %}
-    <meta name="description" content="南瓜AI是一个充满创意的AI项目社区，探索最新、最有趣的AI应用和工具。">
+    <meta name="description" content="{{ _('南瓜AI是一个充满创意的AI项目社区，探索最新、最有趣的AI应用和工具。') }}">
     {% endblock %}
     <link rel="canonical" href="{{ canonical_url or request.url }}" />
     <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎃</text></svg>">
@@ -118,15 +118,15 @@
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm10 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm-5 4c2.5 0 4.5-1.5 5.5-3.5H4.5c1 2 2.5 3.5 5.5 3.5z"/>
                             </svg>
                         </div>
-                        <span class="font-bold text-xl tracking-tight text-gray-900">南瓜AI</span>
+                        <span class="font-bold text-xl tracking-tight text-gray-900">{{ _('南瓜AI') }}</span>
                     </a>
                 </div>
 
                 <!-- Desktop Nav -->
                 <nav class="hidden md:flex space-x-1">
                     {% set nav_items = [
-                        ('main.index', '探索', 'home'),
-                        ('main.article_list', '文章', 'book'),
+                        ('main.index', _('探索'), 'home'),
+                        ('main.article_list', _('文章'), 'book'),
                     ] %}
 
                     {% for endpoint, label, icon in nav_items %}
@@ -141,27 +141,60 @@
                     <a href="{{ url_for('results.modal_drive') }}"
                        class="ml-2 px-4 py-2 rounded-full text-sm font-medium text-white bg-gradient-to-r from-pumpkin-500 to-rose-500 hover:from-pumpkin-600 hover:to-rose-600 shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center gap-1.5">
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 9l-5 5-5-5M12 12.8V2.5"/></svg>
-                        <span>网盘</span>
+                        <span>{{ _('网盘') }}</span>
                     </a>
 
                     <a href="{{ url_for('main.cloud_terminal') }}"
                        class="ml-2 px-4 py-2 rounded-full text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center gap-1.5">
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
-                        <span>云终端</span>
+                        <span>{{ _('云终端') }}</span>
                     </a>
                 </nav>
 
                 <!-- Right Side (Auth) -->
                 <div class="hidden md:flex items-center space-x-3">
+                    <!-- Language Switcher (Desktop) -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" @click.away="open = false" class="p-2 text-gray-500 hover:text-pumpkin-600 transition-colors rounded-full hover:bg-gray-50 focus:outline-none" title="{{ _('切换语言') }}">
+                            {% if get_locale() == 'en' %}
+                            <svg class="w-6 h-6 rounded-sm shadow-sm" viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg">
+                                <g fill-rule="evenodd"><path fill="#bd3d44" d="M0 0h640v480H0"/><path stroke="#fff" stroke-width="37" d="M0 55.3h640M0 129h640M0 203h640M0 277h640M0 351h640M0 425h640"/><path fill="#192f5d" d="M0 0h296v258H0"/><path fill="#fff" d="M54 27L25 47l11-33h-37l30 22-11 33L48 48l29 21-11-33H29l30-22-11-33L48 1ZM94 65L65 85l11-33H39l30 22-11 33 20-21 29 21-11-33H69l30-22-11-33L94 39ZM134 27l-29 20 11-33H79l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM174 65l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM214 27l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM254 65l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM54 103l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33H29l30-22-11-33 6 19ZM94 141l-29 20 11-33H39l30 22-11 33 20-21 29 21-11-33H69l30-22-11-33 6 19ZM134 103l-29 20 11-33H79l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM174 141l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM214 103l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM254 141l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM54 179l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33H29l30-22-11-33 6 19ZM94 217l-29 20 11-33H39l30 22-11 33 20-21 29 21-11-33H69l30-22-11-33 6 19ZM134 179l-29 20 11-33H79l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM174 217l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM214 179l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM254 217l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19"/></g>
+                            </svg>
+                            {% else %}
+                            <svg class="w-6 h-6 rounded-sm shadow-sm" viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg">
+                                <path fill="#de2910" d="M0 0h640v480H0"/><path fill="#ffde00" d="M96 32l16 48-40-30h50l-40 30 14-48zm50 20l5 12-10-8h13l-10 8 2-12zm25 31l5 12-10-8h13l-10 8 2-12zm3 46l5 12-10-8h13l-10 8 2-12zm-28 41l5 12-10-8h13l-10 8 2-12z"/>
+                            </svg>
+                            {% endif %}
+                        </button>
+                        <!-- Language Dropdown -->
+                        <div x-show="open"
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="transform opacity-0 scale-95"
+                             x-transition:enter-end="transform opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="transform opacity-100 scale-100"
+                             x-transition:leave-end="transform opacity-0 scale-95"
+                             class="absolute right-0 mt-2 w-32 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50 origin-top-right">
+                            <a href="{{ url_for('main.set_language', lang_code='zh') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                <svg class="w-5 h-4 rounded-sm" viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg"><path fill="#de2910" d="M0 0h640v480H0"/><path fill="#ffde00" d="M96 32l16 48-40-30h50l-40 30 14-48zm50 20l5 12-10-8h13l-10 8 2-12zm25 31l5 12-10-8h13l-10 8 2-12zm3 46l5 12-10-8h13l-10 8 2-12zm-28 41l5 12-10-8h13l-10 8 2-12z"/></svg>
+                                中文
+                            </a>
+                            <a href="{{ url_for('main.set_language', lang_code='en') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                <svg class="w-5 h-4 rounded-sm" viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg"><g fill-rule="evenodd"><path fill="#bd3d44" d="M0 0h640v480H0"/><path stroke="#fff" stroke-width="37" d="M0 55.3h640M0 129h640M0 203h640M0 277h640M0 351h640M0 425h640"/><path fill="#192f5d" d="M0 0h296v258H0"/><path fill="#fff" d="M54 27L25 47l11-33h-37l30 22-11 33L48 48l29 21-11-33H29l30-22-11-33L48 1ZM94 65L65 85l11-33H39l30 22-11 33 20-21 29 21-11-33H69l30-22-11-33L94 39ZM134 27l-29 20 11-33H79l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM174 65l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM214 27l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM254 65l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM54 103l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33H29l30-22-11-33 6 19ZM94 141l-29 20 11-33H39l30 22-11 33 20-21 29 21-11-33H69l30-22-11-33 6 19ZM134 103l-29 20 11-33H79l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM174 141l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM214 103l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM254 141l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM54 179l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33H29l30-22-11-33 6 19ZM94 217l-29 20 11-33H39l30 22-11 33 20-21 29 21-11-33H69l30-22-11-33 6 19ZM134 179l-29 20 11-33H79l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM174 217l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM214 179l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM254 217l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19"/></g></svg>
+                                English
+                            </a>
+                        </div>
+                    </div>
+
                     {% if settings.get('chat_enabled', True) %}
-                    <a href="{{ url_for('main.chat') }}" class="relative p-2 text-gray-500 hover:text-pumpkin-600 transition-colors" title="聊天室">
+                    <a href="{{ url_for('main.chat') }}" class="relative p-2 text-gray-500 hover:text-pumpkin-600 transition-colors" title="{{ _('聊天室') }}">
                         <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
                         <span class="chat-unread-badge absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white hidden"></span>
                     </a>
                     {% endif %}
 
                     {% if session.is_admin %}
-                        <a href="{{ url_for('admin.admin_panel') }}" class="p-2 text-gray-500 hover:text-pumpkin-600 transition-colors" title="管理面板">
+                        <a href="{{ url_for('admin.admin_panel') }}" class="p-2 text-gray-500 hover:text-pumpkin-600 transition-colors" title="{{ _('管理面板') }}">
                              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                         </a>
                     {% endif %}
@@ -180,22 +213,55 @@
                              x-transition:leave-start="transform opacity-100 scale-100"
                              x-transition:leave-end="transform opacity-0 scale-95"
                              class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50 origin-top-right">
-                            <a href="{{ url_for('main.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">个人资料</a>
+                            <a href="{{ url_for('main.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">{{ _('个人资料') }}</a>
                             {% if session.is_admin %}
-                            <a href="{{ url_for('main.settings') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">设置</a>
+                            <a href="{{ url_for('main.settings') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">{{ _('设置') }}</a>
                             {% endif %}
                             <div class="border-t border-gray-100 my-1"></div>
-                            <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">退出登录</a>
+                            <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">{{ _('退出登录') }}</a>
                         </div>
                     </div>
                     {% else %}
-                        <a href="{{ url_for('auth.login') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">登录</a>
-                        <a href="{{ url_for('auth.register') }}" class="px-4 py-2 rounded-full text-sm font-semibold text-white bg-gray-900 hover:bg-black transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">注册</a>
+                        <a href="{{ url_for('auth.login') }}" class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">{{ _('登录') }}</a>
+                        <a href="{{ url_for('auth.register') }}" class="px-4 py-2 rounded-full text-sm font-semibold text-white bg-gray-900 hover:bg-black transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">{{ _('注册') }}</a>
                     {% endif %}
                 </div>
 
                 <!-- Mobile Header Right (Chat Icon) -->
                 <div class="flex md:hidden items-center space-x-2">
+                    <!-- Language Switcher (Mobile) -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" @click.away="open = false" class="p-2 text-gray-500 hover:text-pumpkin-600 transition-colors rounded-full hover:bg-gray-50 focus:outline-none" title="{{ _('切换语言') }}">
+                            {% if get_locale() == 'en' %}
+                            <svg class="w-6 h-6 rounded-sm shadow-sm" viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg">
+                                <g fill-rule="evenodd"><path fill="#bd3d44" d="M0 0h640v480H0"/><path stroke="#fff" stroke-width="37" d="M0 55.3h640M0 129h640M0 203h640M0 277h640M0 351h640M0 425h640"/><path fill="#192f5d" d="M0 0h296v258H0"/><path fill="#fff" d="M54 27L25 47l11-33h-37l30 22-11 33L48 48l29 21-11-33H29l30-22-11-33L48 1ZM94 65L65 85l11-33H39l30 22-11 33 20-21 29 21-11-33H69l30-22-11-33L94 39ZM134 27l-29 20 11-33H79l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM174 65l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM214 27l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM254 65l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM54 103l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33H29l30-22-11-33 6 19ZM94 141l-29 20 11-33H39l30 22-11 33 20-21 29 21-11-33H69l30-22-11-33 6 19ZM134 103l-29 20 11-33H79l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM174 141l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM214 103l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM254 141l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM54 179l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33H29l30-22-11-33 6 19ZM94 217l-29 20 11-33H39l30 22-11 33 20-21 29 21-11-33H69l30-22-11-33 6 19ZM134 179l-29 20 11-33H79l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM174 217l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM214 179l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM254 217l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19"/></g>
+                            </svg>
+                            {% else %}
+                            <svg class="w-6 h-6 rounded-sm shadow-sm" viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg">
+                                <path fill="#de2910" d="M0 0h640v480H0"/><path fill="#ffde00" d="M96 32l16 48-40-30h50l-40 30 14-48zm50 20l5 12-10-8h13l-10 8 2-12zm25 31l5 12-10-8h13l-10 8 2-12zm3 46l5 12-10-8h13l-10 8 2-12zm-28 41l5 12-10-8h13l-10 8 2-12z"/>
+                            </svg>
+                            {% endif %}
+                        </button>
+                        <!-- Language Dropdown -->
+                        <div x-show="open"
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="transform opacity-0 scale-95"
+                             x-transition:enter-end="transform opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="transform opacity-100 scale-100"
+                             x-transition:leave-end="transform opacity-0 scale-95"
+                             class="absolute right-0 mt-2 w-32 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50 origin-top-right">
+                            <a href="{{ url_for('main.set_language', lang_code='zh') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                <svg class="w-5 h-4 rounded-sm" viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg"><path fill="#de2910" d="M0 0h640v480H0"/><path fill="#ffde00" d="M96 32l16 48-40-30h50l-40 30 14-48zm50 20l5 12-10-8h13l-10 8 2-12zm25 31l5 12-10-8h13l-10 8 2-12zm3 46l5 12-10-8h13l-10 8 2-12zm-28 41l5 12-10-8h13l-10 8 2-12z"/></svg>
+                                中文
+                            </a>
+                            <a href="{{ url_for('main.set_language', lang_code='en') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                <svg class="w-5 h-4 rounded-sm" viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg"><g fill-rule="evenodd"><path fill="#bd3d44" d="M0 0h640v480H0"/><path stroke="#fff" stroke-width="37" d="M0 55.3h640M0 129h640M0 203h640M0 277h640M0 351h640M0 425h640"/><path fill="#192f5d" d="M0 0h296v258H0"/><path fill="#fff" d="M54 27L25 47l11-33h-37l30 22-11 33L48 48l29 21-11-33H29l30-22-11-33L48 1ZM94 65L65 85l11-33H39l30 22-11 33 20-21 29 21-11-33H69l30-22-11-33L94 39ZM134 27l-29 20 11-33H79l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM174 65l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM214 27l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM254 65l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM54 103l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33H29l30-22-11-33 6 19ZM94 141l-29 20 11-33H39l30 22-11 33 20-21 29 21-11-33H69l30-22-11-33 6 19ZM134 103l-29 20 11-33H79l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM174 141l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM214 103l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM254 141l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM54 179l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33H29l30-22-11-33 6 19ZM94 217l-29 20 11-33H39l30 22-11 33 20-21 29 21-11-33H69l30-22-11-33 6 19ZM134 179l-29 20 11-33H79l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM174 217l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM214 179l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19ZM254 217l-29 20 11-33h-37l30 22-11 33 20-21 29 21-11-33h-37l30-22-11-33 6 19"/></g></svg>
+                                English
+                            </a>
+                        </div>
+                    </div>
+
                     {% if settings.get('chat_enabled', True) %}
                     <a href="{{ url_for('main.chat') }}" class="relative p-2 text-gray-500 hover:text-pumpkin-600 transition-colors">
                         <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -204,7 +270,6 @@
                         <span class="chat-unread-badge absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white hidden"></span>
                     </a>
                     {% endif %}
-                </div>
             </div>
         </div>
     </header>

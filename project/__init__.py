@@ -2,7 +2,8 @@
 import json
 import logging
 from logging.handlers import RotatingFileHandler
-from flask import Flask, request
+from flask import Flask, request, session
+from flask_babel import Babel
 from datetime import datetime
 
 def format_datetime(value, format='%Y-%m-%d %H:%M'):
@@ -24,6 +25,34 @@ def create_app(test_config=None):
     if test_config is not None:
         # Load the test config if passed in, overriding default config
         app.config.from_mapping(test_config)
+
+    # Configure Babel
+    # Note: 'BABEL_DEFAULT_LOCALE' and 'BABEL_TRANSLATION_DIRECTORIES' can be set in config.py
+    # Defaulting here for simplicity
+    app.config.setdefault('BABEL_DEFAULT_LOCALE', 'zh')
+    app.config.setdefault('BABEL_SUPPORTED_LOCALES', ['zh', 'en'])
+
+    def get_locale():
+        # 1. Check if user has explicitly set a language in session
+        if 'locale' in session:
+            return session['locale']
+        # 2. Check browser preference
+        # We prioritize English if the browser isn't strictly asking for Chinese
+        # request.accept_languages.best_match returns the best match from the list
+        # If we supply ['zh', 'en'], it will pick 'zh' if user prefers 'zh'.
+        # If user prefers 'en', it picks 'en'.
+        # If user prefers 'fr', it picks default?
+        # The requirement is: "If not Chinese browser, default to English"
+
+        # Check if 'zh' is in the accepted languages with a significant weight
+        # A simpler way: use best_match.
+        # If the user accepts zh, we give them zh. Otherwise en.
+        best = request.accept_languages.best_match(['zh', 'en'])
+        if best == 'zh':
+            return 'zh'
+        return 'en'
+
+    babel = Babel(app, locale_selector=get_locale)
 
     # Ensure the instance folder exists
     try:
@@ -140,5 +169,10 @@ def create_app(test_config=None):
                 # In case of error, s3_settings remains empty
                 pass
         return dict(s3_settings=s3_settings)
+
+    # Context processor to inject get_locale for templates
+    @app.context_processor
+    def inject_get_locale():
+        return dict(get_locale=get_locale)
 
     return app
