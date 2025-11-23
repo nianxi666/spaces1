@@ -709,7 +709,7 @@ def manage_modal_drive_settings():
         settings['modal_drive_base_url'] = request.form.get('modal_drive_base_url', '').strip()
         settings['modal_drive_auth_token'] = request.form.get('modal_drive_auth_token', '').strip()
         save_db(db)
-        flash('Modal 网盘设置已保存。', 'success')
+        flash('无限容量网盘设置已保存。', 'success')
         return redirect(url_for('admin.manage_modal_drive_settings'))
 
     modal_settings = {

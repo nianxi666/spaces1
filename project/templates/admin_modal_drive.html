@@ -1,17 +1,17 @@
 {% extends "layout.html" %}
-{% block title %}Modal 网盘设置{% endblock %}
+{% block title %}无限容量网盘设置{% endblock %}
 {% block content %}
 <div class="admin-panel-container">
     <div class="page-header">
-        <h2>Modal 网盘设置</h2>
+        <h2>无限容量网盘设置</h2>
         <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-secondary">返回管理面板</a>
     </div>
 
     <div class="drive-settings-card">
-        <p>在这里配置 Modal Drive 的部署地址与代理 Token。所有普通用户的网盘请求都会走服务器中继，确保密钥不暴露。保存后无需重启，立即生效。</p>
+        <p>在这里配置无限容量网盘的部署地址与代理 Token。所有普通用户的网盘请求都会走服务器中继，确保密钥不暴露。保存后无需重启，立即生效。</p>
         <form method="post" class="drive-settings-form">
             <div class="form-group">
-                <label for="modal_drive_base_url">Modal Drive 部署地址</label>
+                <label for="modal_drive_base_url">无限容量网盘部署地址</label>
                 <input type="url" id="modal_drive_base_url" name="modal_drive_base_url"
                        value="{{ settings.modal_drive_base_url }}"
                        placeholder="例如：https://xxx.modal.run" required>
@@ -31,7 +31,7 @@
         <div class="tips">
             <h4>使用说明</h4>
             <ul>
-                <li>每个用户会在 Modal Drive 内建立独立的根目录，禁止跨用户访问。</li>
+                <li>每个用户会在无限容量网盘内建立独立的根目录，禁止跨用户访问。</li>
                 <li>Token 仅存储在数据库的 settings 字段中，不会在前端泄露。</li>
                 <li>修改后刷新“网盘控制中心”即可立即生效。</li>
             </ul>

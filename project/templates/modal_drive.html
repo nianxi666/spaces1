@@ -157,13 +157,13 @@
 
 <div class="drive-page">
     <section class="drive-card drive-hero">
-        <span class="drive-hero-badge">∞ 无限容量 · Modal Drive</span>
+        <span class="drive-hero-badge">∞ 无限容量网盘</span>
         <h1>网盘控制中心</h1>
-        <p class="lead">这里集成了全新的 Modal 网盘（无限容量）以及历史的 S3「我的文件」。每位用户都会被分配一个完全隔离的根目录，所有请求均由服务器带着密钥代理，杜绝公开访问风险。</p>
+        <p class="lead">这里集成了全新的无限容量网盘以及历史的 S3「我的文件」。每位用户都会被分配一个完全隔离的根目录，所有请求均由服务器带着密钥代理，杜绝公开访问风险。</p>
         <div class="drive-hero-actions">
             <a href="{{ url_for('results.my_results') }}" class="btn btn-secondary">旧版 S3 网盘</a>
             {% if modal_drive_url %}
-            <a href="{{ modal_drive_url }}" target="_blank" class="btn btn-primary">直接打开 Modal 实例</a>
+            <a href="{{ modal_drive_url }}" target="_blank" class="btn btn-primary">直接打开无限容量网盘</a>
             {% endif %}
         </div>
         {% if drive_root %}
@@ -173,8 +173,8 @@
 
     {% if not drive_enabled %}
     <section class="drive-card drive-alert">
-        <h3>Modal 网盘尚未配置</h3>
-        <p>请前往「管理面板 → Modal 网盘设置」填写部署地址和 Token，或联系管理员处理。配置完成后刷新本页面即可体验无限容量网盘。</p>
+        <h3>无限容量网盘尚未配置</h3>
+        <p>请前往「管理面板 → 无限容量网盘设置」填写部署地址和 Token，或联系管理员处理。配置完成后刷新本页面即可体验无限容量网盘。</p>
     </section>
     {% else %}
     <section class="drive-card drive-panel">

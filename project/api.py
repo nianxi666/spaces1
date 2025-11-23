@@ -114,7 +114,7 @@ def _check_netmind_rate_limit(user_identifier, max_requests, window_seconds):
 def _modal_drive_request(method, endpoint, **kwargs):
     base_url, token = get_modal_drive_credentials()
     if not base_url or not token:
-        return None, 'Modal 网盘尚未配置'
+        return None, '无限容量网盘尚未配置'
 
     url = f"{base_url}{endpoint}"
     headers = kwargs.pop('headers', {})
@@ -361,7 +361,7 @@ def modal_drive_create_share():
 
     base_url, _ = get_modal_drive_credentials()
     if not base_url:
-        return _modal_drive_error_response('Modal 网盘尚未配置。', 503)
+        return _modal_drive_error_response('无限容量网盘尚未配置。', 503)
     db, shares = ensure_share_storage()
     token, info = _find_share_by_path(shares, username, relative_path)
     if not token:
@@ -480,7 +480,7 @@ def modal_drive_all():
         payload = {}
 
     if response.status_code != 200:
-        message = payload.get('detail') or payload.get('error') or response.text or 'Modal 网盘请求失败'
+        message = payload.get('detail') or payload.get('error') or response.text or '无限容量网盘请求失败'
         return _modal_drive_error_response(message, response.status_code)
 
     return jsonify({

@@ -76,7 +76,7 @@ def modal_drive_download():
 
     base_url, token = get_modal_drive_credentials()
     if not base_url or not token:
-        flash('Modal 网盘尚未配置。', 'error')
+        flash('无限容量网盘尚未配置。', 'error')
         return redirect(url_for('results.modal_drive'))
 
     try:
