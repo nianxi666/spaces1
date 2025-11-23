@@ -50,9 +50,12 @@
                             </button>
                             {% endfor %}
                         {% else %}
-                            <div class="w-full bg-gray-50 border border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center text-gray-500">
-                                <svg class="w-8 h-8 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                                <span class="text-sm">未检测到运行中的云终端</span>
+                            <div class="w-full bg-gray-50 border border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center text-gray-500 space-y-2">
+                                <svg class="w-10 h-10 opacity-50 text-pumpkin-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"></path></svg>
+                                <p class="text-sm font-medium text-gray-600 text-center">你的云GPU机器正在启动中，请稍后再来。</p>
+                                <p class="text-xs text-gray-500 text-center">
+                                    有问题可联系站长{% if settings.get('chat_enabled', True) %}，<a href="{{ url_for('main.chat') }}" class="text-pumpkin-600 underline hover:text-pumpkin-700 transition-colors font-bold">点击跳转到聊天群聊</a>{% endif %}
+                                </p>
                             </div>
                         {% endif %}
                     </div>
