@@ -106,8 +106,10 @@
 <body class="antialiased selection:bg-pumpkin-500 selection:text-white" x-data="{ mobileMenuOpen: false, scrolled: false }" @scroll.window="scrolled = (window.pageYOffset > 20)">
     
     {% if settings.get('ads_enabled', False) %}
-    <!-- Ad Script - Primary Placement -->
+    <!-- Ad Script - Primary Placement (Platform 1) -->
     <script>(function(s){s.dataset.zone='10228913',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    <!-- Ad Script - Primary Placement (Platform 2) -->
+    <script src="https://3nbf4.com/act/files/tag.min.js?z=10228903" data-cfasync="false" async></script>
     {% endif %}
 
     <!-- Desktop Header -->
@@ -358,7 +360,10 @@
         {% if settings.get('ads_enabled', False) %}
         <!-- Ad Script - Content Area Placement -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+            <!-- Platform 1 -->
             <script>(function(s){s.dataset.zone='10228913',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+            <!-- Platform 2 -->
+            <script src="https://3nbf4.com/act/files/tag.min.js?z=10228903" data-cfasync="false" async></script>
         </div>
         {% endif %}
     </main>
@@ -438,7 +443,10 @@
 
     {% if settings.get('ads_enabled', False) %}
     <!-- Ad Script - Secondary Placement for Maximum Revenue -->
+    <!-- Platform 1 -->
     <script>(function(s){s.dataset.zone='10228913',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    <!-- Platform 2 -->
+    <script src="https://3nbf4.com/act/files/tag.min.js?z=10228903" data-cfasync="false" async></script>
     {% endif %}
 </body>
 </html>
