@@ -23,8 +23,8 @@ COVER_FOLDER = os.path.join('static', 'covers')
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov', 'avi', 'zip', 'rar'}
 
 # --- GitHub OAuth Configuration ---
-GITHUB_CLIENT_ID = os.environ.get('GITHUB_CLIENT_ID', 'your_github_client_id')
-GITHUB_CLIENT_SECRET = os.environ.get('GITHUB_CLIENT_SECRET', 'your_github_client_secret')
+GITHUB_CLIENT_ID = os.environ.get('GITHUB_CLIENT_ID', 'Ov23lienZj9B97kiR5xZ')
+GITHUB_CLIENT_SECRET = os.environ.get('GITHUB_CLIENT_SECRET', '628d402ff78e879514e98be504a6634e0cbe9d20')
 
 # --- LinuxDo OAuth Configuration ---
 LINUXDO_CLIENT_ID = os.environ.get('LINUXDO_CLIENT_ID', 'your_linuxdo_client_id')
