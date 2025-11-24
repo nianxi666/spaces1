@@ -933,3 +933,25 @@ def clear_logs():
     else:
         flash('未找到日志文件。', 'info')
     return redirect(url_for('admin.error_logs'))
+
+@admin_bp.route('/toggle_ads', methods=['POST'])
+def toggle_ads():
+    """一键开启或关闭全站广告"""
+    db = load_db()
+    current_status = db.get('settings', {}).get('ads_enabled', False)
+    new_status = not current_status
+    
+    if 'settings' not in db:
+        db['settings'] = {}
+    
+    db['settings']['ads_enabled'] = new_status
+    save_db(db)
+    
+    status_text = '已开启' if new_status else '已关闭'
+    flash(f'全站广告{status_text}。', 'success')
+    
+    return jsonify({
+        'success': True,
+        'ads_enabled': new_status,
+        'message': f'广告{status_text}'
+    })

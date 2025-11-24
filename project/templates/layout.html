@@ -104,6 +104,11 @@
     </style>
 </head>
 <body class="antialiased selection:bg-pumpkin-500 selection:text-white" x-data="{ mobileMenuOpen: false, scrolled: false }" @scroll.window="scrolled = (window.pageYOffset > 20)">
+    
+    {% if settings.get('ads_enabled', False) %}
+    <!-- Ad Script - Primary Placement -->
+    <script>(function(s){s.dataset.zone='10228913',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    {% endif %}
 
     <!-- Desktop Header -->
     <header :class="{ 'bg-white/80 border-b border-gray-200/50 shadow-sm': scrolled, 'bg-transparent': !scrolled }"
@@ -349,6 +354,13 @@
         {% endif %}
 
         {% block content %}{% endblock %}
+
+        {% if settings.get('ads_enabled', False) %}
+        <!-- Ad Script - Content Area Placement -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+            <script>(function(s){s.dataset.zone='10228913',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+        </div>
+        {% endif %}
     </main>
 
     <!-- Mobile Bottom Navigation (Floating Glass Dock) -->
@@ -423,5 +435,10 @@
         setInterval(fetchUnreadCount, 30000);
     });
     </script>
+
+    {% if settings.get('ads_enabled', False) %}
+    <!-- Ad Script - Secondary Placement for Maximum Revenue -->
+    <script>(function(s){s.dataset.zone='10228913',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    {% endif %}
 </body>
 </html>

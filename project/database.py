@@ -123,6 +123,8 @@ def init_db():
         db['settings']['server_domain'] = 'https://pumpkinai.it.com'
     if 'chat_is_muted' not in db['settings']:
         db['settings']['chat_is_muted'] = False
+    if 'ads_enabled' not in db['settings']:
+        db['settings']['ads_enabled'] = False
 
     # Add a default Space if none exist
     if not db.get('spaces'):
