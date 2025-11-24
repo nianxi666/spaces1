@@ -1085,3 +1085,39 @@ def article_view(slug):
     ]
 
     return render_template('article_view.html', article=article, hreflang_links=hreflang_links)
+
+# AdSense Required Pages
+@main_bp.route('/about')
+def about():
+    """关于我们页面"""
+    db = load_db()
+    settings = db.get('settings', {})
+    return render_template('about.html', settings=settings)
+
+@main_bp.route('/privacy')
+def privacy():
+    """隐私政策页面"""
+    db = load_db()
+    settings = db.get('settings', {})
+    return render_template('privacy.html', settings=settings)
+
+@main_bp.route('/terms')
+def terms():
+    """使用条款页面"""
+    db = load_db()
+    settings = db.get('settings', {})
+    return render_template('terms.html', settings=settings)
+
+@main_bp.route('/contact')
+def contact():
+    """联系我们页面"""
+    db = load_db()
+    settings = db.get('settings', {})
+    return render_template('contact.html', settings=settings)
+
+@main_bp.route('/faq')
+def faq():
+    """常见问题页面"""
+    db = load_db()
+    settings = db.get('settings', {})
+    return render_template('faq.html', settings=settings)
