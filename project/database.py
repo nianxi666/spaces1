@@ -124,7 +124,7 @@ def init_db():
     if 'chat_is_muted' not in db['settings']:
         db['settings']['chat_is_muted'] = False
     if 'ads_enabled' not in db['settings']:
-        db['settings']['ads_enabled'] = False
+        db['settings']['ads_enabled'] = True
 
     # Add a default Space if none exist
     if not db.get('spaces'):
