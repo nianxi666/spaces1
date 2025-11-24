@@ -13,20 +13,20 @@
                 <div class="mx-auto h-16 w-16 bg-gradient-to-tr from-pumpkin-400 to-rose-500 rounded-2xl flex items-center justify-center shadow-lg transform rotate-3 hover:rotate-6 transition-transform duration-300">
                     <svg class="w-10 h-10" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
                         <defs>
-                            <linearGradient id="pumpkinGradient" x1="20%" y1="100%" x2="80%" y2="0%">
+                            <linearGradient id="pumpkinGradientLogin" x1="20%" y1="100%" x2="80%" y2="0%">
                                 <stop offset="0%" stop-color="#E65100" />
                                 <stop offset="50%" stop-color="#FF6D00" />
                                 <stop offset="100%" stop-color="#FF9800" />
                             </linearGradient>
-                            <linearGradient id="highlightGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <linearGradient id="highlightGradientLogin" x1="0%" y1="0%" x2="0%" y2="100%">
                                 <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.8"/>
                                 <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
                             </linearGradient>
-                            <linearGradient id="stemGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <linearGradient id="stemGradientLogin" x1="0%" y1="0%" x2="100%" y2="100%">
                                 <stop offset="0%" stop-color="#5D4037" />
                                 <stop offset="100%" stop-color="#3E2723" />
                             </linearGradient>
-                            <mask id="biteMask">
+                            <mask id="biteMaskLogin">
                                 <rect x="0" y="0" width="200" height="200" fill="white" />
                                 <g transform="translate(155, 60)">
                                     <circle cx="0" cy="0" r="22" fill="black" />
@@ -35,13 +35,13 @@
                                 </g>
                             </mask>
                         </defs>
-                        <g mask="url(#biteMask)">
-                            <path d="M70,55 C30,55 10,90 10,130 C10,170 50,190 90,185" fill="url(#pumpkinGradient)" />
-                            <path d="M130,55 C170,55 190,90 190,130 C190,170 150,190 110,185" fill="url(#pumpkinGradient)" />
-                            <ellipse cx="100" cy="125" rx="55" ry="70" fill="url(#pumpkinGradient)" />
-                            <path d="M92,60 Q90,40 80,30 L85,25 Q100,35 108,60 Z" fill="url(#stemGradient)" />
-                            <path d="M70,70 Q60,90 60,120" stroke="url(#highlightGradient)" stroke-width="3" fill="none" stroke-linecap="round" style="opacity: 0.6; mix-blend-mode: overlay;" />
-                            <path d="M115,65 Q105,55 95,62" stroke="url(#highlightGradient)" stroke-width="2" fill="none" stroke-linecap="round" style="opacity: 0.5; mix-blend-mode: overlay;" />
+                        <g mask="url(#biteMaskLogin)">
+                            <path d="M70,55 C30,55 10,90 10,130 C10,170 50,190 90,185" fill="url(#pumpkinGradientLogin)" />
+                            <path d="M130,55 C170,55 190,90 190,130 C190,170 150,190 110,185" fill="url(#pumpkinGradientLogin)" />
+                            <ellipse cx="100" cy="125" rx="55" ry="70" fill="url(#pumpkinGradientLogin)" />
+                            <path d="M92,60 Q90,40 80,30 L85,25 Q100,35 108,60 Z" fill="url(#stemGradientLogin)" />
+                            <path d="M70,70 Q60,90 60,120" stroke="url(#highlightGradientLogin)" stroke-width="3" fill="none" stroke-linecap="round" style="opacity: 0.6; mix-blend-mode: overlay;" />
+                            <path d="M115,65 Q105,55 95,62" stroke="url(#highlightGradientLogin)" stroke-width="2" fill="none" stroke-linecap="round" style="opacity: 0.5; mix-blend-mode: overlay;" />
                         </g>
                     </svg>
                 </div>

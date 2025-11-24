@@ -75,6 +75,11 @@ def register():
 def github_login():
     github_client_id = current_app.config['GITHUB_CLIENT_ID']
     redirect_uri = url_for('auth.github_callback', _external=True)
+
+    # Force HTTPS if not already (for production behind proxies), unless on localhost
+    if redirect_uri.startswith('http://') and '127.0.0.1' not in redirect_uri and 'localhost' not in redirect_uri:
+        redirect_uri = redirect_uri.replace('http://', 'https://', 1)
+
     state = secrets.token_urlsafe(16)
     session['oauth_state'] = state
 
