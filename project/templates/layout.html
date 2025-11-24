@@ -1,16 +1,84 @@
 <!DOCTYPE html>
 <html lang="{{ get_locale() or 'zh-CN' }}" class="scroll-smooth">
 <head>
+    <!-- Primary Meta Tags -->
     <title>{% block title %}{{ _('南瓜AI') }}{% endblock %}</title>
-    <meta name="baidu-site-verification" content="codeva-woywxjPQ5o" />
-    <meta name="baidu_union_verify" content="bda8fde006c264232a8c8db61b7c51ef">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     {% block meta_description %}
     <meta name="description" content="{{ _('南瓜AI是一个充满创意的AI项目社区，探索最新、最有趣的AI应用和工具。') }}">
     {% endblock %}
+    <meta name="keywords" content="AI, 人工智能, AI工具, AI社区, 机器学习, 深度学习, AI项目, ChatGPT, Stable Diffusion">
+    <meta name="author" content="南瓜AI">
+    <meta name="theme-color" content="#ff7518">
+    
+    <!-- SEO Meta Tags -->
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <meta name="googlebot" content="index, follow">
+    <meta name="bingbot" content="index, follow">
+    <meta name="baidu-site-verification" content="codeva-woywxjPQ5o" />
+    <meta name="baidu_union_verify" content="bda8fde006c264232a8c8db61b7c51ef">
     <link rel="canonical" href="{{ canonical_url or request.url }}" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ canonical_url or request.url }}">
+    <meta property="og:title" content="{% block og_title %}{{ _('南瓜AI - 创意AI项目社区') }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ _('南瓜AI是一个充满创意的AI项目社区，探索最新、最有趣的AI应用和工具。') }}{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{{ request.url_root }}static/og-image.png{% endblock %}">
+    <meta property="og:site_name" content="南瓜AI">
+    <meta property="og:locale" content="{{ get_locale() == 'en' and 'en_US' or 'zh_CN' }}">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="{{ canonical_url or request.url }}">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ _('南瓜AI - 创意AI项目社区') }}{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}{{ _('南瓜AI是一个充满创意的AI项目社区，探索最新、最有趣的AI应用和工具。') }}{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ request.url_root }}static/og-image.png{% endblock %}">
     <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎃</text></svg>">
+    
+    <!-- Performance Optimization -->
+    <link rel="dns-prefetch" href="//cdn.tailwindcss.com">
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "南瓜AI",
+      "alternateName": "PumpkinAI",
+      "url": "{{ request.url_root.rstrip('/') }}",
+      "description": "{{ _('南瓜AI是一个充满创意的AI项目社区，探索最新、最有趣的AI应用和工具。') }}",
+      "inLanguage": ["zh-CN", "en-US"],
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "{{ request.url_root }}search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "南瓜AI",
+      "url": "{{ request.url_root.rstrip('/') }}",
+      "logo": "{{ request.url_root }}static/logo.png",
+      "description": "{{ _('南瓜AI是一个充满创意的AI项目社区') }}",
+      "foundingDate": "2024",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer support"
+      }
+    }
+    </script>
+    {% block structured_data %}{% endblock %}
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>

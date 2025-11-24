@@ -1,5 +1,60 @@
-User-agent: *
-Disallow: /chat
-Disallow: /chat/history
+# Robots.txt for 南瓜AI (PumpkinAI)
+# Updated: 2024
+# Following Google's latest SEO guidelines
 
+# Global rules for all bots
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/*/
+Disallow: /chat/
+Disallow: /terminal/
+Disallow: /*.json$
+Disallow: /*?api_key=
+Crawl-delay: 1
+
+# Allow specific important paths
+Allow: /static/
+Allow: /api/spaces
+Allow: /sitemap.xml
+Allow: /robots.txt
+
+# Google bots (prioritize)
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+Disallow: /chat/
+Disallow: /terminal/
+Crawl-delay: 0.5
+
+# Google image bot
+User-agent: Googlebot-Image
+Allow: /static/covers/
+Allow: /static/avatars/
+
+# Bing bot
+User-agent: Bingbot
+Allow: /
+Disallow: /admin/
+Disallow: /chat/
+Crawl-delay: 1
+
+# Baidu bot (for Chinese market)
+User-agent: Baiduspider
+Allow: /
+Disallow: /admin/
+Disallow: /chat/
+Crawl-delay: 1
+
+# Block bad bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+# Sitemap location
 Sitemap: https://pumpkinai.space/sitemap.xml
