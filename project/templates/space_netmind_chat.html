@@ -1,0 +1,425 @@
+{% extends "layout.html" %}
+{% block title %}{{ ai_project.name }} - Chat{% endblock %}
+{% block content %}
+<div class="chat-container">
+    <div class="chat-main">
+        <div class="chat-header">
+            <h2 role="heading">{{ ai_project.name }}</h2>
+            <p class="description">{{ ai_project.description }}</p>
+        </div>
+
+        <div id="chat-messages" class="chat-messages">
+            <div class="message system">
+                <div class="avatar">🤖</div>
+                <div class="content">你好！我是 {{ ai_project.name }}。有什么我可以帮你的吗？</div>
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <textarea id="user-input" placeholder="输入你的消息..." rows="1"></textarea>
+            <button id="send-btn" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="api-sidebar">
+        <h3>API 调用示例</h3>
+        <p>您可以在自己的应用中使用以下代码调用此模型。</p>
+
+        <div class="api-tabs">
+            <button class="tab-btn active" data-tab="curl">cURL</button>
+            <button class="tab-btn" data-tab="python">Python</button>
+        </div>
+
+        <div class="tab-content active" id="curl">
+            <pre><code>curl {{ server_domain }}/api/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {{ api_key }}" \
+  -d '{
+    "model": "{{ ai_project.netmind_model }}",
+    "messages": [
+      {"role": "user", "content": "Hello!"}
+    ],
+    "stream": true,
+    "max_tokens": 512
+  }'</code></pre>
+        </div>
+
+        <div class="tab-content" id="python">
+            <pre><code>from openai import OpenAI
+
+client = OpenAI(
+    api_key="{{ api_key }}",
+    base_url="{{ server_domain }}/api/v1"
+)
+
+response = client.chat.completions.create(
+    model="{{ ai_project.netmind_model }}",
+    messages=[
+        {"role": "user", "content": "Hello!"}
+    ],
+    stream=True,
+    max_tokens=512
+)
+
+for chunk in response:
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")</code></pre>
+        </div>
+    </div>
+</div>
+
+<style>
+.chat-container {
+    display: flex;
+    height: calc(100vh - 140px); /* Adjust based on layout header/footer */
+    max-width: 1400px;
+    margin: 0 auto;
+    gap: 20px;
+    padding: 20px;
+}
+
+.chat-main {
+    flex: 1;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.chat-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    background: #f8f9fa;
+}
+.chat-header h2 { margin: 0; font-size: 18px; color: #333; }
+.chat-header .description { margin: 5px 0 0; color: #666; font-size: 14px; }
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.message {
+    display: flex;
+    gap: 15px;
+    max-width: 80%;
+}
+.message.user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+.message.ai {
+    align-self: flex-start;
+}
+.message .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+.message.user .avatar { background: #FF7518; color: white; }
+.message.ai .avatar { background: #E3F2FD; color: #1976D2; }
+
+.message .content {
+    background: #f8f9fa;
+    padding: 12px 16px;
+    border-radius: 12px;
+    line-height: 1.5;
+    font-size: 15px;
+    white-space: pre-wrap;
+}
+.message.user .content {
+    background: #FF7518;
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+.message.ai .content {
+    background: #E3F2FD;
+    color: #333;
+    border-bottom-left-radius: 4px;
+}
+
+.chat-input-area {
+    padding: 20px;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+#user-input {
+    flex: 1;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 12px;
+    font-family: inherit;
+    resize: none;
+    max-height: 120px;
+    outline: none;
+}
+#user-input:focus { border-color: #FF7518; }
+#send-btn {
+    background: #FF7518;
+    color: white;
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+#send-btn:disabled { background: #ccc; cursor: not-allowed; }
+#send-btn:not(:disabled):hover { background: #e66000; }
+
+/* Sidebar */
+.api-sidebar {
+    width: 350px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+@media (max-width: 900px) {
+    .chat-container { flex-direction: column; height: auto; }
+    .chat-main { height: 600px; }
+    .api-sidebar { width: 100%; }
+}
+
+.api-sidebar h3 { margin: 0 0 10px; font-size: 16px; color: #333; }
+.api-sidebar p { margin: 0 0 20px; color: #666; font-size: 13px; }
+
+.api-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+.tab-btn {
+    padding: 8px 12px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    color: #666;
+    font-weight: 500;
+    font-size: 13px;
+}
+.tab-btn.active {
+    color: #FF7518;
+    border-bottom-color: #FF7518;
+}
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.tab-content pre {
+    background: #282c34;
+    color: #abb2bf;
+    padding: 15px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatMessages = document.getElementById('chat-messages');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const modelId = "{{ ai_project.netmind_model }}";
+    const apiKey = "{{ api_key }}";
+    let isGenerating = false;
+
+    // Auto-resize textarea
+    userInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+        sendBtn.disabled = !this.value.trim();
+    });
+
+    // Handle send
+    async function sendMessage() {
+        const content = userInput.value.trim();
+        if (!content || isGenerating) return;
+
+        // Append User Message so it's visible immediately
+        appendMessage('user', content);
+        userInput.value = '';
+        userInput.style.height = 'auto';
+        sendBtn.disabled = true;
+        isGenerating = true;
+
+        // Capture history before creating the placeholder assistant message
+        const messagesPayload = getMessageHistory();
+
+        // Create placeholder for AI response
+        const aiMessageDiv = appendMessage('ai', '');
+        const aiContentDiv = aiMessageDiv.querySelector('.content');
+        let hasReceivedContent = false;
+        let reasoningPreview = '';
+
+        try {
+            const response = await fetch('/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: modelId,
+                    messages: messagesPayload,
+                    stream: true
+                })
+            });
+
+            if (!response.ok || !response.body || !response.body.getReader) {
+                if (!response.body || !response.body.getReader) {
+                    throw new Error('当前浏览器不支持流式输出');
+                }
+                throw new Error(`API Error: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // Keep last partial line
+
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed.startsWith('data: ')) continue;
+                    const dataStr = trimmed.substring(6);
+                    if (dataStr === '[DONE]') continue;
+
+                    try {
+                        const data = JSON.parse(dataStr);
+                        const delta = (data.choices && data.choices[0] && data.choices[0].delta) || {};
+                        const chunkText = extractDeltaText(delta.content);
+                        const reasoningText = extractDeltaText(delta.reasoning_content);
+
+                        if (chunkText) {
+                            if (!hasReceivedContent && reasoningPreview) {
+                                aiContentDiv.textContent = '';
+                                reasoningPreview = '';
+                            }
+                            hasReceivedContent = true;
+                            aiContentDiv.textContent += chunkText;
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        } else if (reasoningText && !hasReceivedContent) {
+                            reasoningPreview = (reasoningPreview + reasoningText).slice(-1500);
+                            if (!aiContentDiv.textContent.trim()) {
+                                aiContentDiv.textContent = '（模型正在思考...）';
+                            }
+                        }
+                    } catch (e) {
+                        console.error('JSON parse error', e);
+                    }
+                }
+            }
+
+            if (!hasReceivedContent && reasoningPreview.trim()) {
+                aiContentDiv.textContent = reasoningPreview.trim();
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        } catch (error) {
+            aiContentDiv.textContent += `\n[Error: ${error.message}]`;
+        } finally {
+            isGenerating = false;
+            sendBtn.disabled = !userInput.value.trim();
+        }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    userInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    function appendMessage(role, text) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${role}`;
+        msgDiv.innerHTML = `
+            <div class="avatar">${role === 'user' ? '👤' : '🤖'}</div>
+            <div class="content">${text}</div>
+        `;
+        chatMessages.appendChild(msgDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        return msgDiv;
+    }
+
+    function getMessageHistory() {
+        const messages = [];
+        // Simple history retrieval from DOM - in prod, keep state in JS variable
+        document.querySelectorAll('.message').forEach(msg => {
+            if (msg.classList.contains('system')) return;
+            const role = msg.classList.contains('user') ? 'user' : 'assistant';
+            const content = msg.querySelector('.content').textContent;
+            messages.push({ role, content });
+        });
+        return messages;
+    }
+
+    function extractDeltaText(raw) {
+        if (!raw) return '';
+        if (typeof raw === 'string') {
+            return raw;
+        }
+        if (Array.isArray(raw)) {
+            return raw.map(item => {
+                if (!item) return '';
+                if (typeof item === 'string') return item;
+                if (typeof item === 'object') {
+                    if (typeof item.text === 'string') return item.text;
+                    if (typeof item.content === 'string') return item.content;
+                }
+                return '';
+            }).join('');
+        }
+        if (typeof raw === 'object') {
+            if (typeof raw.text === 'string') return raw.text;
+            if (typeof raw.content === 'string') return raw.content;
+        }
+        return '';
+    }
+
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.tab).classList.add('active');
+        });
+    });
+});
+</script>
+{% endblock %}

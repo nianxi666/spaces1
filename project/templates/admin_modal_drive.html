@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+{% block title %}无限容量网盘设置{% endblock %}
+{% block content %}
+<div class="admin-panel-container">
+    <div class="page-header">
+        <h2>无限容量网盘设置</h2>
+        <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-secondary">返回管理面板</a>
+    </div>
+
+    <div class="drive-settings-card">
+        <p>在这里配置无限容量网盘的部署地址与代理 Token。所有普通用户的网盘请求都会走服务器中继，确保密钥不暴露。保存后无需重启，立即生效。</p>
+        <form method="post" class="drive-settings-form">
+            <div class="form-group">
+                <label for="modal_drive_base_url">无限容量网盘部署地址</label>
+                <input type="url" id="modal_drive_base_url" name="modal_drive_base_url"
+                       value="{{ settings.modal_drive_base_url }}"
+                       placeholder="例如：https://xxx.modal.run" required>
+                <small>填写 `modal deploy` 后获得的 HTTPS 地址。</small>
+            </div>
+            <div class="form-group">
+                <label for="modal_drive_auth_token">代理 Token</label>
+                <input type="text" id="modal_drive_auth_token" name="modal_drive_auth_token"
+                       value="{{ settings.modal_drive_auth_token }}"
+                       placeholder="例如：aYhxUYbQ..." required>
+                <small>与 Modal Secret drive-auth 中的 AUTH_TOKEN 保持一致，用于服务器代理访问。</small>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">保存设置</button>
+            </div>
+        </form>
+        <div class="tips">
+            <h4>使用说明</h4>
+            <ul>
+                <li>每个用户会在无限容量网盘内建立独立的根目录，禁止跨用户访问。</li>
+                <li>Token 仅存储在数据库的 settings 字段中，不会在前端泄露。</li>
+                <li>修改后刷新“网盘控制中心”即可立即生效。</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<style>
+.drive-settings-card {
+    background: var(--system-background);
+    border: 1px solid var(--separator-color);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+    max-width: 720px;
+}
+.drive-settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 20px;
+}
+.form-group label {
+    font-weight: 600;
+}
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--separator-color);
+    border-radius: 10px;
+    background: var(--system-background-secondary);
+    font-size: 15px;
+}
+.form-group small {
+    color: var(--secondary-text);
+}
+.tips {
+    margin-top: 24px;
+    background: var(--system-background-secondary);
+    border-radius: 12px;
+    padding: 16px;
+}
+.tips ul {
+    padding-left: 20px;
+    color: var(--secondary-text);
+}
+</style>
+{% endblock %}

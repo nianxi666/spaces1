@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+{% block title %}设置{% endblock %}
+{% block content %}
+{% if session.is_admin %}
+<div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <h2 style="margin-top: 0; color: #333;">系统设置</h2>
+    <form method="post" style="max-width: 600px;">
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">服务器域名</label>
+            <input type="url" name="server_domain" value="{{ settings.server_domain }}" required
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            <small style="color: #666;">用于 Inferless 命令中的文件上传 API 地址，例如：https://your-domain.com</small>
+        </div>
+        <button type="submit" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">保存设置</button>
+    </form>
+</div>
+{% else %}
+<div class="alert alert-danger">您没有权限访问此页面。</div>
+{% endif %}
+{% endblock %}

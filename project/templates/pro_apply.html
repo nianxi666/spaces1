@@ -1,0 +1,58 @@
+{% extends "layout.html" %}
+{% block title %}申请 Pro 会员 - 南瓜AI{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto pb-12">
+    <div class="flex items-center gap-4 mb-6">
+        <a href="{{ url_for('main.profile') }}" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </a>
+        <h1 class="text-2xl font-bold text-gray-900">申请 Pro 会员</h1>
+    </div>
+
+    <div class="glass rounded-3xl overflow-hidden p-8 space-y-8">
+
+        <!-- Status Banner -->
+        {% if user.pro_submission_status == 'pending' %}
+        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3">
+            <svg class="w-6 h-6 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <div>
+                <h3 class="font-bold text-blue-800">审核中</h3>
+                <p class="text-sm text-blue-600 mt-1">您的申请已提交，管理员正在审核中。请耐心等待。</p>
+            </div>
+        </div>
+        {% elif user.pro_submission_status == 'rejected' %}
+        <div class="bg-red-50 border border-red-100 rounded-xl p-4 flex gap-3">
+            <svg class="w-6 h-6 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <div>
+                <h3 class="font-bold text-red-800">申请未通过</h3>
+                <p class="text-sm text-red-600 mt-1">很遗憾，您的申请未通过审核。您可以重新完成任务并再次提交。</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Task Description -->
+        <div class="prose prose-pumpkin max-w-none">
+            <h3 class="text-lg font-bold text-gray-900">任务说明</h3>
+            <div class="text-gray-600 mt-2">
+                {{ pro_settings.task_description | safe }}
+            </div>
+        </div>
+
+        <div class="border-t border-gray-100"></div>
+
+        <!-- Submission Form -->
+        <form method="post" class="space-y-4">
+            <div>
+                <label for="submission_link" class="block text-sm font-medium text-gray-700 mb-2">任务完成链接</label>
+                <input type="url" id="submission_link" name="submission_link" placeholder="https://" required
+                       class="w-full rounded-xl border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500 px-4 py-3">
+                <p class="text-xs text-gray-500 mt-2">请填写您完成任务后的证明链接。</p>
+            </div>
+
+            <button type="submit" class="w-full py-3 px-6 bg-gradient-to-r from-pumpkin-500 to-rose-500 text-white font-bold rounded-xl hover:shadow-lg hover:from-pumpkin-600 hover:to-rose-600 transition-all transform active:scale-95">
+                提交申请
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

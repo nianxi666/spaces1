@@ -1,0 +1,534 @@
+{% extends "layout.html" %}
+{% block title %}网盘中心{% endblock %}
+{% block content %}
+<style>
+    .drive-page {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+    .drive-card {
+        background: var(--system-background);
+        border: 1px solid var(--separator-color);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+    }
+    .drive-hero {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .drive-hero h1 {
+        margin: 0;
+        font-size: 28px;
+    }
+    .drive-hero .lead {
+        color: var(--secondary-text);
+    }
+    .drive-hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .drive-hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: rgba(255, 117, 24, 0.08);
+        color: var(--link-color);
+        font-weight: 600;
+        font-size: 14px;
+    }
+    .drive-panels {
+        display: grid;
+        grid-template-columns: minmax(0, 3fr) minmax(280px, 1fr);
+        gap: 24px;
+    }
+    .drive-toolbar {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .drive-toolbar-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .drive-toolbar input[type="text"] {
+        flex: 1;
+        min-width: 200px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--separator-color);
+        background: var(--system-background-secondary);
+    }
+    .drive-toolbar input[type="file"] {
+        padding: 8px;
+        border: 1px dashed var(--separator-color);
+        border-radius: 8px;
+        background: #fff;
+    }
+    .drive-status {
+        font-size: 13px;
+        color: var(--secondary-text);
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .drive-status strong {
+        color: var(--primary-text);
+    }
+    .drive-table-container {
+        overflow: auto;
+    }
+    .drive-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .drive-table th,
+    .drive-table td {
+        padding: 12px;
+        border-bottom: 1px solid var(--separator-color);
+        text-align: left;
+    }
+    .drive-table tr:last-child td {
+        border-bottom: none;
+    }
+    .drive-table .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .drive-table-empty {
+        text-align: center;
+        padding: 40px 0;
+        color: var(--secondary-text);
+    }
+    .drive-chip {
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: var(--system-background-secondary);
+        color: var(--secondary-text);
+    }
+    .drive-alert {
+        border: 1px dashed rgba(255, 117, 24, 0.4);
+        background: rgba(255, 117, 24, 0.05);
+    }
+    .drive-legacy h3 {
+        margin-top: 0;
+    }
+    .drive-legacy p {
+        color: var(--secondary-text);
+    }
+    .drive-badge-green {
+        background: rgba(0, 200, 83, 0.1);
+        color: #0f9d58;
+    }
+    .share-duration-label {
+        display: flex;
+        flex-direction: column;
+        font-size: 13px;
+        color: var(--secondary-text);
+    }
+    .share-duration-label select {
+        margin-top: 4px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--separator-color);
+    }
+    .share-expire {
+        display: inline-block;
+        font-size: 12px;
+        color: var(--secondary-text);
+    }
+    @media (max-width: 900px) {
+        .drive-panels {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="drive-page">
+    <section class="drive-card drive-hero">
+        <span class="drive-hero-badge">∞ 无限容量网盘</span>
+        <h1>网盘控制中心</h1>
+        <p class="lead">这里集成了全新的无限容量网盘以及历史的 S3「我的文件」。每位用户都会被分配一个完全隔离的根目录，所有请求均由服务器带着密钥代理，杜绝公开访问风险。</p>
+        <div class="drive-hero-actions">
+            <a href="{{ url_for('results.my_results') }}" class="btn btn-secondary">旧版 S3 网盘</a>
+            {% if modal_drive_url %}
+            <a href="{{ modal_drive_url }}" target="_blank" class="btn btn-primary">直接打开无限容量网盘</a>
+            {% endif %}
+        </div>
+        {% if drive_root %}
+        <div class="drive-chip drive-badge-green">当前根目录：/{{ drive_root }}/</div>
+        {% endif %}
+    </section>
+
+    {% if not drive_enabled %}
+    <section class="drive-card drive-alert">
+        <h3>无限容量网盘尚未配置</h3>
+        <p>请前往「管理面板 → 无限容量网盘设置」填写部署地址和 Token，或联系管理员处理。配置完成后刷新本页面即可体验无限容量网盘。</p>
+    </section>
+    {% else %}
+    <section class="drive-card drive-panel">
+        <div class="drive-toolbar">
+            <div class="drive-toolbar-row">
+                <input type="file" id="drive-file-input">
+                <input type="text" id="drive-path-input" placeholder="保存路径，例如 assets/video.mp4">
+                <button class="btn btn-primary" id="drive-upload-btn">上传</button>
+            </div>
+            <div class="drive-toolbar-row">
+                <input type="text" id="drive-folder-input" placeholder="创建文件夹，例如 datasets/2024">
+                <button class="btn" id="drive-mkdir-btn">新建文件夹</button>
+                <button class="btn btn-secondary" id="drive-refresh-btn">刷新</button>
+                <label class="share-duration-label">
+                    分享有效期
+                    <select id="share-duration">
+                        <option value="604800">7 天</option>
+                        <option value="2592000">30 天</option>
+                        <option value="31536000">365 天</option>
+                    </select>
+                </label>
+            </div>
+        </div>
+        <div class="drive-status">
+            <span id="drive-status-text">正在初始化...</span>
+            <span class="drive-chip">服务端代理 · Token 安全</span>
+        </div>
+        <div class="drive-table-container">
+            <table class="drive-table" id="drive-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">类型</th>
+                        <th>路径</th>
+                        <th style="width: 120px;">大小</th>
+                        <th style="width: 170px;">更新时间</th>
+                        <th style="width: 220px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="5" class="drive-table-empty">正在加载...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="drive-card drive-legacy">
+        <h3>旧版 S3「我的文件」仍然可用</h3>
+        <p>原有的 S3 网盘不会下线，依旧可以浏览生成记录、重命名文件以及利用预签名链接对接其他服务。</p>
+        <a href="{{ url_for('results.my_results') }}" class="btn btn-secondary">进入 S3 网盘</a>
+    </section>
+</div>
+
+{% if drive_enabled %}
+<script>
+(function() {
+    const endpoints = {
+        all: "{{ url_for('api.modal_drive_all') }}",
+        upload: "{{ url_for('api.modal_drive_upload') }}",
+        mkdir: "{{ url_for('api.modal_drive_mkdir') }}",
+        rename: "{{ url_for('api.modal_drive_rename') }}",
+        delete: "{{ url_for('api.modal_drive_delete') }}",
+        download: "{{ url_for('results.modal_drive_download') }}",
+        shareCreate: "{{ url_for('api.modal_drive_create_share') }}",
+        shareDelete: "{{ url_for('api.modal_drive_delete_share') }}",
+        shareList: "{{ url_for('api.modal_drive_list_shares') }}"
+    };
+
+    const tableBody = document.querySelector('#drive-table tbody');
+    const statusText = document.getElementById('drive-status-text');
+    const uploadBtn = document.getElementById('drive-upload-btn');
+    const refreshBtn = document.getElementById('drive-refresh-btn');
+    const mkdirBtn = document.getElementById('drive-mkdir-btn');
+    const fileInput = document.getElementById('drive-file-input');
+    const pathInput = document.getElementById('drive-path-input');
+    const folderInput = document.getElementById('drive-folder-input');
+    const durationSelect = document.getElementById('share-duration');
+    let shareMap = {};
+    let currentItems = [];
+
+    function setStatus(message, tone = 'info') {
+        statusText.textContent = message;
+        statusText.style.color = tone === 'error' ? '#d93025'
+            : tone === 'success' ? '#0f9d58'
+            : 'var(--secondary-text)';
+    }
+
+    function fmtSize(bytes) {
+        if (!bytes) return '--';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
+    }
+
+    function renderRows(items) {
+        currentItems = items || [];
+        if (!items || !items.length) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="drive-table-empty">暂无文件，上传一个试试吧。</td></tr>';
+            return;
+        }
+        const rows = items.map(item => {
+            const icon = item.is_dir ? '📁' : '📄';
+            const label = item.is_dir && item.path ? `${item.path}/` : (item.path || '/');
+            const downloadBtn = item.is_dir ? '' :
+                `<a class="btn btn-primary btn-sm" href="${endpoints.download}?path=${encodeURIComponent(item.path)}" target="_blank">下载</a>`;
+            const shared = Boolean(shareMap[item.path]);
+            const shareLabel = shared ? '复制链接' : '生成链接';
+            const disableShare = item.is_dir ? 'disabled' : '';
+            const disableUnshare = shared ? '' : 'disabled';
+            const expiresAt = shared && shareMap[item.path].expires_at ? new Date(shareMap[item.path].expires_at * 1000).toLocaleDateString() : '';
+            const expireBadge = expiresAt ? `<span class="share-expire">到期: ${expiresAt}</span>` : '';
+            return `
+                <tr data-path="${item.path || ''}" data-is-dir="${item.is_dir}">
+                    <td>${icon}</td>
+                    <td>${label}</td>
+                    <td>${item.is_dir ? '--' : fmtSize(item.size)}</td>
+                    <td>${new Date(item.mtime * 1000).toLocaleString()}</td>
+                    <td>
+                        <div class="actions">
+                            ${downloadBtn}
+                            <button class="btn btn-secondary btn-sm" data-action="rename">重命名</button>
+                            <button class="btn btn-secondary btn-sm" data-action="share" ${disableShare}>${shareLabel}</button>
+                            <button class="btn btn-secondary btn-sm" data-action="unshare" ${disableUnshare}>取消分享</button>
+                            <button class="btn btn-secondary btn-sm" data-action="delete">删除</button>
+                            ${expireBadge}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        tableBody.innerHTML = rows;
+    }
+
+    async function refreshList() {
+        setStatus('正在同步最新文件...', 'info');
+        try {
+            const [filesResponse, shareResponse] = await Promise.all([
+                fetch(endpoints.all),
+                fetch(endpoints.shareList)
+            ]);
+            const filesData = await filesResponse.json();
+            if (!filesResponse.ok || !filesData.success) {
+                throw new Error(filesData.error || '加载失败');
+            }
+            const sharesData = shareResponse.ok ? await shareResponse.json() : {success: false};
+            shareMap = sharesData.success ? (sharesData.shares || {}) : {};
+            renderRows(filesData.items || []);
+            setStatus(`${(filesData.items || []).length} 项 · 刷新于 ${new Date().toLocaleTimeString()}`, 'success');
+        } catch (error) {
+            console.error(error);
+            setStatus(error.message || '加载失败', 'error');
+        }
+    }
+
+    async function uploadFile() {
+        const file = fileInput.files[0];
+        if (!file) {
+            setStatus('请先选择文件', 'error');
+            return;
+        }
+        const saveAs = (pathInput.value || file.name).trim();
+        if (!saveAs) {
+            setStatus('请输入保存路径', 'error');
+            return;
+        }
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('path', saveAs);
+        setStatus('正在上传...', 'info');
+        uploadBtn.disabled = true;
+        try {
+            const res = await fetch(endpoints.upload, { method: 'POST', body: formData });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || '上传失败');
+            }
+            setStatus(data.message || '上传成功', 'success');
+            fileInput.value = '';
+            pathInput.value = '';
+            refreshList();
+        } catch (error) {
+            console.error(error);
+            setStatus(error.message || '上传失败', 'error');
+        } finally {
+            uploadBtn.disabled = false;
+        }
+    }
+
+    async function createFolder() {
+        const folder = folderInput.value.trim();
+        if (!folder) {
+            setStatus('请输入文件夹路径', 'error');
+            return;
+        }
+        setStatus('正在创建文件夹...', 'info');
+        mkdirBtn.disabled = true;
+        try {
+            const res = await fetch(endpoints.mkdir, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ path: folder })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || '创建失败');
+            }
+            setStatus(data.message || '已创建文件夹', 'success');
+            folderInput.value = '';
+            refreshList();
+        } catch (error) {
+            console.error(error);
+            setStatus(error.message || '创建失败', 'error');
+        } finally {
+            mkdirBtn.disabled = false;
+        }
+    }
+
+    tableBody.addEventListener('click', async (event) => {
+        const action = event.target.dataset.action;
+        if (!action) return;
+        const row = event.target.closest('tr');
+        if (!row) return;
+        const path = row.dataset.path;
+        if (!path) {
+            setStatus('无法获取路径', 'error');
+            return;
+        }
+        if (action === 'rename') {
+            const newPath = prompt('请输入新的路径/名称', path);
+            if (!newPath || newPath === path) {
+                return;
+            }
+            setStatus('正在重命名...', 'info');
+            try {
+                const res = await fetch(endpoints.rename, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ path, new_path: newPath })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || '重命名失败');
+                }
+                setStatus(data.message || '已重命名', 'success');
+                refreshList();
+            } catch (error) {
+                console.error(error);
+                setStatus(error.message || '重命名失败', 'error');
+            }
+        } else if (action === 'delete') {
+            if (!confirm(`确定要删除「${path}」吗？`)) {
+                return;
+            }
+            setStatus('正在删除...', 'info');
+            try {
+                const res = await fetch(`${endpoints.delete}?path=${encodeURIComponent(path)}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || '删除失败');
+                }
+                setStatus(data.message || '已删除', 'success');
+                refreshList();
+            } catch (error) {
+                console.error(error);
+                setStatus(error.message || '删除失败', 'error');
+            }
+        } else if (action === 'share') {
+            await handleShare(path, row.dataset.isDir === 'true');
+        } else if (action === 'unshare') {
+            await handleUnshare(path);
+        }
+    });
+
+    async function handleShare(path, isDir) {
+        if (isDir) {
+            setStatus('暂不支持分享文件夹', 'error');
+            return;
+        }
+        const existing = shareMap[path];
+        if (existing) {
+            await copyShareLink(existing.url);
+            return;
+        }
+        setStatus('正在生成分享链接...', 'info');
+        try {
+            const duration = parseInt(durationSelect.value, 10) || 604800;
+            const res = await fetch(endpoints.shareCreate, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ path, duration })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || '生成分享链接失败');
+            }
+            shareMap[path] = { token: data.token, url: data.url, expires_at: data.expires_at };
+            renderRows(currentItems);
+            await copyShareLink(data.url);
+        } catch (error) {
+            console.error(error);
+            setStatus(error.message || '生成分享链接失败', 'error');
+        }
+    }
+
+    async function handleUnshare(path) {
+        const existing = shareMap[path];
+        if (!existing) {
+            setStatus('该文件尚未分享', 'info');
+            return;
+        }
+        if (!confirm('确定要取消该文件的分享吗？')) {
+            return;
+        }
+        setStatus('正在取消分享...', 'info');
+        try {
+            const res = await fetch(endpoints.shareDelete, {
+                method: 'DELETE',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ path })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || '取消分享失败');
+            }
+            delete shareMap[path];
+            renderRows(currentItems);
+            setStatus(data.message || '分享已取消', 'success');
+        } catch (error) {
+            console.error(error);
+            setStatus(error.message || '取消分享失败', 'error');
+        }
+    }
+
+    async function copyShareLink(link) {
+        if (!link) {
+            setStatus('分享链接暂不可用，请稍后再试', 'error');
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(link);
+            setStatus('分享链接已复制到剪贴板', 'success');
+        } catch (error) {
+            window.prompt('复制分享链接', link);
+        }
+    }
+
+    refreshBtn.addEventListener('click', refreshList);
+    uploadBtn.addEventListener('click', uploadFile);
+    mkdirBtn.addEventListener('click', createFolder);
+
+    refreshList();
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,225 @@
+{% extends "layout.html" %}
+
+{% block title %}管理员公告设置 - 南瓜AI{% endblock %}
+
+{% block content %}
+<div class="admin-announcement-container">
+    <div class="page-header">
+        <h2>管理员公告设置</h2>
+        <p class="subtitle">设置全局消息公告，在首页和AI项目页面显示</p>
+    </div>
+
+    <form method="POST" class="announcement-form">
+        <div class="form-section">
+            <div class="form-group">
+                <label class="toggle-label">
+                    <input type="checkbox" name="enabled" {% if announcement.enabled %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                    启用公告
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="title">公告标题</label>
+                <input type="text" id="title" name="title" value="{{ announcement.title }}" placeholder="输入公告标题">
+            </div>
+
+            <div class="form-group">
+                <label for="content">公告内容</label>
+                <textarea id="content" name="content" rows="4" placeholder="输入公告内容">{{ announcement.content }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="type">公告类型</label>
+                <select id="type" name="type">
+                    <option value="info" {% if announcement.type == 'info' %}selected{% endif %}>信息</option>
+                    <option value="success" {% if announcement.type == 'success' %}selected{% endif %}>成功</option>
+                    <option value="warning" {% if announcement.type == 'warning' %}selected{% endif %}>警告</option>
+                    <option value="error" {% if announcement.type == 'error' %}selected{% endif %}>错误</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="show_on_homepage" {% if announcement.show_on_homepage %}checked{% endif %}>
+                    在首页显示
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="show_on_projects" {% if announcement.show_on_projects %}checked{% endif %}>
+                    在AI项目页面显示
+                </label>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">保存设置</button>
+            <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-secondary">返回管理面板</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.admin-announcement-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.page-header {
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.page-header h2 {
+    color: #FF7518;
+    margin-bottom: 10px;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+.subtitle {
+    color: #666;
+    font-size: 16px;
+}
+
+.announcement-form {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 20px rgba(255, 117, 24, 0.1);
+}
+
+.form-section {
+    margin-bottom: 30px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #2C2C2C;
+}
+
+.form-group input[type="text"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #F5F5F5;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+    box-sizing: border-box;
+}
+
+.form-group input[type="text"]:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #FF7518;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.toggle-label input[type="checkbox"] {
+    display: none;
+}
+
+.toggle-slider {
+    width: 50px;
+    height: 26px;
+    background: #ccc;
+    border-radius: 13px;
+    position: relative;
+    margin-right: 12px;
+    transition: background 0.3s ease;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s ease;
+}
+
+.toggle-label input[type="checkbox"]:checked + .toggle-slider {
+    background: #FF7518;
+}
+
+.toggle-label input[type="checkbox"]:checked + .toggle-slider::before {
+    transform: translateX(24px);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-right: 10px;
+    accent-color: #FF7518;
+}
+
+.form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    padding-top: 20px;
+    border-top: 1px solid #F5F5F5;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-block;
+    text-align: center;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #FF7518, #FFB366);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 117, 24, 0.3);
+}
+
+.btn-secondary {
+    background: #F5F5F5;
+    color: #666;
+}
+
+.btn-secondary:hover {
+    background: #E0E0E0;
+    color: #333;
+}
+</style>
+{% endblock %}

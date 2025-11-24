@@ -1,0 +1,314 @@
+{% extends "layout.html" %}
+{% block title %}模型代理设置 - 南瓜AI 管理面板{% endblock %}
+{% block content %}
+<div class="admin-panel-container">
+    <div class="page-header">
+        <h2>模型代理设置</h2>
+        <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-secondary">返回面板</a>
+    </div>
+
+    <div class="settings-card">
+        <h3>基本配置</h3>
+        <form method="POST" action="{{ url_for('admin.netmind_settings') }}">
+            <div class="form-group">
+                <label for="base_url">上游 API Base URL</label>
+                <input type="text" id="base_url" name="base_url" class="form-control" value="{{ settings.base_url }}" placeholder="https://upstream.example.com/openai/v1">
+                <small>这是连接到外部模型代理的 API 地址。</small>
+            </div>
+            <div class="form-group">
+                <label for="ad_enabled">广告开关</label>
+                <label class="toggle">
+                    <input type="checkbox" id="ad_enabled" name="ad_enabled" {% if settings.ad_enabled %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-text">启用 AI 回复尾部广告</span>
+                </label>
+                <small>开启后，每条 AI 回复（包括 API）都会在末尾追加下方的广告文案。</small>
+            </div>
+            <div class="form-group">
+                <label for="ad_suffix">广告后缀 (可选)</label>
+                <textarea id="ad_suffix" name="ad_suffix" class="form-control" rows="3" placeholder="例如：\n\n(✨ 本回复由 PumpkinAI 提供 ✨)">{{ settings.ad_suffix }}</textarea>
+                <small>开启广告后，此内容将自动追加到 AI 回复的末尾。</small>
+            </div>
+            <div class="form-group">
+                <label>API 限速</label>
+                <div class="rate-limit-inputs">
+                    <input type="number" name="rate_limit_max_requests" id="rate_limit_max_requests" min="0" class="form-control small-input" value="{{ settings.rate_limit_max_requests }}">
+                    <span>次 /</span>
+                    <input type="number" name="rate_limit_window_seconds" id="rate_limit_window_seconds" min="1" class="form-control small-input" value="{{ settings.rate_limit_window_seconds }}">
+                    <span>秒</span>
+                </div>
+                <small>例如：60 秒内最多 30 次。将请求次数设为 0 可关闭限速。</small>
+            </div>
+            <div class="form-group">
+                <label for="enable_alias_mapping">模型映射</label>
+                <label class="toggle">
+                    <input type="checkbox" id="enable_alias_mapping" name="enable_alias_mapping" {% if settings.enable_alias_mapping %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-text">允许 Space 自定义模型别名 → 上游模型</span>
+                </label>
+                <small>关闭后，Space 中的“上游模型 ID”将失效，所有调用都直接使用对外模型 ID。</small>
+            </div>
+            <button type="submit" class="btn btn-primary">保存配置</button>
+        </form>
+    </div>
+
+    <div class="settings-card">
+        <h3>API 密钥池</h3>
+        <p>系统将轮询使用这些密钥，遇到 401/429 错误时自动切换。</p>
+
+        <form method="POST" action="{{ url_for('admin.netmind_add_key') }}" class="add-key-form">
+            <div class="input-group">
+                <input type="text" name="new_key" class="form-control" placeholder="输入新的上游 API Key" required>
+                <button type="submit" class="btn btn-success">添加密钥</button>
+            </div>
+        </form>
+
+        <div class="key-list">
+            {% if settings['keys'] %}
+                {% for key in settings['keys'] %}
+                <div class="key-item">
+                    <span class="key-value">{{ key[:8] }}...{{ key[-4:] }}</span>
+                    <form method="POST" action="{{ url_for('admin.netmind_delete_key') }}" style="display:inline;">
+                        <input type="hidden" name="key_to_delete" value="{{ key }}">
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('确定要删除此密钥吗？')">删除</button>
+                    </form>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="no-keys">暂无密钥，请添加。</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="settings-card {% if not settings.enable_alias_mapping %}disabled-card{% endif %}">
+        <h3>模型名称映射</h3>
+        {% if settings.enable_alias_mapping %}
+        <p>系统会根据每个代理 Space 的“外部模型 ID / 上游模型 ID”自动生成映射。要修改映射，请编辑对应 Space。</p>
+        {% else %}
+        <p class="muted">该功能已关闭。如需启用，请在上方“模型映射”开关中打开。</p>
+        {% endif %}
+
+        <div class="alias-list">
+            {% if settings.enable_alias_mapping and settings.model_aliases %}
+                {% for alias, target in settings.model_aliases.items() %}
+                <div class="alias-item">
+                    <div class="alias-info">
+                        <strong>{{ alias }}</strong>
+                        <span>→</span>
+                        <code>{{ target }}</code>
+                    </div>
+                </div>
+                {% endfor %}
+            {% elif settings.enable_alias_mapping %}
+                <p class="no-keys">暂无映射，创建代理 Space 并填写对应字段即可自动生成。</p>
+            {% else %}
+                <p class="no-keys">模型映射已关闭。</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.admin-panel-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+.page-header h2 {
+    color: #FF7518;
+    margin: 0;
+}
+.settings-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+.settings-card h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #2C2C2C;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+.form-group {
+    margin-bottom: 20px;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+.form-control.disabled-textarea {
+    background: #f5f5f5;
+    color: #888;
+    cursor: not-allowed;
+}
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+}
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    text-decoration: none;
+    color: white;
+}
+.btn-primary { background: #FF7518; }
+.btn-secondary { background: #6c757d; }
+.btn-success { background: #28a745; }
+.btn-danger { background: #dc3545; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+.add-key-form {
+    margin-bottom: 20px;
+}
+.input-group {
+    display: flex;
+    gap: 10px;
+}
+.key-list {
+    border: 1px solid #eee;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.key-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    background: #f9f9f9;
+}
+.key-item:last-child {
+    border-bottom: none;
+}
+.key-value {
+    font-family: monospace;
+    color: #555;
+}
+.no-keys {
+    padding: 20px;
+    text-align: center;
+    color: #999;
+    margin: 0;
+}
+.toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+.toggle input {
+    display: none;
+}
+.toggle-slider {
+    width: 44px;
+    height: 22px;
+    background: #ccc;
+    border-radius: 22px;
+    position: relative;
+    transition: background 0.2s;
+}
+.toggle-slider::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.toggle input:checked + .toggle-slider {
+    background: #FF7518;
+}
+.toggle input:checked + .toggle-slider::after {
+    transform: translateX(22px);
+}
+.toggle-text {
+    font-size: 14px;
+    color: #333;
+}
+.alias-list {
+    margin-top: 20px;
+    border: 1px solid #eee;
+    border-radius: 6px;
+}
+.alias-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    background: #fdfdfd;
+}
+.alias-item:last-child {
+    border-bottom: none;
+}
+.alias-info {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 14px;
+    color: #333;
+}
+.alias-info code {
+    background: #f3f3f3;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.rate-limit-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.rate-limit-inputs .small-input {
+    width: 130px;
+}
+.disabled-card {
+    opacity: 0.6;
+}
+.muted {
+    color: #777;
+    font-size: 13px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const adToggle = document.getElementById('ad_enabled');
+    const adTextarea = document.getElementById('ad_suffix');
+    if (adToggle && adTextarea) {
+        const syncAdTextarea = () => {
+            const enabled = adToggle.checked;
+            adTextarea.readOnly = !enabled;
+            adTextarea.classList.toggle('disabled-textarea', !enabled);
+        };
+        adToggle.addEventListener('change', syncAdTextarea);
+        syncAdTextarea();
+    }
+});
+</script>
+{% endblock %}

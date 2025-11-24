@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+instance/
+.env
+.venv
+env/
+venv/
+*.log
+*.pid
+.DS_Store
+spaces*.zip
