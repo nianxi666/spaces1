@@ -1,0 +1,206 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ _('关于我们') }} - {{ _('南瓜AI') }}{% endblock %}
+
+{% block meta_description %}
+<meta name="description" content="南瓜AI是一个专注于人工智能工具和应用的创新平台，致力于让AI技术变得更加accessible和易用。了解我们的使命、愿景和团队。">
+{% endblock %}
+
+{% block og_title %}{{ _('关于我们 - 南瓜AI') }}{% endblock %}
+{% block og_description %}南瓜AI是一个专注于人工智能工具和应用的创新平台，致力于让AI技术变得更加accessible和易用。{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-orange-50 via-white to-pumpkin-50 py-12">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <!-- 页面标题 -->
+        <div class="text-center mb-12 animate-fade-in">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+                {{ _('关于南瓜AI') }}
+            </h1>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                {{ _('让人工智能触手可及，为每个人赋能') }}
+            </p>
+        </div>
+
+        <!-- 主要内容 -->
+        <div class="glass-card rounded-2xl p-8 md:p-12 mb-8 space-y-8">
+            
+            <!-- 我们的使命 -->
+            <section class="animate-fade-in delay-100">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+                    <span class="text-3xl mr-3">🎯</span>
+                    {{ _('我们的使命') }}
+                </h2>
+                <p class="text-lg text-gray-700 leading-relaxed mb-4">
+                    南瓜AI（PumpkinAI）成立于2024年，是一个专注于人工智能工具聚合和推广的创新平台。我们的使命是让AI技术变得更加易于访问和使用，帮助用户发现、学习和使用最新的人工智能工具和应用。
+                </p>
+                <p class="text-lg text-gray-700 leading-relaxed">
+                    在这个AI技术快速发展的时代，我们相信人工智能不应该是少数人的特权，而应该是每个人都能轻松获取和使用的工具。通过南瓜AI平台，我们希望架起AI技术与普通用户之间的桥梁，让每个人都能享受AI带来的便利和创造力。
+                </p>
+            </section>
+
+            <!-- 我们做什么 -->
+            <section class="animate-fade-in delay-200">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+                    <span class="text-3xl mr-3">🚀</span>
+                    {{ _('我们做什么') }}
+                </h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-gradient-to-br from-pumpkin-50 to-orange-50 rounded-xl p-6">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-3">AI工具聚合</h3>
+                        <p class="text-gray-700">
+                            我们精心收集和整理来自全球的优质AI工具，包括图像生成、文本处理、语音识别、视频编辑等多个领域，为用户提供一站式的AI工具导航服务。
+                        </p>
+                    </div>
+                    <div class="bg-gradient-to-br from-orange-50 to-pumpkin-50 rounded-xl p-6">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-3">使用教程</h3>
+                        <p class="text-gray-700">
+                            我们为每个AI工具提供详细的使用教程和技巧分享，帮助用户快速上手，充分发挥AI工具的潜力，从新手到专家，我们都有相应的指导内容。
+                        </p>
+                    </div>
+                    <div class="bg-gradient-to-br from-pumpkin-50 to-orange-50 rounded-xl p-6">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-3">社区交流</h3>
+                        <p class="text-gray-700">
+                            我们建立了一个活跃的AI爱好者社区，用户可以在这里分享使用经验、交流创作心得、探讨AI技术的未来发展，共同学习和进步。
+                        </p>
+                    </div>
+                    <div class="bg-gradient-to-br from-orange-50 to-pumpkin-50 rounded-xl p-6">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-3">行业资讯</h3>
+                        <p class="text-gray-700">
+                            我们持续关注AI行业的最新动态，为用户提供前沿的AI技术新闻、工具更新和应用案例，让您始终站在AI技术的最前沿。
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 我们的价值观 -->
+            <section class="animate-fade-in delay-300">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+                    <span class="text-3xl mr-3">💎</span>
+                    {{ _('我们的价值观') }}
+                </h2>
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <span class="text-2xl mr-4">✨</span>
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-1">创新驱动</h4>
+                            <p class="text-gray-700">我们始终追求创新，不断探索AI技术的新可能性，为用户提供最前沿的工具和服务。</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="text-2xl mr-4">🤝</span>
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-1">用户至上</h4>
+                            <p class="text-gray-700">用户的需求和体验是我们工作的核心，我们倾听用户的声音，持续优化产品和服务。</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="text-2xl mr-4">🌟</span>
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-1">质量保证</h4>
+                            <p class="text-gray-700">我们严格筛选平台上的每一个AI工具，确保为用户提供高质量、可靠的产品和内容。</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="text-2xl mr-4">🌈</span>
+                        <div>
+                            <h4 class="font-semibold text-gray-900 mb-1">开放包容</h4>
+                            <p class="text-gray-700">我们欢迎来自全球的AI工具和用户，建立一个开放、包容、多元化的AI生态系统。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 为什么选择我们 -->
+            <section class="animate-fade-in delay-400">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+                    <span class="text-3xl mr-3">🎃</span>
+                    {{ _('为什么选择南瓜AI') }}
+                </h2>
+                <div class="bg-gradient-to-br from-pumpkin-500 to-orange-500 rounded-xl p-8 text-white">
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span class="text-lg"><strong>精选工具库：</strong>我们精心筛选和测试每一个AI工具，只推荐最优质、最实用的产品。</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span class="text-lg"><strong>详细教程：</strong>每个工具都配有详细的使用教程和技巧分享，零基础也能快速上手。</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span class="text-lg"><strong>实时更新：</strong>我们持续跟踪AI行业的最新动态，第一时间为您带来新工具和新功能。</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span class="text-lg"><strong>活跃社区：</strong>加入我们的社区，与全球AI爱好者交流学习，分享创作心得。</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="w-6 h-6 mr-3 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span class="text-lg"><strong>完全免费：</strong>南瓜AI平台的核心功能完全免费，我们希望让每个人都能平等地获取AI资源。</span>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 联系我们 -->
+            <section class="animate-fade-in delay-500">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+                    <span class="text-3xl mr-3">📮</span>
+                    {{ _('联系我们') }}
+                </h2>
+                <p class="text-lg text-gray-700 mb-4">
+                    我们非常重视用户的反馈和建议。如果您有任何问题、建议或合作意向，欢迎随时与我们联系：
+                </p>
+                <div class="bg-gray-50 rounded-xl p-6">
+                    <div class="space-y-3">
+                        <p class="flex items-center text-gray-700">
+                            <svg class="w-5 h-5 mr-3 text-pumpkin-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                            </svg>
+                            <strong class="mr-2">邮箱：</strong>
+                            <a href="mailto:contact@pumpkinai.space" class="text-pumpkin-600 hover:text-pumpkin-700">contact@pumpkinai.space</a>
+                        </p>
+                        <p class="flex items-center text-gray-700">
+                            <svg class="w-5 h-5 mr-3 text-pumpkin-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                            </svg>
+                            <strong class="mr-2">网站：</strong>
+                            <a href="https://pumpkinai.space" class="text-pumpkin-600 hover:text-pumpkin-700">https://pumpkinai.space</a>
+                        </p>
+                        <p class="flex items-center text-gray-700">
+                            <svg class="w-5 h-5 mr-3 text-pumpkin-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/>
+                            </svg>
+                            <strong class="mr-2">反馈：</strong>
+                            <a href="{{ url_for('main.contact') }}" class="text-pumpkin-600 hover:text-pumpkin-700">提交反馈表单</a>
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- CTA -->
+        <div class="text-center animate-fade-in delay-600">
+            <a href="{{ url_for('main.index') }}" 
+               class="inline-flex items-center px-8 py-4 bg-gradient-to-r from-pumpkin-500 to-orange-500 text-white font-semibold rounded-xl hover:from-pumpkin-600 hover:to-orange-600 transition-all transform hover:scale-105 shadow-lg">
+                <span class="mr-2">🚀</span>
+                开始探索AI工具
+            </a>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

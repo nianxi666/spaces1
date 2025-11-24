@@ -76,11 +76,33 @@ def sitemap():
                 last_mod_date = dt.strftime('%Y-%m-%d')
             except (ValueError, TypeError):
                 pass
+        
+        # Add image data for spaces with covers
+        images = []
+        if space.get('cover_image'):
+            cover_url = space['cover_image']
+            if not cover_url.startswith('http'):
+                cover_url = f"{server_domain}{cover_url}"
+            images.append({
+                'loc': cover_url,
+                'caption': space.get('name', 'AI Project'),
+                'title': space.get('description', space.get('name', 'AI Project'))[:100]
+            })
+        
+        # Add language alternates
+        alternates = [
+            {'hreflang': 'zh', 'href': external_url_for('main.ai_project_view', ai_project_id=space['id']) + '?lang=zh'},
+            {'hreflang': 'en', 'href': external_url_for('main.ai_project_view', ai_project_id=space['id']) + '?lang=en'},
+            {'hreflang': 'x-default', 'href': external_url_for('main.ai_project_view', ai_project_id=space['id'])}
+        ]
+        
         url_data = {
             'loc': external_url_for('main.ai_project_view', ai_project_id=space['id']),
             'lastmod': last_mod_date,
             'changefreq': 'weekly',
-            'priority': '0.9'
+            'priority': '0.9',
+            'images': images,
+            'alternates': alternates
         }
         space_urls.append(url_data)
 
@@ -1063,3 +1085,39 @@ def article_view(slug):
     ]
 
     return render_template('article_view.html', article=article, hreflang_links=hreflang_links)
+
+# AdSense Required Pages
+@main_bp.route('/about')
+def about():
+    """关于我们页面"""
+    db = load_db()
+    settings = db.get('settings', {})
+    return render_template('about.html', settings=settings)
+
+@main_bp.route('/privacy')
+def privacy():
+    """隐私政策页面"""
+    db = load_db()
+    settings = db.get('settings', {})
+    return render_template('privacy.html', settings=settings)
+
+@main_bp.route('/terms')
+def terms():
+    """使用条款页面"""
+    db = load_db()
+    settings = db.get('settings', {})
+    return render_template('terms.html', settings=settings)
+
+@main_bp.route('/contact')
+def contact():
+    """联系我们页面"""
+    db = load_db()
+    settings = db.get('settings', {})
+    return render_template('contact.html', settings=settings)
+
+@main_bp.route('/faq')
+def faq():
+    """常见问题页面"""
+    db = load_db()
+    settings = db.get('settings', {})
+    return render_template('faq.html', settings=settings)

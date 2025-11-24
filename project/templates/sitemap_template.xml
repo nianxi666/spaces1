@@ -1,11 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
     {% for url in urls %}
     <url>
         <loc>{{ url.loc }}</loc>
         <lastmod>{{ url.lastmod }}</lastmod>
         <changefreq>{{ url.changefreq }}</changefreq>
         <priority>{{ url.priority }}</priority>
+        {% if url.images %}
+        {% for image in url.images %}
+        <image:image>
+            <image:loc>{{ image.loc }}</image:loc>
+            {% if image.caption %}<image:caption>{{ image.caption }}</image:caption>{% endif %}
+            {% if image.title %}<image:title>{{ image.title }}</image:title>{% endif %}
+        </image:image>
+        {% endfor %}
+        {% endif %}
+        {% if url.alternates %}
+        {% for alt in url.alternates %}
+        <xhtml:link rel="alternate" hreflang="{{ alt.hreflang }}" href="{{ alt.href }}"/>
+        {% endfor %}
+        {% endif %}
     </url>
     {% endfor %}
 </urlset>

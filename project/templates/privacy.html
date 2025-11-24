@@ -1,43 +1,214 @@
 {% extends "layout.html" %}
 
-{% block title %}Privacy Policy - 南瓜AI{% endblock %}
+{% block title %}{{ _('隐私政策') }} - {{ _('南瓜AI') }}{% endblock %}
+
+{% block meta_description %}
+<meta name="description" content="南瓜AI隐私政策 - 了解我们如何收集、使用和保护您的个人信息。我们承诺保护用户隐私，遵守相关法律法规。">
+{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 800px; margin: 2rem auto;">
-    <article class="card" style="padding: 2rem 3rem;">
-        <header style="margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--separator-color); text-align: center;">
-            <h1 style="font-size: 2.5em; margin-bottom: 0.5rem;">隐私政策 (Privacy Policy)</h1>
-            <p class="article-meta" style="color: var(--secondary-text); font-size: 0.9em;">
-                最后更新：2025年10月2日
-            </p>
-        </header>
-
-        <div class="article-content" style="line-height: 1.8; font-size: 1.1em;">
-            <p>欢迎来到 pumpkinai.space (本“网站”)。我们尊重您的隐私，并致力于保护您的个人数据。本隐私政策将告知您，当您访问我们的网站时，我们如何处理您的个人数据，并告诉您您的隐私权以及法律如何保护您。</p>
-
-            <h2>我们收集的数据</h2>
-            <p>我们可能会收集、使用、存储和传输关于您的不同种类的个人数据，例如：</p>
-            <ul>
-                <li><strong>技术数据</strong>：包括互联网协议 (IP) 地址、您的登录数据、浏览器类型和版本、时区设置和位置、浏览器插件类型和版本、操作系统和平台以及您用于访问本网站的设备上的其他技术。</li>
-                <li><strong>使用数据</strong>：包括有关您如何使用我们网站、产品和服务的信息。</li>
-            </ul>
-
-            <h2>我们如何使用您的数据</h2>
-            <p>我们将在法律允许的情况下使用您的个人数据。最常见的是，我们将在以下情况下使用您的个人数据：</p>
-            <ul>
-                <li>为了管理和保护我们的业务和本网站（包括故障排除、数据分析、测试、系统维护、支持、报告和托管数据）。</li>
-                <li>为了向您提供相关的网站内容和广告，并衡量或了解我们向您提供的广告的有效性。</li>
-            </ul>
-
-            <h2>Cookies</h2>
-            <p>您可以将浏览器设置为拒绝所有或部分浏览器 cookies，或在网站设置或访问 cookies 时提醒您。请注意，如果您禁用或拒绝 cookies，本网站的某些部分可能无法访问或无法正常运行。</p>
-
-            <h2>您的合法权利</h2>
-            <p>在某些情况下，根据数据保护法，您拥有与您的个人数据相关的权利，包括访问、更正、删除或限制处理您的个人数据的权利。</p>
-
-            <h2>联系我们</h2>
-            <p>如果您对本隐私政策有任何疑问，请与我们联系。</p>
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-white py-12">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <div class="mb-8">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">{{ _('隐私政策') }}</h1>
+            <p class="text-gray-600">{{ _('最后更新：2024年') }}</p>
         </div>
-    </article>
+
+        <div class="glass-card rounded-2xl p-8 md:p-12 space-y-8">
+            
+            <section>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">1. 引言</h2>
+                <p class="text-gray-700 leading-relaxed mb-4">
+                    欢迎使用南瓜AI（PumpkinAI）。我们非常重视您的隐私权。本隐私政策说明了我们如何收集、使用、披露和保护您在使用我们的网站和服务时提供的信息。
+                </p>
+                <p class="text-gray-700 leading-relaxed">
+                    通过访问或使用我们的服务，您同意本隐私政策中描述的信息收集和使用方式。如果您不同意本政策的任何条款，请不要使用我们的服务。
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">2. 我们收集的信息</h2>
+                
+                <h3 class="text-xl font-semibold text-gray-800 mb-3 mt-4">2.1 您主动提供的信息</h3>
+                <p class="text-gray-700 leading-relaxed mb-4">
+                    当您注册账户、使用我们的服务或与我们联系时，我们可能会收集以下信息：
+                </p>
+                <ul class="list-disc list-inside text-gray-700 space-y-2 ml-4">
+                    <li>用户名和密码</li>
+                    <li>电子邮件地址</li>
+                    <li>个人资料信息（如头像、简介等）</li>
+                    <li>您通过联系表单或电子邮件发送给我们的信息</li>
+                    <li>您在使用服务时创建或上传的内容</li>
+                </ul>
+
+                <h3 class="text-xl font-semibold text-gray-800 mb-3 mt-6">2.2 自动收集的信息</h3>
+                <p class="text-gray-700 leading-relaxed mb-4">
+                    当您使用我们的服务时，我们可能会自动收集以下信息：
+                </p>
+                <ul class="list-disc list-inside text-gray-700 space-y-2 ml-4">
+                    <li>设备信息（如设备类型、操作系统、浏览器类型）</li>
+                    <li>IP地址和大致地理位置</li>
+                    <li>访问时间和访问的页面</li>
+                    <li>引荐来源URL</li>
+                    <li>Cookie和类似技术收集的信息</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">3. 我们如何使用您的信息</h2>
+                <p class="text-gray-700 leading-relaxed mb-4">
+                    我们收集的信息用于以下目的：
+                </p>
+                <ul class="list-disc list-inside text-gray-700 space-y-2 ml-4">
+                    <li><strong>提供和改进服务：</strong>运营、维护和改进我们的网站和服务</li>
+                    <li><strong>用户账户管理：</strong>创建和管理您的账户，验证身份</li>
+                    <li><strong>个性化体验：</strong>根据您的偏好定制内容和功能</li>
+                    <li><strong>通信：</strong>回复您的询问，发送服务相关通知和更新</li>
+                    <li><strong>安全和防欺诈：</strong>检测、预防和解决技术问题及欺诈行为</li>
+                    <li><strong>分析和研究：</strong>分析使用趋势，优化用户体验</li>
+                    <li><strong>法律合规：</strong>遵守适用的法律法规和法律程序</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">4. Cookie 和追踪技术</h2>
+                <p class="text-gray-700 leading-relaxed mb-4">
+                    我们使用Cookie和类似的追踪技术来收集和存储信息。Cookie是存储在您设备上的小型文本文件，帮助我们：
+                </p>
+                <ul class="list-disc list-inside text-gray-700 space-y-2 ml-4 mb-4">
+                    <li>记住您的登录状态和偏好设置</li>
+                    <li>分析网站流量和用户行为</li>
+                    <li>提供个性化内容和广告</li>
+                    <li>改进网站性能和功能</li>
+                </ul>
+                <p class="text-gray-700 leading-relaxed">
+                    您可以通过浏览器设置管理Cookie偏好。但请注意，禁用Cookie可能会影响某些功能的正常使用。
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">5. 第三方服务</h2>
+                <p class="text-gray-700 leading-relaxed mb-4">
+                    我们的服务可能包含指向第三方网站或服务的链接，包括：
+                </p>
+                <ul class="list-disc list-inside text-gray-700 space-y-2 ml-4 mb-4">
+                    <li><strong>Google Analytics：</strong>用于网站流量分析</li>
+                    <li><strong>Google AdSense：</strong>用于展示相关广告</li>
+                    <li><strong>第三方AI工具：</strong>您可能通过我们的平台访问的外部AI服务</li>
+                    <li><strong>社交媒体平台：</strong>用于内容分享和社交功能</li>
+                </ul>
+                <p class="text-gray-700 leading-relaxed">
+                    这些第三方服务有自己的隐私政策，我们建议您在使用这些服务之前阅读其隐私政策。我们对第三方的隐私实践不承担责任。
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">6. 信息共享和披露</h2>
+                <p class="text-gray-700 leading-relaxed mb-4">
+                    我们不会出售、租赁或以其他方式向第三方提供您的个人信息，除非：
+                </p>
+                <ul class="list-disc list-inside text-gray-700 space-y-2 ml-4">
+                    <li><strong>经您同意：</strong>在获得您的明确同意后</li>
+                    <li><strong>服务提供商：</strong>与帮助我们运营服务的可信第三方合作伙伴（如托管服务、分析工具）</li>
+                    <li><strong>法律要求：</strong>根据法律、法规、法律程序或政府要求</li>
+                    <li><strong>保护权利：</strong>保护我们的权利、隐私、安全或财产，以及我们的用户或公众</li>
+                    <li><strong>业务转让：</strong>在合并、收购或资产出售的情况下</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">7. 数据安全</h2>
+                <p class="text-gray-700 leading-relaxed mb-4">
+                    我们采取合理的技术和组织措施来保护您的个人信息免受未经授权的访问、使用、披露、更改或破坏。这些措施包括：
+                </p>
+                <ul class="list-disc list-inside text-gray-700 space-y-2 ml-4 mb-4">
+                    <li>使用加密技术（HTTPS/SSL）保护数据传输</li>
+                    <li>定期安全评估和漏洞测试</li>
+                    <li>限制员工和服务提供商对个人信息的访问</li>
+                    <li>实施访问控制和身份验证机制</li>
+                </ul>
+                <p class="text-gray-700 leading-relaxed">
+                    然而，请注意，没有任何互联网传输或电子存储方法是100%安全的。虽然我们努力保护您的信息，但我们无法保证绝对安全。
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">8. 数据保留</h2>
+                <p class="text-gray-700 leading-relaxed">
+                    我们仅在实现本隐私政策中所述目的所需的时间内保留您的个人信息。当您的信息不再需要时，或者当您要求删除时（在法律允许的范围内），我们将安全地删除或匿名化您的信息。
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">9. 您的权利</h2>
+                <p class="text-gray-700 leading-relaxed mb-4">
+                    根据适用的法律，您可能拥有以下权利：
+                </p>
+                <ul class="list-disc list-inside text-gray-700 space-y-2 ml-4">
+                    <li><strong>访问权：</strong>请求访问我们持有的关于您的个人信息</li>
+                    <li><strong>更正权：</strong>请求更正不准确或不完整的个人信息</li>
+                    <li><strong>删除权：</strong>请求删除您的个人信息（在某些情况下）</li>
+                    <li><strong>限制处理权：</strong>请求限制对您个人信息的处理</li>
+                    <li><strong>数据可携权：</strong>请求以结构化、常用和机器可读的格式接收您的数据</li>
+                    <li><strong>反对权：</strong>反对处理您的个人信息（在某些情况下）</li>
+                    <li><strong>撤回同意权：</strong>随时撤回您之前给予的同意</li>
+                </ul>
+                <p class="text-gray-700 leading-relaxed mt-4">
+                    要行使这些权利，请通过 <a href="mailto:contact@pumpkinai.space" class="text-pumpkin-600 hover:text-pumpkin-700">contact@pumpkinai.space</a> 与我们联系。
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">10. 儿童隐私</h2>
+                <p class="text-gray-700 leading-relaxed">
+                    我们的服务不针对13岁以下的儿童。我们不会有意收集13岁以下儿童的个人信息。如果我们发现收集了13岁以下儿童的个人信息，我们将立即采取措施删除该信息。
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">11. 国际数据传输</h2>
+                <p class="text-gray-700 leading-relaxed">
+                    您的信息可能会被传输到并维护在位于您所在国家/地区以外的计算机上。通过使用我们的服务，您同意将您的信息传输到这些地点。我们将采取措施确保您的数据根据本隐私政策得到安全处理。
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">12. 隐私政策的变更</h2>
+                <p class="text-gray-700 leading-relaxed mb-4">
+                    我们可能会不时更新本隐私政策。我们将通过在本页面上发布新的隐私政策来通知您任何更改。更改将在发布后立即生效。
+                </p>
+                <p class="text-gray-700 leading-relaxed">
+                    我们建议您定期查看本隐私政策以了解任何更改。在隐私政策更改后继续使用我们的服务，即表示您接受这些更改。
+                </p>
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">13. 联系我们</h2>
+                <p class="text-gray-700 leading-relaxed mb-4">
+                    如果您对本隐私政策有任何问题、疑虑或建议，请通过以下方式与我们联系：
+                </p>
+                <div class="bg-gray-50 rounded-xl p-6">
+                    <p class="text-gray-700 mb-2"><strong>邮箱：</strong> <a href="mailto:contact@pumpkinai.space" class="text-pumpkin-600 hover:text-pumpkin-700">contact@pumpkinai.space</a></p>
+                    <p class="text-gray-700 mb-2"><strong>网站：</strong> <a href="https://pumpkinai.space" class="text-pumpkin-600 hover:text-pumpkin-700">https://pumpkinai.space</a></p>
+                    <p class="text-gray-700"><strong>联系页面：</strong> <a href="{{ url_for('main.contact') }}" class="text-pumpkin-600 hover:text-pumpkin-700">提交联系表单</a></p>
+                </div>
+            </section>
+
+            <div class="border-t pt-6 mt-8">
+                <p class="text-sm text-gray-600 text-center">
+                    本隐私政策于2024年首次发布，最后更新于2024年。
+                </p>
+            </div>
+
+        </div>
+
+        <div class="mt-8 text-center">
+            <a href="{{ url_for('main.index') }}" class="text-pumpkin-600 hover:text-pumpkin-700 font-medium">
+                ← 返回首页
+            </a>
+        </div>
+
+    </div>
 </div>
 {% endblock %}

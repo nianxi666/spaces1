@@ -48,6 +48,10 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 <span>聊天功能: <span id="chatStatusText">Checking...</span></span>
             </button>
+            <button id="toggleAdsBtn" class="btn" style="background: linear-gradient(135deg, #FF6B6B, #FFD93D); color: white;" title="一键开关全站广告">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
+                <span>广告: <span id="adsStatusText">检查中...</span></span>
+            </button>
             <a href="{{ url_for('admin.add_edit_space') }}" class="btn btn-primary" title="添加AI项目">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </a>
@@ -759,6 +763,52 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             console.error('切换聊天状态失败:', error);
             alert('操作失败，请查看控制台日志。');
+        }
+    });
+
+    // Ads Toggle Functionality
+    const toggleAdsBtn = document.getElementById('toggleAdsBtn');
+    const adsStatusText = document.getElementById('adsStatusText');
+    const adsEnabledInitial = {{ 'true' if settings.get('ads_enabled', False) else 'false' }};
+
+    function updateAdsStatusUI(enabled) {
+        adsStatusText.textContent = enabled ? '已开启' : '已关闭';
+        toggleAdsBtn.style.background = enabled 
+            ? 'linear-gradient(135deg, #4CAF50, #8BC34A)' 
+            : 'linear-gradient(135deg, #FF6B6B, #FFD93D)';
+    }
+
+    updateAdsStatusUI(adsEnabledInitial);
+
+    toggleAdsBtn.addEventListener('click', async () => {
+        const currentStatus = adsStatusText.textContent === '已开启';
+        const action = currentStatus ? '关闭' : '开启';
+
+        if (!confirm(`确定要${action}全站广告吗？\n\n${currentStatus ? '⚠️ 关闭后，网站将没有任何广告展示，也不会产生任何广告收益。' : '✅ 开启后，广告将在网站的多个位置展示，以实现收益最大化。'}\n\n此操作会立即生效。`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch("{{ url_for('admin.toggle_ads') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            const result = await response.json();
+            if (result.success) {
+                alert(`✅ ${result.message}\n\n页面将在 2 秒后刷新以应用更改。`);
+                updateAdsStatusUI(result.ads_enabled);
+                // 刷新页面以让广告脚本生效/失效
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                alert('操作失败: ' + (result.error || '未知错误'));
+            }
+        } catch (error) {
+            console.error('切换广告状态失败:', error);
+            alert('❌ 操作失败，请查看控制台日志或稍后重试。');
         }
     });
 });
