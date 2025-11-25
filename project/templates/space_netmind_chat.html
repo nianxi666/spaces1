@@ -8,6 +8,14 @@
             <p class="description">{{ ai_project.description }}</p>
         </div>
 
+        <!-- Adsterra Native Ad -->
+        {% if settings.get('ads_enabled', False) %}
+        <div style="display: flex; justify-content: center; padding: 10px; border-bottom: 1px solid #eee;">
+                <script async="async" data-cfasync="false" src="//pl28129429.effectivegatecpm.com/35768f144f52938468363da0a29f1e25/invoke.js"></script>
+            <div id="container-35768f144f52938468363da0a29f1e25"></div>
+        </div>
+        {% endif %}
+
         <div id="chat-messages" class="chat-messages">
             <div class="message system">
                 <div class="avatar">🤖</div>
