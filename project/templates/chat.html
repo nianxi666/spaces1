@@ -6,6 +6,15 @@
         <h2>聊天室</h2>
         <a href="{{ url_for('main.chat_history') }}" class="btn btn-sm btn-secondary">查看历史</a>
     </div>
+
+    <!-- Adsterra Native Ad -->
+    {% if settings.get('ads_enabled', False) and settings.get('adsterra_enabled', True) %}
+    <div style="display: flex; justify-content: center; padding: 10px; border-bottom: 1px solid #eee;">
+            <script async="async" data-cfasync="false" src="//pl28129429.effectivegatecpm.com/35768f144f52938468363da0a29f1e25/invoke.js"></script>
+        <div id="container-35768f144f52938468363da0a29f1e25"></div>
+    </div>
+    {% endif %}
+
     <div class="chat-messages" id="chat-messages">
         <!-- Messages will be loaded here -->
     </div>
