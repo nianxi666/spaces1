@@ -51,8 +51,26 @@
         {% endfor %}
     </div>
 
+    <!-- Adsterra Container Ad -->
+    {% if settings.get('ads_enabled', False) and settings.get('adsterra_enabled', True) %}
+    <div class="flex justify-center my-6">
+        <script async="async" data-cfasync="false" src="//pl28129429.effectivegatecpm.com/35768f144f52938468363da0a29f1e25/invoke.js"></script>
+        <div id="container-35768f144f52938468363da0a29f1e25"></div>
+    </div>
+    {% endif %}
+
     <!-- Projects Feed -->
     <div class="space-y-10">
+        <!-- Adsterra Banner 468x60 (Additional) -->
+        {% if settings.get('ads_enabled', False) and settings.get('adsterra_enabled', True) %}
+        <div class="flex justify-center mb-6 overflow-hidden">
+             <script type="text/javascript">
+                atOptions = { 'key' : 'a14ef6076862566f9c651879709b29b5', 'format' : 'iframe', 'height' : 60, 'width' : 468, 'params' : {} };
+            </script>
+            <script type="text/javascript" src="//www.highperformanceformat.com/a14ef6076862566f9c651879709b29b5/invoke.js"></script>
+        </div>
+        {% endif %}
+
         {% for ai_project in ai_projects %}
         <article class="glass rounded-[2rem] overflow-hidden hover:shadow-2xl transition-all duration-500 group animate-fade-in-up" style="animation-delay: {{ loop.index0 * 100 + 200 }}ms">
             <!-- Card Header -->

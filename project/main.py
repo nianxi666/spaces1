@@ -32,6 +32,10 @@ def sw_js():
 def ads_txt():
     return send_from_directory(current_app.static_folder, 'ads.txt')
 
+@main_bp.route('/firebase-messaging-sw.js')
+def firebase_messaging_sw():
+    return send_from_directory(current_app.static_folder, 'firebase-messaging-sw.js', mimetype='application/javascript')
+
 @main_bp.route('/set-language/<lang_code>')
 def set_language(lang_code):
     if lang_code in ['zh', 'en']:
