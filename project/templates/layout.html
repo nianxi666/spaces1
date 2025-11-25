@@ -177,14 +177,21 @@
 <body class="antialiased selection:bg-pumpkin-500 selection:text-white" x-data="{ mobileMenuOpen: false, scrolled: false }" @scroll.window="scrolled = (window.pageYOffset > 20)">
     
     {% if settings.get('ads_enabled', False) %}
-    <!-- Ad Script - Primary Placement (Platform 1) -->
-    <script>(function(s){s.dataset.zone='10228913',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <!-- Ad Script - Primary Placement (Platform 2) -->
-    <script src="https://3nbf4.com/act/files/tag.min.js?z=10228903" data-cfasync="false" async></script>
-    <!-- Ad Script - Primary Placement (Platform 3) -->
-    <script>(function(s){s.dataset.zone='10229575',s.src='https://groleegni.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <!-- Ad Script - Primary Placement (Platform 4) -->
-    <script>(function(s){s.dataset.zone='10229587',s.src='https://gizokraijaw.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+        {% if settings.get('monetag_enabled', True) %}
+        <!-- Ad Script - Primary Placement (Platform 1) -->
+        <script>(function(s){s.dataset.zone='10228913',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+        <!-- Ad Script - Primary Placement (Platform 2) -->
+        <script src="https://3nbf4.com/act/files/tag.min.js?z=10228903" data-cfasync="false" async></script>
+        <!-- Ad Script - Primary Placement (Platform 3) -->
+        <script>(function(s){s.dataset.zone='10229575',s.src='https://groleegni.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+        <!-- Ad Script - Primary Placement (Platform 4) -->
+        <script>(function(s){s.dataset.zone='10229587',s.src='https://gizokraijaw.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+        {% endif %}
+
+        {% if settings.get('adsterra_enabled', True) %}
+        <!-- Adsterra Pop-under -->
+        <script type='text/javascript' src='//pl27893562.effectivegatecpm.com/d6/14/40/d614405c43269acd036ba77962801ec7.js'></script>
+        {% endif %}
     {% endif %}
 
     <!-- Desktop Header -->
@@ -435,6 +442,7 @@
         {% if settings.get('ads_enabled', False) %}
         <!-- Ad Script - Content Area Placement -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+            {% if settings.get('monetag_enabled', True) %}
             <!-- Platform 1 -->
             <script>(function(s){s.dataset.zone='10228913',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
             <!-- Platform 2 -->
@@ -443,6 +451,17 @@
             <script>(function(s){s.dataset.zone='10229575',s.src='https://groleegni.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
             <!-- Platform 4 -->
             <script>(function(s){s.dataset.zone='10229587',s.src='https://gizokraijaw.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+            {% endif %}
+
+            {% if settings.get('adsterra_enabled', True) %}
+            <!-- Adsterra Banner 468x60 -->
+            <div class="flex justify-center my-4 overflow-hidden">
+                <script type="text/javascript">
+                    atOptions = { 'key' : 'a14ef6076862566f9c651879709b29b5', 'format' : 'iframe', 'height' : 60, 'width' : 468, 'params' : {} };
+                </script>
+                <script type="text/javascript" src="//www.highperformanceformat.com/a14ef6076862566f9c651879709b29b5/invoke.js"></script>
+            </div>
+            {% endif %}
         </div>
         {% endif %}
     </main>
@@ -520,7 +539,7 @@
     });
     </script>
 
-    {% if settings.get('ads_enabled', False) %}
+    {% if settings.get('ads_enabled', False) and settings.get('monetag_enabled', True) %}
     <!-- Ad Script - Secondary Placement for Maximum Revenue -->
     <!-- Platform 1 -->
     <script>(function(s){s.dataset.zone='10228913',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
