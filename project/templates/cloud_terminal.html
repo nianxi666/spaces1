@@ -12,6 +12,14 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
+        <!-- Adsterra Native Ad -->
+        {% if settings.get('ads_enabled', False) and settings.get('adsterra_enabled', True) %}
+        <div class="lg:col-span-3 flex justify-center">
+             <script async="async" data-cfasync="false" src="//pl28129429.effectivegatecpm.com/35768f144f52938468363da0a29f1e25/invoke.js"></script>
+            <div id="container-35768f144f52938468363da0a29f1e25"></div>
+        </div>
+        {% endif %}
+
         <!-- Main Terminal (Left, 2 cols) -->
         <div class="lg:col-span-2 space-y-6">
             <!-- Command Input Card -->
@@ -130,6 +138,16 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Adsterra Banner (Sidebar) -->
+            {% if settings.get('ads_enabled', False) and settings.get('adsterra_enabled', True) %}
+            <div class="glass rounded-3xl p-4 shadow-sm border border-gray-100 flex justify-center overflow-hidden">
+                <script type="text/javascript">
+                    atOptions = { 'key' : 'a14ef6076862566f9c651879709b29b5', 'format' : 'iframe', 'height' : 60, 'width' : 468, 'params' : {} };
+                </script>
+                <script type="text/javascript" src="//www.highperformanceformat.com/a14ef6076862566f9c651879709b29b5/invoke.js"></script>
+            </div>
+            {% endif %}
 
             <!-- History -->
             <div class="glass rounded-3xl p-6 shadow-sm border border-gray-100 animate-fade-in-up delay-300">
