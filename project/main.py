@@ -5,7 +5,8 @@ import uuid
 import shlex
 import os
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from flask import (
     Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, current_app, send_from_directory, Response
 )
@@ -199,7 +200,12 @@ def profile():
         api_key = f"{api_key[:4]}...{api_key[-4:]}"
     settings = db.get('settings', {})
     pro_settings = db.get('pro_settings', {})
-    return render_template('profile.html', user=user_data, api_key=api_key, settings=settings, pro_settings=pro_settings)
+
+    # Get today's date string in Beijing time on the server
+    beijing_tz = ZoneInfo("Asia/Shanghai")
+    today_str = datetime.now(beijing_tz).strftime('%Y-%m-%d')
+
+    return render_template('profile.html', user=user_data, api_key=api_key, settings=settings, pro_settings=pro_settings, today_str=today_str)
 
 @main_bp.route('/pro/apply', methods=['GET', 'POST'])
 def pro_apply():
@@ -229,6 +235,34 @@ def pro_apply():
             return redirect(url_for('main.profile'))
 
     return render_template('pro_apply.html', pro_settings=pro_settings, user=user)
+
+
+@main_bp.route('/check-in', methods=['POST'])
+def check_in():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+
+    username = session['username']
+    db = load_db()
+    user = db['users'].get(username)
+
+    if not user:
+        return jsonify({'success': False, 'error': '未找到用户'}), 404
+
+    # Use Beijing Time (UTC+8)
+    beijing_tz = ZoneInfo("Asia/Shanghai")
+    today_str = datetime.now(beijing_tz).strftime('%Y-%m-%d')
+
+    if user.get('last_check_in_date') == today_str:
+        return jsonify({'success': False, 'error': '您今天已经签到过了'}), 400
+
+    user['last_check_in_date'] = today_str
+    if today_str not in user['check_in_history']:
+        user['check_in_history'].append(today_str)
+
+    save_db(db)
+
+    return jsonify({'success': True, 'message': '签到成功！'})
 
 
 @main_bp.route('/cloud-terminal')
