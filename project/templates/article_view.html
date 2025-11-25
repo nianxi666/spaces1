@@ -17,6 +17,16 @@
 
 {% block content %}
 <div class="container" style="max-width: 800px; margin: 2rem auto;">
+
+    {% if settings.get('ads_enabled', False) %}
+    <div style="display: flex; justify-content: center; margin-bottom: 2rem; overflow: hidden;">
+        <script type="text/javascript">
+            atOptions = { 'key' : 'a14ef6076862566f9c651879709b29b5', 'format' : 'iframe', 'height' : 60, 'width' : 468, 'params' : {} };
+        </script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/a14ef6076862566f9c651879709b29b5/invoke.js"></script>
+    </div>
+    {% endif %}
+
     <article class="card" style="padding: 2rem 3rem;">
         <header style="margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--separator-color); text-align: center;">
             <h1 style="font-size: 2.5em; margin-bottom: 0.5rem; color: var(--primary-text);">{{ article.title }}</h1>
@@ -28,6 +38,13 @@
         <div class="article-content" style="line-height: 1.8; font-size: 1.1em; color: var(--primary-text);">
             {{ article.content | markdown }}
         </div>
+
+        {% if settings.get('ads_enabled', False) %}
+        <div style="display: flex; justify-content: center; margin-top: 2rem;">
+            <script async="async" data-cfasync="false" src="//pl28129429.effectivegatecpm.com/35768f144f52938468363da0a29f1e25/invoke.js"></script>
+            <div id="container-35768f144f52938468363da0a29f1e25"></div>
+        </div>
+        {% endif %}
     </article>
 
     <footer style="margin-top: 2rem; text-align: center;">
