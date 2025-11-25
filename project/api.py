@@ -5,6 +5,7 @@ import threading
 import tempfile
 from collections import deque
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from flask import (
     Blueprint, request, jsonify, url_for, current_app, Response, stream_with_context
 )
@@ -1540,6 +1541,23 @@ def netmind_chat_completions():
         return jsonify({'error': 'Invalid token'}), 403
 
     db = load_db()
+
+    # Daily check-in validation logic
+    beijing_tz = ZoneInfo("Asia/Shanghai")
+    today_str = datetime.now(beijing_tz).strftime('%Y-%m-%d')
+    username = user['username']
+    user_data = db['users'].get(username, {})
+
+    if user_data.get('first_api_use_date') is None:
+        # First time using the API, record the date
+        user_data['first_api_use_date'] = today_str
+        save_db(db)
+    else:
+        # Not the first time, check for check-in
+        if user_data.get('first_api_use_date') != today_str:
+            if user_data.get('last_check_in_date') != today_str:
+                return jsonify({'error': '您需要完成今日签到才能继续使用API，请前往个人资料页面签到。'}), 403
+
     max_requests, window_seconds = get_rate_limit_config(db.get('netmind_settings'))
     allowed, retry_after = _check_netmind_rate_limit(user['username'], max_requests, window_seconds)
     if not allowed:

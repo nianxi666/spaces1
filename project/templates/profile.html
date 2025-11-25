@@ -118,6 +118,60 @@
             </div>
         </div>
 
+        <!-- Daily Check-in Card -->
+        <div x-data="calendar()" x-init="init()" class="glass rounded-3xl overflow-hidden animate-fade-in-up delay-150">
+            <div class="p-6 border-b border-gray-100">
+                <h2 class="text-lg font-bold text-gray-900">每日签到</h2>
+            </div>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <button @click="prevMonth()" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <h3 class="text-lg font-semibold text-gray-800" x-text="monthYear"></h3>
+                    <button @click="nextMonth()" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
+                <div class="grid grid-cols-7 gap-2 text-center text-sm text-gray-500 mb-2">
+                    <template x-for="day in weekDays" :key="day">
+                        <div x-text="day"></div>
+                    </template>
+                </div>
+                <div class="grid grid-cols-7 gap-2">
+                    <template x-for="day in daysInMonth" :key="day.date">
+                        <div class="flex items-center justify-center h-10 w-10 rounded-full"
+                             :class="{
+                                'bg-pumpkin-500 text-white shadow-lg': day.isToday && day.isChecked,
+                                'ring-2 ring-pumpkin-500': day.isToday && !day.isChecked,
+                                'bg-green-100 text-green-700': !day.isToday && day.isChecked,
+                                'text-gray-300': !day.isCurrentMonth,
+                                'text-gray-800': day.isCurrentMonth
+                             }">
+                            <span x-text="day.day"></span>
+                        </div>
+                    </template>
+                </div>
+                <div class="mt-6">
+                    <button @click="performCheckIn()"
+                            :disabled="isCheckedInToday && !adsEnabled"
+                            class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold transition-all active:scale-95"
+                            :class="{
+                                'text-white bg-gray-900 hover:bg-black': !(isCheckedInToday && !adsEnabled),
+                                'bg-gray-200 text-gray-500 cursor-not-allowed': isCheckedInToday && !adsEnabled
+                            }">
+                        <span x-show="!isLoading" x-text="isCheckedInToday ? '今日已签到' : '立即签到'"></span>
+                        <svg x-show="isLoading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </button>
+                    <p x-show="message" x-text="message" class="text-xs mt-2 text-center" :class="isError ? 'text-red-500' : 'text-green-600'"></p>
+                </div>
+            </div>
+        </div>
+
+
         <!-- Security Card -->
         <div class="glass rounded-3xl overflow-hidden animate-fade-in-up delay-200">
              <div class="p-6 border-b border-gray-100">
@@ -300,5 +354,159 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+function calendar() {
+    return {
+        month: 0,
+        year: 0,
+        monthYear: '',
+        daysInMonth: [],
+        weekDays: ['日', '一', '二', '三', '四', '五', '六'],
+        checkInHistory: {{ user.check_in_history | default([]) | tojson }},
+        isCheckedInToday: false,
+        isLoading: false,
+        message: '',
+        isError: false,
+        today: '{{ today_str }}',
+        adsEnabled: {{ settings.ads_enabled | tojson }},
+        // TODO: Replace [SITE_ID] with the actual Site ID from RichAds if available.
+        // The current URL works without it, but adding it is recommended for better tracking.
+        adUrl: 'https://11745.xml.4armn.com/direct-link?pubid=994122',
+
+        init() {
+            const serverToday = new Date(this.today + 'T00:00:00'); // Treat the server date as local
+            this.month = serverToday.getMonth();
+            this.year = serverToday.getFullYear();
+            this.generateCalendar();
+            this.checkIfCheckedInToday();
+        },
+
+        generateCalendar() {
+            const firstDay = new Date(this.year, this.month, 1);
+            const lastDay = new Date(this.year, this.month + 1, 0);
+            const today = new Date(this.today + 'T00:00:00');
+
+            this.monthYear = `${this.year}年${String(this.month + 1).padStart(2, '0')}月`;
+
+            let days = [];
+
+            // Add days from previous month
+            for (let i = firstDay.getDay(); i > 0; i--) {
+                const prevDate = new Date(this.year, this.month, 0 - i + 1);
+                days.push({
+                    day: prevDate.getDate(),
+                    date: prevDate.toISOString().slice(0, 10),
+                    isCurrentMonth: false,
+                    isToday: false,
+                    isChecked: false
+                });
+            }
+
+            // Add days for current month
+            for (let i = 1; i <= lastDay.getDate(); i++) {
+                const currentDate = new Date(this.year, this.month, i);
+                const dateStr = currentDate.toISOString().slice(0, 10);
+                days.push({
+                    day: i,
+                    date: dateStr,
+                    isCurrentMonth: true,
+                    isToday: today.getFullYear() === this.year && today.getMonth() === this.month && today.getDate() === i,
+                    isChecked: this.checkInHistory.includes(dateStr)
+                });
+            }
+
+            // Add days for next month
+            const remaining = 42 - days.length; // 6 rows * 7 days
+            for (let i = 1; i <= remaining; i++) {
+                const nextDate = new Date(this.year, this.month + 1, i);
+                 days.push({
+                    day: nextDate.getDate(),
+                    date: nextDate.toISOString().slice(0, 10),
+                    isCurrentMonth: false,
+                    isToday: false,
+                    isChecked: false
+                });
+            }
+
+            this.daysInMonth = days;
+        },
+
+        prevMonth() {
+            if (this.month === 0) {
+                this.month = 11;
+                this.year--;
+            } else {
+                this.month--;
+            }
+            this.generateCalendar();
+        },
+
+        nextMonth() {
+            if (this.month === 11) {
+                this.month = 0;
+                this.year++;
+            } else {
+                this.month++;
+            }
+            this.generateCalendar();
+        },
+
+        getTodayString() {
+            return this.today;
+        },
+
+        checkIfCheckedInToday() {
+            this.isCheckedInToday = this.checkInHistory.includes(this.today);
+        },
+
+        async performCheckIn() {
+            // If already checked in, just open the ad link if enabled
+            if (this.isCheckedInToday) {
+                if (this.adsEnabled) {
+                    window.open(this.adUrl, '_blank');
+                }
+                return;
+            }
+
+            // If not checked in, perform the check-in process
+            this.isLoading = true;
+            this.message = '';
+            this.isError = false;
+
+            try {
+                const response = await fetch('{{ url_for("main.check_in") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    this.message = data.message || '签到成功！';
+                    const todayStr = this.getTodayString();
+                    if (!this.checkInHistory.includes(todayStr)) {
+                        this.checkInHistory.push(todayStr);
+                    }
+                    this.checkIfCheckedInToday();
+                    this.generateCalendar(); // Re-render to show new check-in
+
+                    // Open ad link if ads are enabled
+                    if (this.adsEnabled) {
+                        window.open(this.adUrl, '_blank');
+                    }
+                } else {
+                    this.isError = true;
+                    this.message = data.error || '签到失败，请重试。';
+                }
+            } catch (error) {
+                this.isError = true;
+                this.message = '网络错误，请稍后重试。';
+            } finally {
+                this.isLoading = false;
+                 setTimeout(() => { this.message = '' }, 3000);
+            }
+        }
+    }
+}
 </script>
 {% endblock %}
