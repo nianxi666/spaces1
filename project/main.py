@@ -338,6 +338,19 @@ def cloud_terminal():
             except requests.RequestException:
                 pass
 
+    # Add user's personal Cerebrium configs if logged in
+    if session.get('logged_in'):
+        username = session.get('username')
+        user = db.get('users', {}).get(username)
+        if user:
+            user_configs = user.get('cerebrium_configs', [])
+            for cfg in user_configs:
+                cfg_name = cfg.get('name', 'Unnamed')
+                terminal_targets.append({
+                    'name': cfg_name,
+                    'description': '用户自配置'
+                })
+
     quick_commands = [
         {'label': '列出目录', 'command': 'ls -la'},
         {'label': '查看环境变量', 'command': 'env | head'}
@@ -365,7 +378,7 @@ def cloud_terminal():
     # Determine if we have a GPU endpoint detected
     has_gpu_endpoint = any('gpu' in t['name'] for t in terminal_targets)
 
-    display_targets = [{'name': target['name'], 'description': '自动探测'} for target in terminal_targets]
+    display_targets = [{'name': target['name'], 'description': target.get('description', '自动探测')} for target in terminal_targets]
 
     return render_template(
         'cloud_terminal.html',
