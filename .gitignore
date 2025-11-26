@@ -12,3 +12,4 @@ venv/
 *.pid
 .DS_Store
 spaces*.zip
+s3_config.json
