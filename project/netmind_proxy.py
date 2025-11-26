@@ -198,7 +198,7 @@ class NetMindClient:
 
         response = client.chat.completions.create(**payload)
 
-        # Inject Ad
+        # Inject Ad (only to content, not reasoning)
         if ad_enabled and ad_suffix and response.choices:
             content = response.choices[0].message.content or ""
             response.choices[0].message.content = content + ad_suffix
@@ -211,6 +211,19 @@ class NetMindClient:
             response.id = self._generate_public_id()
         except Exception:
             pass
+
+        # Ensure reasoning_content is preserved if present
+        # This is needed for DeepSeek-R1 and other models with thinking support
+        if response.choices:
+            for choice in response.choices:
+                if hasattr(choice, 'message') and choice.message:
+                    message = choice.message
+                    # The reasoning_content should already be present if the API provided it
+                    # but we explicitly ensure it's not stripped out
+                    if not hasattr(message, 'reasoning_content'):
+                        # If not present, ensure field exists (can be None)
+                        if hasattr(message, '__dict__'):
+                            message.__dict__['reasoning_content'] = None
 
         return response
 
@@ -269,4 +282,19 @@ class NetMindClient:
         chunk_id = str(chunk_dict.get('id') or '')
         if not chunk_id or 'netmind' in chunk_id.lower():
             chunk_dict['id'] = f"{chunk_id_base}-{chunk_index}"
+        
+        # Ensure reasoning_content is preserved in delta if present
+        # This is needed for DeepSeek-R1 and other models with thinking support
+        if 'choices' in chunk_dict and chunk_dict['choices']:
+            for choice in chunk_dict['choices']:
+                if 'delta' in choice:
+                    delta = choice['delta']
+                    # Check if original chunk has reasoning_content
+                    if hasattr(chunk, 'choices') and chunk.choices and len(chunk.choices) > 0:
+                        original_choice = chunk.choices[0]
+                        if hasattr(original_choice, 'delta') and original_choice.delta:
+                            original_delta = original_choice.delta
+                            if hasattr(original_delta, 'reasoning_content') and original_delta.reasoning_content:
+                                delta['reasoning_content'] = original_delta.reasoning_content
+        
         return chunk_dict
