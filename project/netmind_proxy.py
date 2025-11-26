@@ -212,18 +212,20 @@ class NetMindClient:
         except Exception:
             pass
 
-        # Ensure reasoning_content is preserved if present
+        # Store reasoning_content for later serialization
         # This is needed for DeepSeek-R1 and other models with thinking support
+        # We need to preserve it because model_dump_json() may not include it
         if response.choices:
             for choice in response.choices:
                 if hasattr(choice, 'message') and choice.message:
                     message = choice.message
-                    # The reasoning_content should already be present if the API provided it
-                    # but we explicitly ensure it's not stripped out
+                    # Ensure reasoning_content attribute exists even if None
+                    # This helps with model_dump() and model_dump_json() serialization
                     if not hasattr(message, 'reasoning_content'):
-                        # If not present, ensure field exists (can be None)
-                        if hasattr(message, '__dict__'):
-                            message.__dict__['reasoning_content'] = None
+                        try:
+                            message.reasoning_content = None
+                        except (AttributeError, TypeError):
+                            pass
 
         return response
 
@@ -286,15 +288,21 @@ class NetMindClient:
         # Ensure reasoning_content is preserved in delta if present
         # This is needed for DeepSeek-R1 and other models with thinking support
         if 'choices' in chunk_dict and chunk_dict['choices']:
-            for choice in chunk_dict['choices']:
+            for choice_idx, choice in enumerate(chunk_dict['choices']):
                 if 'delta' in choice:
                     delta = choice['delta']
-                    # Check if original chunk has reasoning_content
-                    if hasattr(chunk, 'choices') and chunk.choices and len(chunk.choices) > 0:
-                        original_choice = chunk.choices[0]
+                    # Check if original chunk has reasoning_content in the delta
+                    if hasattr(chunk, 'choices') and chunk.choices and len(chunk.choices) > choice_idx:
+                        original_choice = chunk.choices[choice_idx]
                         if hasattr(original_choice, 'delta') and original_choice.delta:
                             original_delta = original_choice.delta
-                            if hasattr(original_delta, 'reasoning_content') and original_delta.reasoning_content:
-                                delta['reasoning_content'] = original_delta.reasoning_content
+                            # Extract reasoning_content if present
+                            reasoning = getattr(original_delta, 'reasoning_content', None)
+                            if reasoning:
+                                # Ensure delta is a dict
+                                if not isinstance(delta, dict):
+                                    delta = {}
+                                    choice['delta'] = delta
+                                delta['reasoning_content'] = reasoning
         
         return chunk_dict
