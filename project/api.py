@@ -1634,7 +1634,41 @@ def netmind_chat_completions():
         else:
             # For sync response, OpenAI object needs to be serialized to JSON
             # response is a ChatCompletion object from openai library
-            return jsonify(json.loads(response.model_dump_json()))
+            response_dict = json.loads(response.model_dump_json())
+            
+            # Ensure reasoning_content is included if present
+            # Some OpenAI-compatible APIs support reasoning_content but may not include it in model_dump_json
+            if response.choices:
+                for i, choice in enumerate(response.choices):
+                    if hasattr(choice, 'message') and choice.message:
+                        message = choice.message
+                        
+                        # Try multiple ways to get reasoning_content
+                        reasoning = None
+                        
+                        # Method 1: Direct attribute access
+                        if hasattr(message, 'reasoning_content'):
+                            reasoning = message.reasoning_content
+                        
+                        # Method 2: Access via __dict__
+                        if not reasoning and hasattr(message, '__dict__'):
+                            reasoning = message.__dict__.get('reasoning_content')
+                        
+                        # Method 3: Try model_dump with include parameter
+                        if not reasoning and hasattr(message, 'model_dump'):
+                            try:
+                                full_dump = message.model_dump(exclude_none=False)
+                                reasoning = full_dump.get('reasoning_content')
+                            except:
+                                pass
+                        
+                        # Add reasoning_content to response if found
+                        if reasoning and i < len(response_dict.get('choices', [])):
+                            if 'message' not in response_dict['choices'][i]:
+                                response_dict['choices'][i]['message'] = {}
+                            response_dict['choices'][i]['message']['reasoning_content'] = reasoning
+            
+            return jsonify(response_dict)
 
     except Exception as e:
         import traceback

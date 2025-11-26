@@ -196,9 +196,29 @@ class NetMindClient:
         if extra_params:
             payload.update(extra_params)
 
+        print(f"[DEBUG] Making API call with model: {upstream_model}")
         response = client.chat.completions.create(**payload)
+        
+        # Debug: Print response structure
+        if response.choices:
+            msg = response.choices[0].message
+            print(f"[DEBUG] Response message type: {type(msg)}")
+            print(f"[DEBUG] Message attributes: {dir(msg)}")
+            if hasattr(msg, 'reasoning_content'):
+                print(f"[DEBUG] ✓ Has reasoning_content: {msg.reasoning_content[:100] if msg.reasoning_content else 'None'}")
+            else:
+                print(f"[DEBUG] ✗ No reasoning_content attribute")
+            
+            # Check model_dump output
+            try:
+                dumped = msg.model_dump()
+                print(f"[DEBUG] model_dump keys: {dumped.keys()}")
+                if 'reasoning_content' in dumped:
+                    print(f"[DEBUG] ✓ reasoning_content in model_dump: {dumped['reasoning_content'][:100]}")
+            except Exception as e:
+                print(f"[DEBUG] model_dump error: {e}")
 
-        # Inject Ad
+        # Inject Ad (only to content, not reasoning)
         if ad_enabled and ad_suffix and response.choices:
             content = response.choices[0].message.content or ""
             response.choices[0].message.content = content + ad_suffix
@@ -212,6 +232,29 @@ class NetMindClient:
         except Exception:
             pass
 
+        # Store reasoning_content for later serialization
+        # This is needed for DeepSeek-R1 and other models with thinking support
+        if response.choices:
+            for choice in response.choices:
+                if hasattr(choice, 'message') and choice.message:
+                    message = choice.message
+                    # Try to get reasoning_content from the message
+                    # It may be an attribute or in __dict__
+                    reasoning = None
+                    if hasattr(message, 'reasoning_content'):
+                        reasoning = message.reasoning_content
+                    elif hasattr(message, '__dict__') and 'reasoning_content' in message.__dict__:
+                        reasoning = message.__dict__.get('reasoning_content')
+                    
+                    # If found, ensure it's set as an attribute for model_dump
+                    if reasoning:
+                        try:
+                            message.reasoning_content = reasoning
+                        except (AttributeError, TypeError):
+                            # If can't set, try to store in __dict__
+                            if hasattr(message, '__dict__'):
+                                message.__dict__['reasoning_content'] = reasoning
+
         return response
 
     def _handle_stream(self, client, messages, upstream_model, public_model, ad_suffix, ad_enabled, max_tokens=None, extra_params=None):
@@ -224,6 +267,10 @@ class NetMindClient:
             payload['max_tokens'] = max_tokens
         if extra_params:
             payload.update(extra_params)
+        
+        # Note: Some models like DeepSeek-R1 automatically include reasoning_content
+        # if the model supports it. No special parameter needed for most APIs.
+        # If using a provider that requires explicit reasoning parameter, add it here.
 
         response = client.chat.completions.create(**payload)
 
@@ -236,6 +283,11 @@ class NetMindClient:
         for chunk in response:
             chunk_payload = self._sanitize_chunk_payload(chunk, public_model, chunk_id_base, chunk_counter)
             chunk_counter += 1
+            
+            # Debug: Log first few chunks
+            if chunk_counter <= 3 or 'reasoning_content' in str(chunk_payload):
+                print(f"[DEBUG] Chunk {chunk_counter}: {json.dumps(chunk_payload, ensure_ascii=False)[:200]}")
+            
             yield f"data: {json.dumps(chunk_payload, ensure_ascii=False)}\n\n"
 
         # Inject Ad as a separate chunk before DONE
@@ -269,4 +321,61 @@ class NetMindClient:
         chunk_id = str(chunk_dict.get('id') or '')
         if not chunk_id or 'netmind' in chunk_id.lower():
             chunk_dict['id'] = f"{chunk_id_base}-{chunk_index}"
+        
+        # Ensure reasoning_content is preserved in delta if present
+        # This is needed for DeepSeek-R1 and other models with thinking support
+        if 'choices' in chunk_dict and chunk_dict['choices']:
+            for choice_idx, choice in enumerate(chunk_dict['choices']):
+                if 'delta' in choice:
+                    delta = choice['delta']
+                    # Ensure delta is a dict
+                    if not isinstance(delta, dict):
+                        delta = {}
+                        choice['delta'] = delta
+                    
+                    # Debug: Check what's in the original delta
+                    if chunk_index <= 3:
+                        print(f"[DEBUG] Original delta attributes: {dir(choice.get('delta', {}))}")
+                    
+                    # Check if original chunk has reasoning_content in the delta
+                    if hasattr(chunk, 'choices') and chunk.choices and len(chunk.choices) > choice_idx:
+                        original_choice = chunk.choices[choice_idx]
+                        if hasattr(original_choice, 'delta') and original_choice.delta:
+                            original_delta = original_choice.delta
+                            
+                            # Debug
+                            if chunk_index <= 3:
+                                print(f"[DEBUG] original_delta type: {type(original_delta)}")
+                                print(f"[DEBUG] original_delta attributes: {[a for a in dir(original_delta) if not a.startswith('_')]}")
+                            
+                            # Try multiple methods to extract reasoning_content
+                            reasoning = None
+                            
+                            # Method 1: Direct attribute
+                            if hasattr(original_delta, 'reasoning_content'):
+                                reasoning = original_delta.reasoning_content
+                                if chunk_index <= 3 and reasoning:
+                                    print(f"[DEBUG] Method 1 found reasoning_content: {reasoning[:50]}")
+                            
+                            # Method 2: Via __dict__
+                            if not reasoning and hasattr(original_delta, '__dict__'):
+                                reasoning = original_delta.__dict__.get('reasoning_content')
+                                if chunk_index <= 3 and reasoning:
+                                    print(f"[DEBUG] Method 2 found reasoning_content: {reasoning[:50]}")
+                            
+                            # Method 3: Via model_dump
+                            if not reasoning and hasattr(original_delta, 'model_dump'):
+                                try:
+                                    delta_dict = original_delta.model_dump(exclude_none=False)
+                                    reasoning = delta_dict.get('reasoning_content')
+                                    if chunk_index <= 3 and reasoning:
+                                        print(f"[DEBUG] Method 3 found reasoning_content: {reasoning[:50]}")
+                                except Exception as e:
+                                    if chunk_index <= 3:
+                                        print(f"[DEBUG] Method 3 error: {e}")
+                            
+                            # Add to delta if found
+                            if reasoning:
+                                delta['reasoning_content'] = reasoning
+        
         return chunk_dict
