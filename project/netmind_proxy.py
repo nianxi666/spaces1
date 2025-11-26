@@ -214,18 +214,26 @@ class NetMindClient:
 
         # Store reasoning_content for later serialization
         # This is needed for DeepSeek-R1 and other models with thinking support
-        # We need to preserve it because model_dump_json() may not include it
         if response.choices:
             for choice in response.choices:
                 if hasattr(choice, 'message') and choice.message:
                     message = choice.message
-                    # Ensure reasoning_content attribute exists even if None
-                    # This helps with model_dump() and model_dump_json() serialization
-                    if not hasattr(message, 'reasoning_content'):
+                    # Try to get reasoning_content from the message
+                    # It may be an attribute or in __dict__
+                    reasoning = None
+                    if hasattr(message, 'reasoning_content'):
+                        reasoning = message.reasoning_content
+                    elif hasattr(message, '__dict__') and 'reasoning_content' in message.__dict__:
+                        reasoning = message.__dict__.get('reasoning_content')
+                    
+                    # If found, ensure it's set as an attribute for model_dump
+                    if reasoning:
                         try:
-                            message.reasoning_content = None
+                            message.reasoning_content = reasoning
                         except (AttributeError, TypeError):
-                            pass
+                            # If can't set, try to store in __dict__
+                            if hasattr(message, '__dict__'):
+                                message.__dict__['reasoning_content'] = reasoning
 
         return response
 
@@ -239,6 +247,10 @@ class NetMindClient:
             payload['max_tokens'] = max_tokens
         if extra_params:
             payload.update(extra_params)
+        
+        # Note: Some models like DeepSeek-R1 automatically include reasoning_content
+        # if the model supports it. No special parameter needed for most APIs.
+        # If using a provider that requires explicit reasoning parameter, add it here.
 
         response = client.chat.completions.create(**payload)
 
@@ -291,18 +303,38 @@ class NetMindClient:
             for choice_idx, choice in enumerate(chunk_dict['choices']):
                 if 'delta' in choice:
                     delta = choice['delta']
+                    # Ensure delta is a dict
+                    if not isinstance(delta, dict):
+                        delta = {}
+                        choice['delta'] = delta
+                    
                     # Check if original chunk has reasoning_content in the delta
                     if hasattr(chunk, 'choices') and chunk.choices and len(chunk.choices) > choice_idx:
                         original_choice = chunk.choices[choice_idx]
                         if hasattr(original_choice, 'delta') and original_choice.delta:
                             original_delta = original_choice.delta
-                            # Extract reasoning_content if present
-                            reasoning = getattr(original_delta, 'reasoning_content', None)
+                            
+                            # Try multiple methods to extract reasoning_content
+                            reasoning = None
+                            
+                            # Method 1: Direct attribute
+                            if hasattr(original_delta, 'reasoning_content'):
+                                reasoning = original_delta.reasoning_content
+                            
+                            # Method 2: Via __dict__
+                            if not reasoning and hasattr(original_delta, '__dict__'):
+                                reasoning = original_delta.__dict__.get('reasoning_content')
+                            
+                            # Method 3: Via model_dump
+                            if not reasoning and hasattr(original_delta, 'model_dump'):
+                                try:
+                                    delta_dict = original_delta.model_dump(exclude_none=False)
+                                    reasoning = delta_dict.get('reasoning_content')
+                                except:
+                                    pass
+                            
+                            # Add to delta if found
                             if reasoning:
-                                # Ensure delta is a dict
-                                if not isinstance(delta, dict):
-                                    delta = {}
-                                    choice['delta'] = delta
                                 delta['reasoning_content'] = reasoning
         
         return chunk_dict

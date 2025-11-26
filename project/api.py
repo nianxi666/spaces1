@@ -1642,7 +1642,27 @@ def netmind_chat_completions():
                 for i, choice in enumerate(response.choices):
                     if hasattr(choice, 'message') and choice.message:
                         message = choice.message
-                        reasoning = getattr(message, 'reasoning_content', None)
+                        
+                        # Try multiple ways to get reasoning_content
+                        reasoning = None
+                        
+                        # Method 1: Direct attribute access
+                        if hasattr(message, 'reasoning_content'):
+                            reasoning = message.reasoning_content
+                        
+                        # Method 2: Access via __dict__
+                        if not reasoning and hasattr(message, '__dict__'):
+                            reasoning = message.__dict__.get('reasoning_content')
+                        
+                        # Method 3: Try model_dump with include parameter
+                        if not reasoning and hasattr(message, 'model_dump'):
+                            try:
+                                full_dump = message.model_dump(exclude_none=False)
+                                reasoning = full_dump.get('reasoning_content')
+                            except:
+                                pass
+                        
+                        # Add reasoning_content to response if found
                         if reasoning and i < len(response_dict.get('choices', [])):
                             if 'message' not in response_dict['choices'][i]:
                                 response_dict['choices'][i]['message'] = {}
