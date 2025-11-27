@@ -3,6 +3,8 @@ import random
 import threading
 import json
 from openai import OpenAI, APIError, AuthenticationError, RateLimitError
+from .thinking_utils import inject_thinking_prompt, enhance_response_with_thinking, process_streaming_chunk
+from .netmind_config import is_thinking_enabled
 
 DEFAULT_NETMIND_BASE_URL = 'https://api.netmind.ai/inference-api/openai/v1'
 
@@ -118,6 +120,10 @@ class NetMindClient:
         ad_enabled = settings.get('ad_enabled', False)
         public_model_name = model
         upstream_model_name = self._resolve_model_name(db, model)
+        
+        # Inject thinking prompt to enable internal reasoning if enabled
+        if is_thinking_enabled(settings):
+            messages = inject_thinking_prompt(messages)
 
         key = self._get_next_key(db)
         if not key:
@@ -197,6 +203,9 @@ class NetMindClient:
             payload.update(extra_params)
 
         response = client.chat.completions.create(**payload)
+        
+        # Extract and process thinking from response
+        response = enhance_response_with_thinking(response)
 
         # Inject Ad
         if ad_enabled and ad_suffix and response.choices:
@@ -269,4 +278,8 @@ class NetMindClient:
         chunk_id = str(chunk_dict.get('id') or '')
         if not chunk_id or 'netmind' in chunk_id.lower():
             chunk_dict['id'] = f"{chunk_id_base}-{chunk_index}"
+        
+        # Process thinking tags in the chunk
+        chunk_dict = process_streaming_chunk(chunk_dict)
+        
         return chunk_dict
