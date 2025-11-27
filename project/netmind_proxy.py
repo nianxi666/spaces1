@@ -2,9 +2,16 @@ import time
 import random
 import threading
 import json
+import re
 from openai import OpenAI, APIError, AuthenticationError, RateLimitError
 
 DEFAULT_NETMIND_BASE_URL = 'https://api.netmind.ai/inference-api/openai/v1'
+
+THINKING_SYSTEM_PROMPT = """You are a profound thinking assistant.
+Before answering the user's request, you must perform a detailed step-by-step analysis.
+Enclose your internal thought process within <thinking>...</thinking> tags.
+After the thinking tags, provide your final response.
+Make sure to always use the <thinking> tags for your reasoning process."""
 
 class NetMindClient:
     _instance = None
@@ -107,6 +114,32 @@ class NetMindClient:
         resolved = lookup.get(requested_model.strip().lower())
         return resolved or requested_model
 
+    def _inject_thinking_system_prompt(self, messages):
+        """
+        Injects a system prompt that enforces thinking tags into the messages.
+        If no system message exists, adds one. If one exists, prepends the thinking instruction.
+        """
+        if not messages:
+            messages = []
+
+        messages_copy = list(messages)
+
+        has_system_message = False
+        for i, msg in enumerate(messages_copy):
+            if isinstance(msg, dict) and msg.get('role') == 'system':
+                original_content = msg.get('content', '')
+                messages_copy[i]['content'] = THINKING_SYSTEM_PROMPT + '\n\n' + original_content if original_content else THINKING_SYSTEM_PROMPT
+                has_system_message = True
+                break
+
+        if not has_system_message:
+            messages_copy.insert(0, {
+                'role': 'system',
+                'content': THINKING_SYSTEM_PROMPT
+            })
+
+        return messages_copy
+
     def chat_completion(self, db, messages, model, stream=False, max_tokens=None, extra_params=None):
         settings = self._get_settings(db)
         base_url = self._normalize_base_url(settings.get('base_url'))
@@ -186,9 +219,10 @@ class NetMindClient:
         raise last_error or Exception("All NetMind keys failed.")
 
     def _handle_sync(self, client, messages, upstream_model, public_model, ad_suffix, ad_enabled, max_tokens=None, extra_params=None):
+        messages_with_thinking = self._inject_thinking_system_prompt(messages)
         payload = {
             'model': upstream_model,
-            'messages': messages,
+            'messages': messages_with_thinking,
             'stream': False
         }
         if isinstance(max_tokens, int) and max_tokens > 0:
@@ -215,9 +249,10 @@ class NetMindClient:
         return response
 
     def _handle_stream(self, client, messages, upstream_model, public_model, ad_suffix, ad_enabled, max_tokens=None, extra_params=None):
+        messages_with_thinking = self._inject_thinking_system_prompt(messages)
         payload = {
             'model': upstream_model,
-            'messages': messages,
+            'messages': messages_with_thinking,
             'stream': True
         }
         if isinstance(max_tokens, int) and max_tokens > 0:
