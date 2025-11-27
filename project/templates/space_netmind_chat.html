@@ -247,6 +247,59 @@ for chunk in response:
     font-size: 12px;
     line-height: 1.4;
 }
+
+/* Thinking Box Styles */
+.thinking-box {
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border: 1px solid #e9ecef;
+    overflow: hidden;
+}
+
+.thinking-header {
+    padding: 8px 12px;
+    background: #e9ecef;
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+}
+
+.thinking-header:hover {
+    background: #dee2e6;
+}
+
+.thinking-header::before {
+    content: "▶";
+    font-size: 10px;
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+.thinking-box.open .thinking-header::before {
+    transform: rotate(90deg);
+}
+
+.thinking-content {
+    padding: 12px;
+    font-size: 13px;
+    color: #6c757d;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    white-space: pre-wrap;
+    line-height: 1.5;
+    display: none;
+    border-top: 1px solid #e9ecef;
+    background: #fff;
+}
+
+.thinking-box.open .thinking-content {
+    display: block;
+}
 </style>
 
 <script>
@@ -283,8 +336,34 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create placeholder for AI response
         const aiMessageDiv = appendMessage('ai', '');
         const aiContentDiv = aiMessageDiv.querySelector('.content');
+
+        // Setup Thinking UI
+        let thinkingContainer = null;
+        let thinkingContentEl = null;
+        let isThinking = false;
+        let parseBuffer = '';
         let hasReceivedContent = false;
-        let reasoningPreview = '';
+
+        const createThinkingUI = () => {
+            if (thinkingContainer) return;
+            thinkingContainer = document.createElement('div');
+            thinkingContainer.className = 'thinking-box open';
+            thinkingContainer.innerHTML = `
+                <div class="thinking-header">思考过程</div>
+                <div class="thinking-content"></div>
+            `;
+            // Insert at the beginning of content div
+            if (aiContentDiv.firstChild) {
+                aiContentDiv.insertBefore(thinkingContainer, aiContentDiv.firstChild);
+            } else {
+                aiContentDiv.appendChild(thinkingContainer);
+            }
+
+            thinkingContentEl = thinkingContainer.querySelector('.thinking-content');
+            thinkingContainer.querySelector('.thinking-header').addEventListener('click', () => {
+                thinkingContainer.classList.toggle('open');
+            });
+        };
 
         try {
             const response = await fetch('/api/v1/chat/completions', {
@@ -328,35 +407,94 @@ document.addEventListener('DOMContentLoaded', function() {
                     try {
                         const data = JSON.parse(dataStr);
                         const delta = (data.choices && data.choices[0] && data.choices[0].delta) || {};
-                        const chunkText = extractDeltaText(delta.content);
+                        let chunkText = extractDeltaText(delta.content);
                         const reasoningText = extractDeltaText(delta.reasoning_content);
 
-                        if (chunkText) {
-                            if (!hasReceivedContent && reasoningPreview) {
-                                aiContentDiv.textContent = '';
-                                reasoningPreview = '';
-                            }
-                            hasReceivedContent = true;
-                            aiContentDiv.textContent += chunkText;
+                        // Fallback: If model uses native reasoning_content (like DeepSeek) but not our system prompt tags
+                        if (reasoningText) {
+                            createThinkingUI();
+                            thinkingContentEl.textContent += reasoningText;
                             chatMessages.scrollTop = chatMessages.scrollHeight;
-                        } else if (reasoningText && !hasReceivedContent) {
-                            reasoningPreview = (reasoningPreview + reasoningText).slice(-1500);
-                            if (!aiContentDiv.textContent.trim()) {
-                                aiContentDiv.textContent = '（模型正在思考...）';
+                        }
+
+                        if (!chunkText) continue;
+
+                        // Process main content with tag parsing
+                        let i = 0;
+                        while (i < chunkText.length) {
+                            parseBuffer += chunkText[i];
+                            i++;
+
+                            if (!isThinking) {
+                                // Check for <thinking> start
+                                if (parseBuffer.endsWith('<thinking>')) {
+                                    // Flush everything before the tag
+                                    const textBefore = parseBuffer.slice(0, -10); // Remove <thinking>
+                                    if (textBefore) {
+                                        // If we were parsing tags, textBefore might belong to content
+                                        // Note: We need to append text node to avoid overwriting thinkingContainer
+                                        // But aiContentDiv might contain the thinkingContainer at the top.
+                                        // We should append text nodes after it.
+                                        aiContentDiv.appendChild(document.createTextNode(textBefore));
+                                        hasReceivedContent = true;
+                                    }
+                                    createThinkingUI();
+                                    isThinking = true;
+                                    parseBuffer = '';
+                                } else {
+                                    // Optimization: If buffer gets too long and doesn't look like it's forming a tag
+                                    // flush it. But we need to be careful about partial tags like "<th..."
+                                    // Max tag length is 10 ("<thinking>").
+                                    if (parseBuffer.length > 20 && !parseBuffer.includes('<')) {
+                                         aiContentDiv.appendChild(document.createTextNode(parseBuffer));
+                                         hasReceivedContent = true;
+                                         parseBuffer = '';
+                                    }
+                                }
+                            } else {
+                                // We are in thinking mode
+                                // Check for </thinking> end
+                                if (parseBuffer.endsWith('</thinking>')) {
+                                    const thinkingText = parseBuffer.slice(0, -11); // Remove </thinking>
+                                    if (thinkingText) {
+                                        thinkingContentEl.textContent += thinkingText;
+                                    }
+                                    isThinking = false;
+                                    parseBuffer = '';
+                                    // Optional: Collapse thinking box after done?
+                                    // thinkingContainer.classList.remove('open');
+                                } else {
+                                     // Flush buffer to thinking content occasionally
+                                     if (parseBuffer.length > 20 && !parseBuffer.includes('<')) {
+                                         thinkingContentEl.textContent += parseBuffer;
+                                         parseBuffer = '';
+                                     }
+                                }
                             }
                         }
+
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+
                     } catch (e) {
                         console.error('JSON parse error', e);
                     }
                 }
             }
 
-            if (!hasReceivedContent && reasoningPreview.trim()) {
-                aiContentDiv.textContent = reasoningPreview.trim();
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+            // Flush remaining buffer
+            if (parseBuffer) {
+                if (isThinking) {
+                     // We were thinking but stream ended?
+                     // Just dump it in thinking? Or maybe the tag was never closed.
+                     if (thinkingContentEl) thinkingContentEl.textContent += parseBuffer;
+                } else {
+                     // Check for partial tags that were never completed
+                     aiContentDiv.appendChild(document.createTextNode(parseBuffer));
+                }
             }
+
         } catch (error) {
-            aiContentDiv.textContent += `\n[Error: ${error.message}]`;
+            aiContentDiv.appendChild(document.createTextNode(`\n[Error: ${error.message}]`));
         } finally {
             isGenerating = false;
             sendBtn.disabled = !userInput.value.trim();

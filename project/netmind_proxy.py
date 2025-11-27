@@ -108,6 +108,29 @@ class NetMindClient:
         return resolved or requested_model
 
     def chat_completion(self, db, messages, model, stream=False, max_tokens=None, extra_params=None):
+        # Inject Thinking System Prompt
+        THINKING_SYSTEM_PROMPT = """
+You are a profound thinking assistant.
+Before answering the user's request, you must perform a detailed step-by-step analysis.
+Enclose your internal thought process within <thinking>...</thinking> tags.
+After the thinking tags, provide your final response.
+"""
+        # Ensure messages is a list and make a copy to avoid side effects
+        if not isinstance(messages, list):
+            messages = []
+        messages = messages.copy()
+
+        # Check if there is already a system message
+        system_message_index = next((i for i, m in enumerate(messages) if m.get('role') == 'system'), None)
+
+        if system_message_index is not None:
+             # Append to existing system message
+             original_content = messages[system_message_index].get('content', '')
+             messages[system_message_index]['content'] = original_content + "\n\n" + THINKING_SYSTEM_PROMPT
+        else:
+             # Insert new system message at the beginning
+             messages.insert(0, {"role": "system", "content": THINKING_SYSTEM_PROMPT})
+
         settings = self._get_settings(db)
         base_url = self._normalize_base_url(settings.get('base_url'))
         fallback_base_url = None
