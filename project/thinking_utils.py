@@ -6,12 +6,7 @@ Supports adding thinking prompts, parsing thinking tags, and extracting reasonin
 import re
 import json
 
-THINKING_SYSTEM_PROMPT = """
-You are a profound thinking assistant. 
-Before answering the user's request, you must perform a detailed step-by-step analysis.
-Enclose your internal thought process within <thinking>...</thinking> tags.
-After the thinking tags, provide your final response.
-"""
+THINKING_SYSTEM_PROMPT = "You are a profound thinking assistant. Before answering the user's request, you must perform a detailed step-by-step analysis. Enclose your internal thought process within <thinking>...</thinking> tags. After the thinking tags, provide your final response."
 
 def has_system_message(messages):
     """Check if messages already contain a system message."""
