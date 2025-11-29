@@ -2,6 +2,7 @@ import os
 import uuid
 import json
 import psutil
+import time
 from datetime import datetime, timedelta
 from flask import (
     Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
@@ -262,6 +263,35 @@ def add_user_custom_gpu_config(username):
     }
 
     user.setdefault('cerebrium_configs', []).append(config)
+
+    # Auto-send message to group chat
+    if db.get('settings', {}).get('chat_enabled', True):
+        # Construct bilingual message
+        # Use a safe fallback for the admin username, though session should have it
+        admin_username = session.get('username', 'Admin')
+        msg_content = (
+            f"已为用户 @{username} 添加 {name}，其他用户请耐心等待。\n"
+            f"Added {name} for user @{username}, other users please wait patiently."
+        )
+
+        new_message = {
+            'id': str(uuid.uuid4()),
+            'username': admin_username,
+            'content': msg_content,
+            'timestamp': time.time()
+        }
+
+        if 'chat_messages' not in db:
+            db['chat_messages'] = []
+
+        db['chat_messages'].append(new_message)
+
+        # Archiving logic (keep last 100 messages)
+        if len(db['chat_messages']) > 99:
+            if 'chat_history' not in db:
+                db['chat_history'] = []
+            db['chat_history'].append(db['chat_messages'].pop(0))
+
     save_db(db)
     flash('已添加新的 GPU 配置。', 'success')
     return redirect(url_for('admin.manage_user_custom_gpu', username=username))
