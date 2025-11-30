@@ -380,12 +380,15 @@ def cloud_terminal():
 
     display_targets = [{'name': target['name'], 'description': target.get('description', '自动探测')} for target in terminal_targets]
 
+    terminal_announcement = db.get('terminal_announcement', {})
+
     return render_template(
         'cloud_terminal.html',
         quick_commands=quick_commands,
         terminal_targets=display_targets,
         hardware_presets=hardware_presets,
-        has_gpu_endpoint=has_gpu_endpoint
+        has_gpu_endpoint=has_gpu_endpoint,
+        terminal_announcement=terminal_announcement
     )
 
 @main_bp.route('/change_password', methods=['POST'])
@@ -663,12 +666,14 @@ def ai_project_view(ai_project_id):
                         pass
 
     if space_card_type == 'netmind':
+        chat_announcement = db.get('chat_announcement', {})
         return render_template(
             'space_netmind_chat.html',
             ai_project=ai_project,
             api_key=api_key,
             server_domain=effective_server_domain,
-            announcement=announcement
+            announcement=announcement,
+            chat_announcement=chat_announcement
         )
 
     s3_public_base_url = None
