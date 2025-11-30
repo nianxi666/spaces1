@@ -74,11 +74,23 @@ def get_default_db_structure():
             "show_on_homepage": False,
             "show_on_projects": False
         },
+        "chat_announcement": {
+            "enabled": False,
+            "content": "",
+            "type": "info"
+        },
+        "terminal_announcement": {
+            "enabled": False,
+            "content": "",
+            "type": "info"
+        },
         "user_states": {},
         "daily_active_users": {},
         "sensitive_words": [],
+        "gpu_pool": [],
         "netmind_settings": {
             "keys": [],
+            "blacklist": [],
             "ad_suffix": "",
             "ad_enabled": False,
             "enable_alias_mapping": False,
@@ -184,7 +196,7 @@ def init_db():
                 db['spaces'][space_id]['netmind_upstream_model'] = space_data.get('netmind_model', '') or ''
 
     # Ensure all users have an avatar and last_chat_read_time
-    for user_data in db.get('users', {}).values():
+    for username, user_data in db.get('users', {}).items():
         if 'avatar' not in user_data:
             user_data['avatar'] = 'default.png'
         if 'last_chat_read_time' not in user_data:
@@ -197,6 +209,10 @@ def init_db():
             user_data['last_check_in_date'] = None
         if 'check_in_history' not in user_data:
             user_data['check_in_history'] = []
+        if 'last_username_change_date' not in user_data:
+            user_data['last_username_change_date'] = None
+        if 's3_folder_name' not in user_data:
+            user_data['s3_folder_name'] = username
 
     # Initialize articles if they don't exist
     if 'articles' not in db:
@@ -221,6 +237,12 @@ def init_db():
     if 'announcement' not in db:
         db['announcement'] = get_default_db_structure()['announcement']
 
+    if 'chat_announcement' not in db:
+        db['chat_announcement'] = get_default_db_structure()['chat_announcement']
+
+    if 'terminal_announcement' not in db:
+        db['terminal_announcement'] = get_default_db_structure()['terminal_announcement']
+
     # Initialize user_states if they don't exist
     if 'user_states' not in db:
         db['user_states'] = {}
@@ -232,6 +254,10 @@ def init_db():
     # Initialize sensitive_words if they don't exist
     if 'sensitive_words' not in db:
         db['sensitive_words'] = []
+
+    # Initialize gpu_pool if it doesn't exist
+    if 'gpu_pool' not in db:
+        db['gpu_pool'] = []
 
     # Initialize netmind_settings if they don't exist
     if 'netmind_settings' not in db:
@@ -249,6 +275,8 @@ def init_db():
         netmind_settings = db['netmind_settings']
         if 'model_aliases' not in netmind_settings:
             netmind_settings['model_aliases'] = {}
+        if 'blacklist' not in netmind_settings:
+            netmind_settings['blacklist'] = []
         if 'ad_enabled' not in netmind_settings:
             netmind_settings['ad_enabled'] = False
         if 'enable_alias_mapping' not in netmind_settings:

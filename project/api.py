@@ -42,6 +42,7 @@ from .netmind_config import (
     DEFAULT_NETMIND_RATE_LIMIT_WINDOW_SECONDS,
     get_rate_limit_config
 )
+from .gpu_allocator import try_allocate_gpu_from_pool
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -1182,7 +1183,13 @@ def get_chat_messages():
     if not session.get('logged_in'):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
+    username = session.get('username')
     db = load_db()
+
+    # Try to allocate GPU if needed
+    # This acts as a "heartbeat" trigger for online users
+    if username:
+        try_allocate_gpu_from_pool(db, username)
 
     # Check if chat is enabled
     if not db.get('settings', {}).get('chat_enabled', True) and not session.get('is_admin'):

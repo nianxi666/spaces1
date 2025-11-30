@@ -2,7 +2,8 @@ import time
 import random
 import threading
 import json
-from openai import OpenAI, APIError, AuthenticationError, RateLimitError
+from openai import OpenAI, APIError, AuthenticationError, RateLimitError, BadRequestError
+from .database import save_db
 
 DEFAULT_NETMIND_BASE_URL = 'https://api.netmind.ai/inference-api/openai/v1'
 
@@ -26,7 +27,9 @@ class NetMindClient:
 
     def _get_valid_keys(self, db):
         settings = self._get_settings(db)
-        return [k for k in settings.get('keys', []) if k.strip()]
+        all_keys = settings.get('keys', [])
+        blacklist = settings.get('blacklist', [])
+        return [k for k in all_keys if k.strip() and k not in blacklist]
 
     def _get_next_key(self, db, exclude_key=None):
         keys = self._get_valid_keys(db)
@@ -184,6 +187,37 @@ After the thinking tags, provide your final response.
                         max_tokens=max_tokens,
                         extra_params=request_options
                     )
+
+            except BadRequestError as e:
+                # Check for "usd balance not enough" and blacklist the key
+                # Error code: 400 - {'detail': 'usd balance not enough...'}
+                # e.message usually contains the message
+                # e.response might have the JSON body
+
+                # Check message or body
+                error_msg = str(e).lower()
+                if 'usd balance not enough' in error_msg:
+                    print(f"NetMind Key {key[:4]}... exhausted (Balance insufficient). Blacklisting.")
+
+                    # Add to blacklist
+                    if 'blacklist' not in settings:
+                        settings['blacklist'] = []
+
+                    if key not in settings['blacklist']:
+                        settings['blacklist'].append(key)
+                        save_db(db) # Persist blacklist
+
+                    last_error = e
+                    attempts += 1
+                    key = self._get_next_key(db, exclude_key=key)
+                    if not key:
+                         break
+                    time.sleep(0.5)
+                    continue
+                else:
+                    # Other BadRequestError
+                    print(f"NetMind BadRequestError: {e}")
+                    raise e
 
             except (AuthenticationError, RateLimitError) as e:
                 print(f"NetMind API Error (Key: {key[:4]}...): {e}")

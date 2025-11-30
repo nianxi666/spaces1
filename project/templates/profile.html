@@ -96,9 +96,12 @@
                 <div class="border-t border-gray-50"></div>
 
                 <!-- Username -->
-                <div class="flex justify-between items-center py-2">
+                <div class="flex justify-between items-center py-2 group">
                     <span class="text-sm font-medium text-gray-700">用户名</span>
-                    <span class="text-sm font-semibold text-gray-900">{{ session.username }}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-semibold text-gray-900" id="current-username-display">{{ session.username }}</span>
+                        <button onclick="document.getElementById('change-username-modal').classList.remove('hidden')" class="text-xs text-pumpkin-600 hover:text-pumpkin-700 font-medium px-2 py-1 bg-pumpkin-50 rounded transition-colors">修改</button>
+                    </div>
                 </div>
 
                 <div class="border-t border-gray-50"></div>
@@ -202,6 +205,28 @@
     </div>
 </div>
 
+<!-- Change Username Modal -->
+<div id="change-username-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4" style="background-color: rgba(0,0,0,0.4); backdrop-filter: blur(4px);">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-fade-in-up">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">修改用户名</h3>
+        <p class="text-sm text-gray-500 mb-6">用户名每 30 天只能修改一次。修改后需要使用新用户名登录。</p>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">新用户名</label>
+                <input type="text" id="new-username-input" class="w-full border-gray-200 rounded-xl focus:ring-pumpkin-500 focus:border-pumpkin-500" placeholder="3-20个字符，仅限字母数字下划线">
+            </div>
+
+            <div id="username-change-error" class="text-xs text-red-500 hidden"></div>
+
+            <div class="flex gap-3 pt-2">
+                <button onclick="document.getElementById('change-username-modal').classList.add('hidden')" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors">取消</button>
+                <button onclick="submitUsernameChange()" class="flex-1 px-4 py-2 bg-pumpkin-500 text-white rounded-xl font-bold hover:bg-pumpkin-600 transition-colors">确认修改</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- File Browser Modal (Glassmorphism) -->
 <div id="file-browser-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 sm:p-6" style="background-color: rgba(0,0,0,0.4); backdrop-filter: blur(4px);">
     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden animate-fade-in-up">
@@ -226,6 +251,37 @@
 </div>
 
 <script>
+async function submitUsernameChange() {
+    const input = document.getElementById('new-username-input');
+    const errorDiv = document.getElementById('username-change-error');
+    const newUsername = input.value.trim();
+
+    if (!newUsername) return;
+
+    try {
+        const formData = new FormData();
+        formData.append('new_username', newUsername);
+
+        const response = await fetch('{{ url_for("main.change_username") }}', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('用户名修改成功！');
+            window.location.reload();
+        } else {
+            errorDiv.textContent = result.error;
+            errorDiv.classList.remove('hidden');
+        }
+    } catch (e) {
+        errorDiv.textContent = '请求失败，请稍后重试';
+        errorDiv.classList.remove('hidden');
+    }
+}
+
 function copyToClipboard(text) {
     if (!text) return;
     navigator.clipboard.writeText(text).then(function() {

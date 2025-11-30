@@ -1,0 +1,166 @@
+{% extends "layout.html" %}
+{% block title %}云GPU池管理 - 南瓜AI{% endblock %}
+{% block content %}
+<div class="admin-panel-container">
+    <div class="page-header">
+        <h2>云GPU池管理</h2>
+        <div class="header-actions">
+            <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-secondary">返回面板</a>
+        </div>
+    </div>
+
+    <!-- Add GPU Form -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3>添加 GPU 到池</h3>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('admin.add_gpu_to_pool') }}" method="POST" class="form-grid">
+                <div class="form-group">
+                    <label>名称 (如 L40S)</label>
+                    <input type="text" name="name" class="form-control" placeholder="Displays as Allocated GPU type" required>
+                </div>
+                <div class="form-group">
+                    <label>API URL</label>
+                    <input type="url" name="api_url" class="form-control" placeholder="https://..." required>
+                </div>
+                <div class="form-group">
+                    <label>API Token</label>
+                    <input type="text" name="api_token" class="form-control" placeholder="JWT or Key" required>
+                </div>
+                <div class="form-group full-width">
+                    <button type="submit" class="btn btn-primary">添加到池中</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Current Pool -->
+    <div class="projects-section">
+        <h3>当前池中待分配的 GPU</h3>
+        {% if gpu_pool %}
+        <div class="table-container">
+            <table class="projects-table">
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>API URL</th>
+                        <th>Token (Preview)</th>
+                        <th>加入时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for gpu in gpu_pool %}
+                    <tr>
+                        <td>{{ gpu.name }}</td>
+                        <td><span class="text-truncate">{{ gpu.api_url }}</span></td>
+                        <td>{{ gpu.api_token[:10] }}...</td>
+                        <td>{{ gpu.added_at }}</td>
+                        <td>
+                            <form action="{{ url_for('admin.delete_gpu_from_pool', pool_id=gpu.id) }}" method="POST" onsubmit="return confirm('确定要删除吗？');">
+                                <button type="submit" class="btn-action delete">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>池中暂时没有可用的 GPU。</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.admin-panel-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+.page-header h2 {
+    color: #FF7518;
+    margin: 0;
+}
+.card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    margin-bottom: 30px;
+    overflow: hidden;
+}
+.card-header {
+    background: linear-gradient(135deg, #FF7518, #FFB366);
+    color: white;
+    padding: 15px 20px;
+}
+.card-header h3 { margin: 0; font-size: 18px; }
+.card-body { padding: 20px; }
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+.full-width { grid-column: 1 / -1; }
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+.btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-block;
+}
+.btn-primary { background: #FF7518; color: white; }
+.btn-secondary { background: #eee; color: #333; }
+.btn-action.delete {
+    background: #FFEBEE; color: #D32F2F; padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer;
+}
+.table-container {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+.projects-table { width: 100%; border-collapse: collapse; }
+.projects-table th { background: #f8f9fa; padding: 15px; text-align: left; color: #666; font-weight: 600; }
+.projects-table td { padding: 15px; border-bottom: 1px solid #eee; }
+.text-truncate {
+    display: inline-block;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+    background: white;
+    border-radius: 12px;
+}
+</style>
+{% endblock %}

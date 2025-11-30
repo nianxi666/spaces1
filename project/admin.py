@@ -354,19 +354,40 @@ def manage_announcement():
     db = load_db()
 
     if request.method == 'POST':
-        announcement_data = {
-            'enabled': request.form.get('enabled') == 'on',
-            'title': request.form.get('title', ''),
-            'content': request.form.get('content', ''),
-            'type': request.form.get('type', 'info'),  # info, warning, success, error
-            'show_on_homepage': request.form.get('show_on_homepage') == 'on',
-            'show_on_projects': request.form.get('show_on_projects') == 'on'
-        }
+        form_type = request.form.get('form_type')
 
-        db['announcement'] = announcement_data
+        if form_type == 'main':
+            announcement_data = {
+                'enabled': request.form.get('enabled') == 'on',
+                'title': request.form.get('title', ''),
+                'content': request.form.get('content', ''),
+                'type': request.form.get('type', 'info'),  # info, warning, success, error
+                'show_on_homepage': request.form.get('show_on_homepage') == 'on',
+                'show_on_projects': request.form.get('show_on_projects') == 'on'
+            }
+            db['announcement'] = announcement_data
+            flash('全局公告设置已保存！', 'success')
+
+        elif form_type == 'chat':
+            chat_data = {
+                'enabled': request.form.get('chat_enabled') == 'on',
+                'content': request.form.get('chat_content', ''),
+                'type': request.form.get('chat_type', 'info')
+            }
+            db['chat_announcement'] = chat_data
+            flash('聊天界面公告设置已保存！', 'success')
+
+        elif form_type == 'terminal':
+            terminal_data = {
+                'enabled': request.form.get('terminal_enabled') == 'on',
+                'content': request.form.get('terminal_content', ''),
+                'type': request.form.get('terminal_type', 'info')
+            }
+            db['terminal_announcement'] = terminal_data
+            flash('云终端公告设置已保存！', 'success')
+
         save_db(db)
-        flash('公告设置已保存！', 'success')
-        return redirect(url_for('admin.admin_panel'))
+        return redirect(url_for('admin.manage_announcement'))
 
     announcement = db.get('announcement', {
         'enabled': False,
@@ -376,7 +397,72 @@ def manage_announcement():
         'show_on_homepage': True,
         'show_on_projects': True
     })
-    return render_template('admin_announcement.html', announcement=announcement)
+    chat_announcement = db.get('chat_announcement', {
+        'enabled': False,
+        'content': '',
+        'type': 'info'
+    })
+    terminal_announcement = db.get('terminal_announcement', {
+        'enabled': False,
+        'content': '',
+        'type': 'info'
+    })
+    return render_template('admin_announcement.html',
+                           announcement=announcement,
+                           chat_announcement=chat_announcement,
+                           terminal_announcement=terminal_announcement)
+
+@admin_bp.route('/gpu-pool', methods=['GET'])
+def manage_gpu_pool():
+    db = load_db()
+    # Initialize if missing (handled in load_db actually, but explicitly here for safety)
+    if 'gpu_pool' not in db:
+        db['gpu_pool'] = []
+    return render_template('admin_gpu_pool.html', gpu_pool=db['gpu_pool'])
+
+@admin_bp.route('/gpu-pool/add', methods=['POST'])
+def add_gpu_to_pool():
+    db = load_db()
+    if 'gpu_pool' not in db:
+        db['gpu_pool'] = []
+
+    name = request.form.get('name', '').strip()
+    api_url = request.form.get('api_url', '').strip()
+    api_token = request.form.get('api_token', '').strip()
+
+    if not all([name, api_url, api_token]):
+        flash('所有字段都是必填的。', 'error')
+        return redirect(url_for('admin.manage_gpu_pool'))
+
+    new_gpu = {
+        'id': str(uuid.uuid4()),
+        'name': name,
+        'api_url': api_url,
+        'api_token': api_token,
+        'added_at': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+    db['gpu_pool'].append(new_gpu)
+    save_db(db)
+    flash(f'GPU {name} 已添加到池中。', 'success')
+    return redirect(url_for('admin.manage_gpu_pool'))
+
+@admin_bp.route('/gpu-pool/delete/<pool_id>', methods=['POST'])
+def delete_gpu_from_pool(pool_id):
+    db = load_db()
+    if 'gpu_pool' not in db:
+        return redirect(url_for('admin.manage_gpu_pool'))
+
+    initial_len = len(db['gpu_pool'])
+    db['gpu_pool'] = [gpu for gpu in db['gpu_pool'] if gpu['id'] != pool_id]
+
+    if len(db['gpu_pool']) < initial_len:
+        save_db(db)
+        flash('GPU 已从池中移除。', 'success')
+    else:
+        flash('未找到该 GPU。', 'error')
+
+    return redirect(url_for('admin.manage_gpu_pool'))
 
 @admin_bp.route('/banner', methods=['GET', 'POST'])
 def manage_banner():
