@@ -57,6 +57,7 @@ def get_default_db_structure():
     """Returns the default structure for a new database."""
     return {
         "users": {},
+        "orders": {},
         "spaces": {},
         "settings": {},
         "uploaded_files": {},
@@ -98,6 +99,14 @@ def get_default_db_structure():
             "model_aliases": {},
             "rate_limit_window_seconds": DEFAULT_NETMIND_RATE_LIMIT_WINDOW_SECONDS,
             "rate_limit_max_requests": DEFAULT_NETMIND_RATE_LIMIT_MAX_REQUESTS
+        },
+        "payment_settings": {
+            "enabled": False,
+            "gumroad_app_id": "",
+            "gumroad_app_secret": "",
+            "gumroad_access_token": "",
+            "gumroad_product_url": "",
+            "gumroad_webhook_secret": ""
         }
     }
 
@@ -291,6 +300,24 @@ def init_db():
             current_limit,
             fallback=DEFAULT_NETMIND_RATE_LIMIT_MAX_REQUESTS
         )
+
+    # Initialize payment_settings if they don't exist
+    if 'payment_settings' not in db:
+        db['payment_settings'] = get_default_db_structure()['payment_settings']
+
+    if 'orders' not in db:
+        db['orders'] = {}
+
+    # Ensure user structure compatibility (Pro fields)
+    for user_data in db.get('users', {}).values():
+        if 'is_pro' not in user_data:
+            user_data['is_pro'] = False
+        if 'membership_status' not in user_data:
+            user_data['membership_status'] = 'free' # free, pro
+        if 'membership_expiry' not in user_data:
+            user_data['membership_expiry'] = None
+        if 'gumroad_subscriber_id' not in user_data:
+            user_data['gumroad_subscriber_id'] = None
 
     save_db(db)
 

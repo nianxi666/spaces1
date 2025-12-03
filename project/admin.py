@@ -21,17 +21,6 @@ from .netmind_config import (
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
-def ensure_pro_settings(db):
-    if 'pro_settings' not in db:
-        db['pro_settings'] = {
-            'enabled': False,
-            'task_description': ''
-        }
-    else:
-        db['pro_settings'].setdefault('enabled', False)
-        db['pro_settings'].setdefault('task_description', '')
-    return db['pro_settings']
-
 def ensure_netmind_settings(db):
     if 'netmind_settings' not in db:
         db['netmind_settings'] = {
@@ -122,26 +111,11 @@ def system_stats():
         # In case psutil fails for some reason
         return jsonify({'error': str(e)}), 500
 
-@admin_bp.route('/pro_settings', methods=['GET', 'POST'])
-def manage_pro_settings():
-    db = load_db()
-    settings = ensure_pro_settings(db)
-
-    if request.method == 'POST':
-        settings['enabled'] = request.form.get('enabled') == 'on'
-        settings['task_description'] = request.form.get('task_description', '')
-        save_db(db)
-        flash('Pro 会员设置已保存。', 'success')
-        return redirect(url_for('admin.manage_pro_settings'))
-
-    return render_template('admin_pro_settings.html', settings=settings)
-
 @admin_bp.route('/users')
 def manage_users():
     db = load_db()
     users = db.get('users', {})
     daily_active_users = db.get('daily_active_users', {})
-    pro_settings = ensure_pro_settings(db)
 
     # Date filter
     filter_date = request.args.get('date')
@@ -193,35 +167,8 @@ def manage_users():
     return render_template(
         'admin_users.html',
         users=users_list,
-        pro_enabled=pro_settings.get('enabled'),
         selected_date=filter_date
     )
-
-@admin_bp.route('/users/approve_pro/<username>', methods=['POST'])
-def approve_pro_user(username):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if user:
-        user['is_pro'] = True
-        user['pro_submission_status'] = 'approved'
-        save_db(db)
-        flash(f'用户 {username} 已升级为 Pro 会员。', 'success')
-    else:
-        flash('未找到用户。', 'error')
-    return redirect(url_for('admin.manage_users'))
-
-@admin_bp.route('/users/reject_pro/<username>', methods=['POST'])
-def reject_pro_user(username):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if user:
-        user['is_pro'] = False
-        user['pro_submission_status'] = 'rejected'
-        save_db(db)
-        flash(f'已拒绝用户 {username} 的 Pro 会员申请。', 'success')
-    else:
-        flash('未找到用户。', 'error')
-    return redirect(url_for('admin.manage_users'))
 
 @admin_bp.route('/users/<username>/custom-gpu')
 def manage_user_custom_gpu(username):
@@ -480,6 +427,49 @@ def manage_banner():
 
     banner = db.get('banner', {'enabled': False, 'image_url': '', 'link_url': ''})
     return render_template('admin_banner.html', banner=banner)
+
+@admin_bp.route('/payment_settings', methods=['GET', 'POST'])
+def manage_payment_settings():
+    db = load_db()
+    if 'payment_settings' not in db:
+        db['payment_settings'] = {
+            'enabled': False,
+            'gumroad_app_id': '',
+            'gumroad_app_secret': '',
+            'gumroad_access_token': '',
+            'gumroad_product_url': '',
+            'gumroad_webhook_secret': ''
+        }
+
+    settings = db['payment_settings']
+
+    if request.method == 'POST':
+        settings['enabled'] = request.form.get('enabled') == 'on'
+        settings['gumroad_app_id'] = request.form.get('gumroad_app_id', '').strip()
+        settings['gumroad_app_secret'] = request.form.get('gumroad_app_secret', '').strip()
+        settings['gumroad_access_token'] = request.form.get('gumroad_access_token', '').strip()
+        settings['gumroad_product_url'] = request.form.get('gumroad_product_url', '').strip()
+        settings['gumroad_webhook_secret'] = request.form.get('gumroad_webhook_secret', '').strip()
+
+        save_db(db)
+        flash('支付设置已保存。', 'success')
+        return redirect(url_for('admin.manage_payment_settings'))
+
+    return render_template('admin_payment_settings.html', settings=settings)
+
+@admin_bp.route('/orders')
+def manage_orders():
+    db = load_db()
+    orders = db.get('orders', {}).values()
+    status_filter = request.args.get('status')
+
+    if status_filter:
+        orders = [o for o in orders if o.get('status') == status_filter]
+
+    # Sort by created_at desc
+    orders = sorted(orders, key=lambda x: x.get('created_at', ''), reverse=True)
+
+    return render_template('admin_orders.html', orders=orders, selected_status=status_filter)
 
 @admin_bp.route('/space/add', methods=['GET', 'POST'])
 @admin_bp.route('/space/edit/<space_id>', methods=['GET', 'POST'])

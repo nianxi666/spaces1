@@ -1,0 +1,288 @@
+{% extends "layout.html" %}
+{% block title %}支付设置 - 南瓜AI{% endblock %}
+
+{% block content %}
+<div class="admin-panel-container">
+    <div class="page-header">
+        <h2><a href="{{ url_for('admin.admin_panel') }}" class="back-link">←</a> 支付设置 (Gumroad)</h2>
+    </div>
+
+    <div class="glass-card">
+        <form method="POST" class="settings-form">
+            <!-- Master Switch -->
+            <div class="form-section">
+                <div class="switch-container">
+                    <label class="switch">
+                        <input type="checkbox" name="enabled" {% if settings.enabled %}checked{% endif %}>
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="switch-label">启用会员支付功能</span>
+                </div>
+                <p class="help-text">启用后，用户个人资料页面将显示订阅入口。</p>
+            </div>
+
+            <div class="form-section">
+                <h3>Gumroad 配置</h3>
+                <p class="help-text">请在 Gumroad 设置中创建一个 Application，并填入以下信息。</p>
+
+                <div class="form-group">
+                    <label>Application ID (Client ID)</label>
+                    <input type="text" name="gumroad_app_id" value="{{ settings.gumroad_app_id }}" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label>Application Secret</label>
+                    <input type="password" name="gumroad_app_secret" value="{{ settings.gumroad_app_secret }}" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label>Access Token</label>
+                    <input type="password" name="gumroad_access_token" value="{{ settings.gumroad_access_token }}" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label>Product URL (Permalink)</label>
+                    <input type="text" name="gumroad_product_url" value="{{ settings.gumroad_product_url }}" class="form-control" placeholder="例如: https://gumroad.com/l/your-product">
+                    <p class="help-text">您的 Gumroad 产品的直接链接。</p>
+                </div>
+
+                <div class="form-group">
+                    <label>Webhook Secret (可选)</label>
+                    <input type="password" name="gumroad_webhook_secret" value="{{ settings.gumroad_webhook_secret }}" class="form-control">
+                    <p class="help-text">如果配置了 Webhook 签名验证，请在此处填入 Secret。</p>
+                </div>
+
+                <div class="form-group">
+                    <label>Webhook URL (复制此链接到 Gumroad)</label>
+                    <div class="copy-field">
+                        <input type="text" readonly value="{{ settings.server_domain or request.url_root.rstrip('/') }}/api/payment/gumroad/webhook" class="form-control readonly">
+                        <button type="button" class="btn-copy" onclick="copyWebhookUrl(this)">复制</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">保存设置</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.admin-panel-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.page-header h2 {
+    font-size: 24px;
+    color: #2C2C2C;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.back-link {
+    text-decoration: none;
+    color: #666;
+    font-size: 24px;
+    transition: color 0.2s;
+}
+
+.back-link:hover {
+    color: #FF7518;
+}
+
+.glass-card {
+    background: white;
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+}
+
+.form-section {
+    margin-bottom: 30px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 20px;
+}
+
+.form-section:last-child {
+    border-bottom: none;
+}
+
+.form-section h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #444;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.form-control:focus {
+    border-color: #FF7518;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255, 117, 24, 0.1);
+}
+
+.form-control.readonly {
+    background-color: #f9f9f9;
+    color: #666;
+}
+
+.help-text {
+    font-size: 13px;
+    color: #888;
+    margin-top: 6px;
+    margin-bottom: 0;
+}
+
+.switch-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+}
+
+input:checked + .slider {
+    background-color: #FF7518;
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px #FF7518;
+}
+
+input:checked + .slider:before {
+    transform: translateX(24px);
+}
+
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+.switch-label {
+    font-weight: 600;
+    color: #333;
+}
+
+.copy-field {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-copy {
+    padding: 0 20px;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    color: #555;
+    transition: all 0.2s;
+}
+
+.btn-copy:hover {
+    background: #e5e5e5;
+}
+
+.form-actions {
+    margin-top: 30px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #FF7518, #FFB366);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 117, 24, 0.3);
+}
+</style>
+
+<script>
+function copyWebhookUrl(btn) {
+    const input = btn.previousElementSibling;
+    input.select();
+    document.execCommand('copy');
+
+    const originalText = btn.textContent;
+    btn.textContent = '已复制';
+    setTimeout(() => {
+        btn.textContent = originalText;
+    }, 2000);
+}
+</script>
+{% endblock %}

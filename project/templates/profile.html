@@ -19,7 +19,7 @@
         </div>
 
         <!-- Pro Membership Card -->
-        {% if pro_settings and pro_settings.enabled %}
+        {% if payment_settings and payment_settings.enabled %}
         <div class="glass rounded-3xl overflow-hidden animate-fade-in-up delay-75 border-2 {% if user.is_pro %}border-yellow-400{% else %}border-gray-100{% endif %}">
             <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r {% if user.is_pro %}from-yellow-50 to-orange-50{% else %}from-gray-50 to-white{% endif %}">
                 <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -28,10 +28,10 @@
                     <span class="bg-yellow-400 text-white text-xs px-2 py-0.5 rounded-full">ACTIVE</span>
                     {% endif %}
                 </h2>
-                {% if not user.is_pro %}
-                <a href="{{ url_for('main.pro_apply') }}" class="text-sm font-bold text-pumpkin-600 hover:text-pumpkin-700 transition-colors">
-                    {{ '查看申请状态' if user.pro_submission_status == 'pending' else '去申请' }} &rarr;
-                </a>
+                {% if user.is_pro and user.membership_expiry %}
+                <span class="text-sm text-gray-500">
+                    有效期至: {{ user.membership_expiry[:10] }}
+                </span>
                 {% endif %}
             </div>
             <div class="p-6">
@@ -46,23 +46,57 @@
                         </div>
                     </div>
                 {% else %}
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    <div class="flex flex-col sm:flex-row items-center gap-6">
+                        <div class="flex items-center gap-4 flex-1">
+                            <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-gray-900">升级到 Pro 会员</h3>
+                                <p class="text-sm text-gray-500">解锁高级功能，支持无限容量网盘与高速推理。</p>
+                            </div>
                         </div>
-                        <div class="flex-1">
-                            <h3 class="font-bold text-gray-900">升级到 Pro</h3>
-                            <p class="text-sm text-gray-500">完成指定任务，免费升级 Pro 会员，解锁更多高级功能。</p>
+
+                        <div class="flex flex-col items-end gap-2">
+                             {% if payment_settings.gumroad_product_url %}
+                                <button onclick="initiatePayment()" id="subBtn" class="px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center gap-2 cursor-pointer">
+                                    <span>$5 / 月 立即订阅</span>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                                </button>
+                                <p class="text-xs text-gray-400">支持 Gumroad 安全支付</p>
+
+                                <script>
+                                async function initiatePayment() {
+                                    const btn = document.getElementById('subBtn');
+                                    const originalText = btn.innerHTML;
+                                    btn.innerHTML = '<span>创建订单中...</span>';
+                                    btn.disabled = true;
+
+                                    try {
+                                        const response = await fetch("{{ url_for('payment.create_order') }}", {
+                                            method: 'POST',
+                                            headers: {'Content-Type': 'application/json'}
+                                        });
+                                        const data = await response.json();
+
+                                        if (data.success) {
+                                            window.location.href = data.redirect_url;
+                                        } else {
+                                            alert('创建订单失败: ' + (data.error || '未知错误'));
+                                            btn.innerHTML = originalText;
+                                            btn.disabled = false;
+                                        }
+                                    } catch (e) {
+                                        alert('网络错误');
+                                        btn.innerHTML = originalText;
+                                        btn.disabled = false;
+                                    }
+                                }
+                                </script>
+                             {% else %}
+                                <span class="text-sm text-red-500 bg-red-50 px-3 py-1 rounded-lg border border-red-100">配置错误: 管理员未设置支付链接</span>
+                             {% endif %}
                         </div>
-                        {% if user.pro_submission_status == 'pending' %}
-                            <span class="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full">审核中</span>
-                        {% elif user.pro_submission_status == 'rejected' %}
-                            <span class="px-3 py-1 bg-red-50 text-red-600 text-xs font-bold rounded-full">申请被拒</span>
-                        {% else %}
-                            <a href="{{ url_for('main.pro_apply') }}" class="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black transition-colors shadow-md hover:shadow-lg">
-                                立即申请
-                            </a>
-                        {% endif %}
                     </div>
                 {% endif %}
             </div>
