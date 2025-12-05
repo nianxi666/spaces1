@@ -1,6 +1,7 @@
 import requests
 import hmac
 import hashlib
+import uuid
 from datetime import datetime, timedelta
 from .database import load_db, save_db
 
@@ -196,3 +197,186 @@ def handle_payhip_webhook(webhook_data):
     except Exception as e:
         print(f"Error processing Payhip webhook: {e}")
         return False
+
+# ============ 订单管理功能 ============
+
+def initialize_orders_table():
+    """Initialize orders table if not exists"""
+    db = load_db()
+    if 'orders' not in db:
+        db['orders'] = {}
+    save_db(db)
+
+def create_order(username):
+    """Create a new payment order for user"""
+    db = load_db()
+    
+    if 'orders' not in db:
+        db['orders'] = {}
+    
+    # 检查用户未支付订单数量
+    user_pending_orders = get_user_pending_orders(username)
+    if len(user_pending_orders) >= 2:
+        return None, f"已有 {len(user_pending_orders)} 个未支付订单，最多只能有 2 个"
+    
+    order_id = str(uuid.uuid4())
+    order = {
+        'order_id': order_id,
+        'username': username,
+        'status': 'unpaid',
+        'created_at': datetime.utcnow().isoformat(),
+        'expires_at': (datetime.utcnow() + timedelta(minutes=30)).isoformat(),
+        'payment_url': None,
+        'paid_at': None,
+        'price': None,
+        'currency': 'USD'
+    }
+    
+    db['orders'][order_id] = order
+    save_db(db)
+    
+    return order, None
+
+def get_order(order_id):
+    """Get order by ID"""
+    db = load_db()
+    return db.get('orders', {}).get(order_id)
+
+def get_user_orders(username, status=None):
+    """Get all orders for a user, optionally filtered by status"""
+    db = load_db()
+    user_orders = []
+    
+    for order_id, order in db.get('orders', {}).items():
+        if order.get('username') == username:
+            if status is None or order.get('status') == status:
+                user_orders.append(order)
+    
+    # Sort by creation time, newest first
+    return sorted(user_orders, key=lambda x: x.get('created_at', ''), reverse=True)
+
+def get_user_pending_orders(username):
+    """Get all pending (unpaid) orders for a user"""
+    return get_user_orders(username, status='unpaid')
+
+def update_order_payment_url(order_id, payment_url):
+    """Update order with payment URL"""
+    db = load_db()
+    order = db.get('orders', {}).get(order_id)
+    
+    if not order:
+        return False
+    
+    order['payment_url'] = payment_url
+    save_db(db)
+    return True
+
+def mark_order_paid(order_id, username=None):
+    """Mark order as paid and activate membership"""
+    db = load_db()
+    order = db.get('orders', {}).get(order_id)
+    
+    if not order:
+        return False
+    
+    if order.get('status') != 'unpaid':
+        return False
+    
+    order['status'] = 'paid'
+    order['paid_at'] = datetime.utcnow().isoformat()
+    
+    # Activate membership for user
+    order_username = order.get('username')
+    membership_settings = db.get('membership_settings', {})
+    duration_days = membership_settings.get('duration_days', 30)
+    
+    success = set_user_membership(order_username, duration_days)
+    
+    if success:
+        save_db(db)
+    
+    return success
+
+def cancel_order(order_id):
+    """Cancel an unpaid order"""
+    db = load_db()
+    order = db.get('orders', {}).get(order_id)
+    
+    if not order:
+        return False
+    
+    if order.get('status') != 'unpaid':
+        return False
+    
+    order['status'] = 'cancelled'
+    save_db(db)
+    return True
+
+def auto_close_expired_orders():
+    """Auto-close orders that expired (30 minutes without payment)"""
+    db = load_db()
+    now = datetime.utcnow()
+    closed_count = 0
+    
+    for order_id, order in db.get('orders', {}).items():
+        if order.get('status') != 'unpaid':
+            continue
+        
+        try:
+            expires_at = datetime.fromisoformat(order.get('expires_at', ''))
+            if now >= expires_at:
+                order['status'] = 'expired'
+                closed_count += 1
+        except (ValueError, TypeError):
+            pass
+    
+    if closed_count > 0:
+        save_db(db)
+    
+    return closed_count
+
+def get_all_orders(filter_status=None, limit=100):
+    """Get all orders, optionally filtered by status"""
+    db = load_db()
+    all_orders = []
+    
+    for order_id, order in db.get('orders', {}).items():
+        if filter_status is None or order.get('status') == filter_status:
+            all_orders.append(order)
+    
+    # Sort by creation time, newest first
+    all_orders = sorted(all_orders, key=lambda x: x.get('created_at', ''), reverse=True)
+    return all_orders[:limit]
+
+def get_order_statistics():
+    """Get order statistics"""
+    db = load_db()
+    stats = {
+        'total_orders': 0,
+        'unpaid': 0,
+        'paid': 0,
+        'cancelled': 0,
+        'expired': 0,
+        'total_revenue': 0.0
+    }
+    
+    for order in db.get('orders', {}).values():
+        stats['total_orders'] += 1
+        status = order.get('status', 'unknown')
+        
+        if status == 'unpaid':
+            stats['unpaid'] += 1
+        elif status == 'paid':
+            stats['paid'] += 1
+            price = order.get('price')
+            if price:
+                try:
+                    stats['total_revenue'] += float(price)
+                except (ValueError, TypeError):
+                    pass
+        elif status == 'cancelled':
+            stats['cancelled'] += 1
+        elif status == 'expired':
+            stats['expired'] += 1
+    
+    return stats

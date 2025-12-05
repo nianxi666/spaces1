@@ -105,7 +105,8 @@ def get_default_db_structure():
             "duration_days": 30,
             "payhip_api_key": "",
             "payhip_product_id": ""
-        }
+        },
+        "orders": {}
     }
 
 def init_db():
@@ -326,6 +327,10 @@ def init_db():
             membership_settings['payhip_api_key'] = ''
         if 'payhip_product_id' not in membership_settings:
             membership_settings['payhip_product_id'] = ''
+
+    # Initialize orders table if it doesn't exist
+    if 'orders' not in db:
+        db['orders'] = {}
 
     save_db(db)
 

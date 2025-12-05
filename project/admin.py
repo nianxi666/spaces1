@@ -1094,3 +1094,57 @@ def revoke_user_member(username):
         return jsonify({'success': True, 'message': f'{username} 的会员资格已取消'}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============ 订单管理功能 ============
+
+@admin_bp.route('/orders', methods=['GET'])
+def manage_orders():
+    from .membership import get_all_orders, auto_close_expired_orders, get_order_statistics
+    
+    # 自动关闭过期订单
+    auto_close_expired_orders()
+    
+    # 获取筛选参数
+    filter_status = request.args.get('status')
+    
+    # 获取所有订单
+    all_orders = get_all_orders(filter_status=filter_status, limit=1000)
+    
+    # 获取统计信息
+    stats = get_order_statistics()
+    
+    return render_template(
+        'admin_orders.html',
+        orders=all_orders,
+        stats=stats,
+        filter_status=filter_status,
+        statuses=['all', 'unpaid', 'paid', 'cancelled', 'expired']
+    )
+
+@admin_bp.route('/orders/<order_id>/mark-paid', methods=['POST'])
+def mark_order_paid(order_id):
+    from .membership import mark_order_paid, get_order
+    
+    order = get_order(order_id)
+    
+    if not order:
+        return jsonify({'success': False, 'error': '订单不存在'}), 404
+    
+    if mark_order_paid(order_id):
+        return jsonify({'success': True, 'message': f'订单 {order_id} 已标记为已支付'}), 200
+    else:
+        return jsonify({'success': False, 'error': '标记失败，订单可能已支付或过期'}), 400
+
+@admin_bp.route('/orders/<order_id>/cancel', methods=['POST'])
+def admin_cancel_order(order_id):
+    from .membership import cancel_order, get_order
+    
+    order = get_order(order_id)
+    
+    if not order:
+        return jsonify({'success': False, 'error': '订单不存在'}), 404
+    
+    if cancel_order(order_id):
+        return jsonify({'success': True, 'message': f'订单 {order_id} 已取消'}), 200
+    else:
+        return jsonify({'success': False, 'error': '取消失败，订单可能已支付'}), 400
