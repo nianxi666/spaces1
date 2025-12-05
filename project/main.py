@@ -193,49 +193,32 @@ def profile():
     if not session.get('logged_in'):
         return redirect(url_for('auth.login'))
 
+    from .membership import get_user_membership_status, is_membership_enabled
+
     db = load_db()
     user_data = db['users'].get(session['username'], {})
     api_key = user_data.get('api_key', '未找到 API 密钥')
     if not session.get('is_admin') and api_key and len(api_key) > 8:
         api_key = f"{api_key[:4]}...{api_key[-4:]}"
     settings = db.get('settings', {})
-    pro_settings = db.get('pro_settings', {})
+    membership_settings = db.get('membership_settings', {})
+
+    membership_status = get_user_membership_status(session['username'])
+    user_data['member_status'] = membership_status
 
     # Get today's date string in Beijing time on the server
     beijing_tz = ZoneInfo("Asia/Shanghai")
     today_str = datetime.now(beijing_tz).strftime('%Y-%m-%d')
 
-    return render_template('profile.html', user=user_data, api_key=api_key, settings=settings, pro_settings=pro_settings, today_str=today_str)
-
-@main_bp.route('/pro/apply', methods=['GET', 'POST'])
-def pro_apply():
-    if not session.get('logged_in'):
-        return redirect(url_for('auth.login'))
-
-    db = load_db()
-    pro_settings = db.get('pro_settings', {})
-
-    if not pro_settings.get('enabled'):
-        flash('Pro 会员功能当前不可用。', 'error')
-        return redirect(url_for('main.profile'))
-
-    username = session['username']
-    user = db['users'].get(username, {})
-
-    if request.method == 'POST':
-        link = request.form.get('submission_link', '').strip()
-        if not link:
-            flash('请提交任务链接。', 'error')
-        else:
-            user['pro_submission_link'] = link
-            user['pro_submission_status'] = 'pending'
-            user['pro_submission_date'] = datetime.utcnow().isoformat()
-            save_db(db)
-            flash('申请已提交，请等待审核。', 'success')
-            return redirect(url_for('main.profile'))
-
-    return render_template('pro_apply.html', pro_settings=pro_settings, user=user)
-
+    return render_template(
+        'profile.html',
+        user=user_data,
+        api_key=api_key,
+        settings=settings,
+        today_str=today_str,
+        membership_enabled=membership_settings.get('enabled', False),
+        membership_price=membership_settings.get('price_usd', 5.0)
+    )
 
 @main_bp.route('/check-in', methods=['POST'])
 def check_in():

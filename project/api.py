@@ -1650,3 +1650,151 @@ def netmind_chat_completions():
         if hasattr(e, 'status_code') and e.status_code:
             return jsonify({'error': str(e)}), e.status_code
         return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/membership/status', methods=['GET'])
+def get_membership_status():
+    from .membership import get_user_membership_status, is_membership_enabled
+    
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    user = get_user_by_token(token)
+    
+    if not user:
+        return jsonify({'error': 'Invalid or missing token'}), 401
+    
+    if not is_membership_enabled():
+        return jsonify({
+            'membership_enabled': False,
+            'status': get_user_membership_status(user['username'])
+        }), 200
+    
+    return jsonify({
+        'membership_enabled': True,
+        'status': get_user_membership_status(user['username'])
+    }), 200
+
+@api_bp.route('/membership/renew', methods=['POST'])
+def renew_membership():
+    from .membership import create_payhip_payment_link, is_membership_enabled
+    
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    user = get_user_by_token(token)
+    
+    if not user:
+        return jsonify({'error': 'Invalid or missing token'}), 401
+    
+    if not is_membership_enabled():
+        return jsonify({'error': 'Membership system is not enabled'}), 403
+    
+    payment_link = create_payhip_payment_link(user['username'])
+    
+    if not payment_link:
+        return jsonify({'error': 'Failed to create payment link'}), 500
+    
+    return jsonify({
+        'payment_link': payment_link,
+        'message': 'Payment link created successfully'
+    }), 200
+
+@api_bp.route('/membership/webhook/payhip', methods=['POST'])
+def handle_payment_webhook():
+    from .membership import handle_payhip_webhook, verify_payhip_webhook
+    
+    db = load_db()
+    membership_settings = db.get('membership_settings', {})
+    api_key = membership_settings.get('payhip_api_key', '').strip()
+    
+    if not api_key:
+        return jsonify({'error': 'Webhook not configured'}), 403
+    
+    try:
+        webhook_data = request.get_json()
+        signature = request.headers.get('X-Payhip-Signature', '')
+        
+        if not verify_payhip_webhook(webhook_data, signature, api_key):
+            return jsonify({'error': 'Invalid signature'}), 403
+        
+        if handle_payhip_webhook(webhook_data):
+            return jsonify({'success': True}), 200
+        else:
+            return jsonify({'error': 'Failed to process webhook'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# ============ 订单管理 API ============
+
+@api_bp.route('/orders/list', methods=['GET'])
+def get_user_orders_api():
+    from .membership import get_user_orders, auto_close_expired_orders
+    
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    user = get_user_by_token(token)
+    
+    if not user:
+        return jsonify({'error': 'Invalid or missing token'}), 401
+    
+    # 自动关闭过期订单
+    auto_close_expired_orders()
+    
+    # 获取用户订单
+    orders = get_user_orders(user['username'])
+    
+    return jsonify({
+        'success': True,
+        'orders': orders
+    }), 200
+
+@api_bp.route('/orders/create', methods=['POST'])
+def create_order_api():
+    from .membership import create_order, update_order_payment_url, create_payhip_payment_link, is_membership_enabled
+    
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    user = get_user_by_token(token)
+    
+    if not user:
+        return jsonify({'error': 'Invalid or missing token'}), 401
+    
+    if not is_membership_enabled():
+        return jsonify({'error': 'Membership system is not enabled'}), 403
+    
+    order, error = create_order(user['username'])
+    
+    if not order:
+        return jsonify({'error': error or 'Failed to create order'}), 400
+    
+    # 生成支付链接
+    payment_link = create_payhip_payment_link(user['username'])
+    
+    if payment_link:
+        update_order_payment_url(order['order_id'], payment_link)
+        order['payment_url'] = payment_link
+    
+    return jsonify({
+        'success': True,
+        'order': order
+    }), 201
+
+@api_bp.route('/orders/<order_id>/cancel', methods=['POST'])
+def cancel_order_api(order_id):
+    from .membership import cancel_order, get_order
+    
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    user = get_user_by_token(token)
+    
+    if not user:
+        return jsonify({'error': 'Invalid or missing token'}), 401
+    
+    order = get_order(order_id)
+    
+    if not order:
+        return jsonify({'error': 'Order not found'}), 404
+    
+    if order.get('username') != user['username']:
+        return jsonify({'error': 'Not authorized to cancel this order'}), 403
+    
+    if cancel_order(order_id):
+        return jsonify({
+            'success': True,
+            'message': 'Order cancelled successfully'
+        }), 200
+    else:
+        return jsonify({'error': 'Failed to cancel order'}), 400

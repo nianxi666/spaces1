@@ -30,9 +30,7 @@
                         <th>注册时间</th>
                         <th>推理次数</th>
                         <th>运行次数</th>
-                        {% if pro_enabled %}
-                        <th>Pro 状态</th>
-                        {% endif %}
+                        <th>会员状态</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -55,36 +53,21 @@
                         <td class="text-muted">{{ user.created_at | format_datetime if user.created_at else 'N/A' }}</td>
                         <td>{{ user.get('inference_count', 0) }}</td>
                         <td>{{ user.get('run_count', 0) }}</td>
-                        {% if pro_enabled %}
                         <td>
-                            {% if user.is_pro %}
-                                <span class="badge badge-success">PRO</span>
-                            {% elif user.pro_submission_status == 'pending' %}
-                                <span class="badge badge-warning">待审核</span>
-                                <div class="mt-1 text-xs">
-                                    <a href="{{ user.pro_submission_link }}" target="_blank" class="link-action">查看链接</a>
-                                </div>
-                            {% elif user.pro_submission_status == 'rejected' %}
-                                <span class="badge badge-danger">已拒绝</span>
+                            {% if user.get('is_member') %}
+                                <span class="badge badge-success">✓ 会员</span>
+                                {% if user.get('member_expiry_date') %}
+                                    <div class="text-xs text-gray-600 mt-1">{{ user.get('member_expiry_date', '')[:10] }}</div>
+                                {% endif %}
                             {% else %}
-                                <span class="badge badge-secondary">-</span>
+                                <span class="badge badge-secondary">非会员</span>
                             {% endif %}
                         </td>
-                        {% endif %}
                         <td>
                             <div class="action-buttons">
                                 <a href="{{ url_for('admin.manage_user_custom_gpu', username=user.username) }}" class="btn-icon" title="管理专用 GPU">
                                     GPU
                                 </a>
-
-                                {% if pro_enabled and user.pro_submission_status == 'pending' %}
-                                    <form action="{{ url_for('admin.approve_pro_user', username=user.username) }}" method="post" class="inline-form">
-                                        <button type="submit" class="btn-icon success" title="通过">✓</button>
-                                    </form>
-                                    <form action="{{ url_for('admin.reject_pro_user', username=user.username) }}" method="post" class="inline-form">
-                                        <button type="submit" class="btn-icon danger" title="拒绝">✗</button>
-                                    </form>
-                                {% endif %}
 
                                 <form action="{{ url_for('admin.delete_user', username=user.username) }}" method="post" onsubmit="return confirm('确定要删除这个用户吗？');" class="inline-form">
                                     <button type="submit" class="btn-icon delete" title="删除用户">🗑️</button>

@@ -18,32 +18,44 @@
             <p class="text-sm text-pumpkin-800 leading-relaxed">请提供准确的个人信息。您的隐私对我们很重要，敏感信息将受到严格保护。</p>
         </div>
 
-        <!-- Pro Membership Card -->
-        {% if pro_settings and pro_settings.enabled %}
-        <div class="glass rounded-3xl overflow-hidden animate-fade-in-up delay-75 border-2 {% if user.is_pro %}border-yellow-400{% else %}border-gray-100{% endif %}">
-            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r {% if user.is_pro %}from-yellow-50 to-orange-50{% else %}from-gray-50 to-white{% endif %}">
+        <!-- Hidden data for JavaScript -->
+        <div style="display: none;" data-api-key="{{ user.api_key }}"></div>
+
+        <!-- Membership Card -->
+        {% if membership_enabled %}
+        <div class="glass rounded-3xl overflow-hidden animate-fade-in-up delay-100 border-2 {% if user.is_member %}border-purple-400{% else %}border-gray-100{% endif %}">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r {% if user.is_member %}from-purple-50 to-indigo-50{% else %}from-gray-50 to-white{% endif %}">
                 <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    Pro 会员
-                    {% if user.is_pro %}
-                    <span class="bg-yellow-400 text-white text-xs px-2 py-0.5 rounded-full">ACTIVE</span>
+                    会员系统
+                    {% if user.is_member and user.member_status.is_member %}
+                    <span class="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">活跃</span>
                     {% endif %}
                 </h2>
-                {% if not user.is_pro %}
-                <a href="{{ url_for('main.pro_apply') }}" class="text-sm font-bold text-pumpkin-600 hover:text-pumpkin-700 transition-colors">
-                    {{ '查看申请状态' if user.pro_submission_status == 'pending' else '去申请' }} &rarr;
-                </a>
-                {% endif %}
             </div>
             <div class="p-6">
-                {% if user.is_pro %}
+                {% if user.is_member and user.member_status.is_member %}
                     <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                        <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m7 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         </div>
-                        <div>
-                            <h3 class="font-bold text-gray-900">尊贵的 Pro 会员</h3>
-                            <p class="text-sm text-gray-500">您已解锁所有 Pro 会员权益。</p>
+                        <div class="flex-1">
+                            <h3 class="font-bold text-gray-900">活跃会员</h3>
+                            <p class="text-sm text-gray-500">
+                                {% if user.member_status.days_remaining > 0 %}
+                                    会员有效期还有 {{ user.member_status.days_remaining }} 天
+                                {% else %}
+                                    会员已过期
+                                {% endif %}
+                            </p>
+                            {% if user.member_status.expiry_date %}
+                                <p class="text-xs text-gray-400 mt-1">{{ user.member_status.expiry_date[:10] }} 过期</p>
+                            {% endif %}
                         </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-gray-100">
+                        <button type="button" onclick="renewMembership()" class="w-full px-4 py-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition-colors shadow-md">
+                            续费会员
+                        </button>
                     </div>
                 {% else %}
                     <div class="flex items-center gap-4">
@@ -51,18 +63,14 @@
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                         </div>
                         <div class="flex-1">
-                            <h3 class="font-bold text-gray-900">升级到 Pro</h3>
-                            <p class="text-sm text-gray-500">完成指定任务，免费升级 Pro 会员，解锁更多高级功能。</p>
+                            <h3 class="font-bold text-gray-900">成为会员</h3>
+                            <p class="text-sm text-gray-500">仅需 ${{ membership_price }}/月，享受无限制访问和更多权益。</p>
                         </div>
-                        {% if user.pro_submission_status == 'pending' %}
-                            <span class="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full">审核中</span>
-                        {% elif user.pro_submission_status == 'rejected' %}
-                            <span class="px-3 py-1 bg-red-50 text-red-600 text-xs font-bold rounded-full">申请被拒</span>
-                        {% else %}
-                            <a href="{{ url_for('main.pro_apply') }}" class="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black transition-colors shadow-md hover:shadow-lg">
-                                立即申请
-                            </a>
-                        {% endif %}
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-gray-100">
+                        <button type="button" onclick="purchaseMembership()" class="w-full px-4 py-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition-colors shadow-md">
+                            立即购买
+                        </button>
                     </div>
                 {% endif %}
             </div>
@@ -561,6 +569,43 @@ function calendar() {
             }
         }
     }
+}
+
+function purchaseMembership() {
+    const apiKey = getApiToken();
+    if (!apiKey) {
+        alert('无法获取API Key，请刷新页面后重试');
+        return;
+    }
+    
+    fetch('/api/membership/renew', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + apiKey
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.payment_link) {
+            window.location.href = data.payment_link;
+        } else {
+            alert('无法创建支付链接: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(e => alert('错误: ' + e.message));
+}
+
+function renewMembership() {
+    purchaseMembership();
+}
+
+function getApiToken() {
+    // 从隐藏的data属性获取API Key
+    const hiddenDiv = document.querySelector('[data-api-key]');
+    if (hiddenDiv && hiddenDiv.getAttribute('data-api-key')) {
+        return hiddenDiv.getAttribute('data-api-key');
+    }
+    return '';
 }
 </script>
 {% endblock %}

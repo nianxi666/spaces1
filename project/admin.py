@@ -21,17 +21,6 @@ from .netmind_config import (
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
-def ensure_pro_settings(db):
-    if 'pro_settings' not in db:
-        db['pro_settings'] = {
-            'enabled': False,
-            'task_description': ''
-        }
-    else:
-        db['pro_settings'].setdefault('enabled', False)
-        db['pro_settings'].setdefault('task_description', '')
-    return db['pro_settings']
-
 def ensure_netmind_settings(db):
     if 'netmind_settings' not in db:
         db['netmind_settings'] = {
@@ -122,26 +111,11 @@ def system_stats():
         # In case psutil fails for some reason
         return jsonify({'error': str(e)}), 500
 
-@admin_bp.route('/pro_settings', methods=['GET', 'POST'])
-def manage_pro_settings():
-    db = load_db()
-    settings = ensure_pro_settings(db)
-
-    if request.method == 'POST':
-        settings['enabled'] = request.form.get('enabled') == 'on'
-        settings['task_description'] = request.form.get('task_description', '')
-        save_db(db)
-        flash('Pro 会员设置已保存。', 'success')
-        return redirect(url_for('admin.manage_pro_settings'))
-
-    return render_template('admin_pro_settings.html', settings=settings)
-
 @admin_bp.route('/users')
 def manage_users():
     db = load_db()
     users = db.get('users', {})
     daily_active_users = db.get('daily_active_users', {})
-    pro_settings = ensure_pro_settings(db)
 
     # Date filter
     filter_date = request.args.get('date')
@@ -193,35 +167,8 @@ def manage_users():
     return render_template(
         'admin_users.html',
         users=users_list,
-        pro_enabled=pro_settings.get('enabled'),
         selected_date=filter_date
     )
-
-@admin_bp.route('/users/approve_pro/<username>', methods=['POST'])
-def approve_pro_user(username):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if user:
-        user['is_pro'] = True
-        user['pro_submission_status'] = 'approved'
-        save_db(db)
-        flash(f'用户 {username} 已升级为 Pro 会员。', 'success')
-    else:
-        flash('未找到用户。', 'error')
-    return redirect(url_for('admin.manage_users'))
-
-@admin_bp.route('/users/reject_pro/<username>', methods=['POST'])
-def reject_pro_user(username):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if user:
-        user['is_pro'] = False
-        user['pro_submission_status'] = 'rejected'
-        save_db(db)
-        flash(f'已拒绝用户 {username} 的 Pro 会员申请。', 'success')
-    else:
-        flash('未找到用户。', 'error')
-    return redirect(url_for('admin.manage_users'))
 
 @admin_bp.route('/users/<username>/custom-gpu')
 def manage_user_custom_gpu(username):
@@ -1081,3 +1028,123 @@ def save_ad_settings():
         },
         'message': '广告设置已更新'
     })
+
+@admin_bp.route('/membership_settings', methods=['GET', 'POST'])
+def manage_membership_settings():
+    db = load_db()
+    
+    if 'membership_settings' not in db:
+        db['membership_settings'] = {
+            'enabled': False,
+            'price_usd': 5.0,
+            'duration_days': 30,
+            'payhip_api_key': '',
+            'payhip_product_id': ''
+        }
+    
+    membership_settings = db['membership_settings']
+    
+    if request.method == 'POST':
+        membership_settings['enabled'] = request.form.get('enabled') == 'on'
+        
+        try:
+            price = float(request.form.get('price_usd', 5.0))
+            duration = int(request.form.get('duration_days', 30))
+            membership_settings['price_usd'] = max(0.01, price)
+            membership_settings['duration_days'] = max(1, duration)
+        except (ValueError, TypeError):
+            pass
+        
+        membership_settings['payhip_api_key'] = request.form.get('payhip_api_key', '').strip()
+        membership_settings['payhip_product_id'] = request.form.get('payhip_product_id', '').strip()
+        
+        save_db(db)
+        flash('会员系统设置已保存。', 'success')
+        return redirect(url_for('admin.manage_membership_settings'))
+    
+    return render_template('admin_membership_settings.html', settings=membership_settings)
+
+@admin_bp.route('/membership/set_member/<username>/<int:days>', methods=['POST'])
+def set_user_member(username, days):
+    from .membership import set_user_membership
+    
+    db = load_db()
+    if username not in db.get('users', {}):
+        return jsonify({'success': False, 'error': '用户不存在'}), 404
+    
+    if days < 1 or days > 3650:
+        return jsonify({'success': False, 'error': '天数必须在1到3650之间'}), 400
+    
+    try:
+        set_user_membership(username, days)
+        return jsonify({'success': True, 'message': f'{username} 已成为会员，有效期 {days} 天'}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/membership/revoke_member/<username>', methods=['POST'])
+def revoke_user_member(username):
+    from .membership import revoke_user_membership
+    
+    db = load_db()
+    if username not in db.get('users', {}):
+        return jsonify({'success': False, 'error': '用户不存在'}), 404
+    
+    try:
+        revoke_user_membership(username)
+        return jsonify({'success': True, 'message': f'{username} 的会员资格已取消'}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============ 订单管理功能 ============
+
+@admin_bp.route('/orders', methods=['GET'])
+def manage_orders():
+    from .membership import get_all_orders, auto_close_expired_orders, get_order_statistics
+    
+    # 自动关闭过期订单
+    auto_close_expired_orders()
+    
+    # 获取筛选参数
+    filter_status = request.args.get('status')
+    
+    # 获取所有订单
+    all_orders = get_all_orders(filter_status=filter_status, limit=1000)
+    
+    # 获取统计信息
+    stats = get_order_statistics()
+    
+    return render_template(
+        'admin_orders.html',
+        orders=all_orders,
+        stats=stats,
+        filter_status=filter_status,
+        statuses=['all', 'unpaid', 'paid', 'cancelled', 'expired']
+    )
+
+@admin_bp.route('/orders/<order_id>/mark-paid', methods=['POST'])
+def mark_order_paid(order_id):
+    from .membership import mark_order_paid, get_order
+    
+    order = get_order(order_id)
+    
+    if not order:
+        return jsonify({'success': False, 'error': '订单不存在'}), 404
+    
+    if mark_order_paid(order_id):
+        return jsonify({'success': True, 'message': f'订单 {order_id} 已标记为已支付'}), 200
+    else:
+        return jsonify({'success': False, 'error': '标记失败，订单可能已支付或过期'}), 400
+
+@admin_bp.route('/orders/<order_id>/cancel', methods=['POST'])
+def admin_cancel_order(order_id):
+    from .membership import cancel_order, get_order
+    
+    order = get_order(order_id)
+    
+    if not order:
+        return jsonify({'success': False, 'error': '订单不存在'}), 404
+    
+    if cancel_order(order_id):
+        return jsonify({'success': True, 'message': f'订单 {order_id} 已取消'}), 200
+    else:
+        return jsonify({'success': False, 'error': '取消失败，订单可能已支付'}), 400
