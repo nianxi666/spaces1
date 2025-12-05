@@ -38,7 +38,7 @@
                 </div>
 
                 <div class="flex flex-col items-center gap-4">
-                    <a href="{{ payment_settings.product_link }}?checkout_custom_variables[username]={{ user.username }}"
+                    <a href="{{ payment_settings.product_link }}?checkout_custom_variables[username]={{ session.username }}"
                        target="_blank"
                        onclick="openPaymentConfirmModal()"
                        class="inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-gradient-to-r from-pumpkin-500 to-rose-500 rounded-xl hover:shadow-lg hover:from-pumpkin-600 hover:to-rose-600 transition-all transform hover:-translate-y-1 active:scale-95 w-full sm:w-auto">
