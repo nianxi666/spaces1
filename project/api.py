@@ -1741,3 +1741,202 @@ def netmind_chat_completions():
         if hasattr(e, 'status_code') and e.status_code:
             return jsonify({'error': str(e)}), e.status_code
         return jsonify({'error': str(e)}), 500
+
+
+# --- Payment Testing Endpoints ---
+
+@api_bp.route('/payment/test/create-order', methods=['POST'])
+def test_create_order():
+    """
+    测试端点：创建一个未支付的测试订单
+    """
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Missing or invalid Authorization header'}), 401
+
+    api_key = auth_header[7:]
+    if not api_key:
+        return jsonify({'error': 'Missing API key'}), 401
+
+    db = load_db()
+    found_user = None
+    for username, user_data in db['users'].items():
+        if user_data.get('api_key') == api_key:
+            found_user = username
+            break
+
+    if not found_user:
+        return jsonify({'error': 'Invalid API key'}), 403
+
+    data = request.get_json(silent=True) or {}
+    amount = data.get('amount', '5.00')
+    currency = data.get('currency', 'USD')
+    
+    # 创建模拟订单
+    if 'orders' not in db:
+        db['orders'] = []
+
+    test_order = {
+        'order_id': f"TEST_{uuid.uuid4().hex[:12].upper()}",
+        'username': found_user,
+        'email': f"{found_user}@test.com",
+        'amount': amount,
+        'currency': currency,
+        'status': 'pending',  # 未支付状态
+        'created_at': datetime.utcnow().isoformat(),
+        'is_test': True  # 标记为测试订单
+    }
+    
+    db['orders'].append(test_order)
+    save_db(db)
+
+    return jsonify({
+        'success': True,
+        'message': '测试订单创建成功',
+        'order': test_order
+    }), 201
+
+
+@api_bp.route('/payment/test/orders', methods=['GET'])
+def test_get_orders():
+    """
+    测试端点：查询用户的所有订单（包括测试订单）
+    """
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Missing or invalid Authorization header'}), 401
+
+    api_key = auth_header[7:]
+    if not api_key:
+        return jsonify({'error': 'Missing API key'}), 401
+
+    db = load_db()
+    found_user = None
+    for username, user_data in db['users'].items():
+        if user_data.get('api_key') == api_key:
+            found_user = username
+            break
+
+    if not found_user:
+        return jsonify({'error': 'Invalid API key'}), 403
+
+    # 获取用户的所有订单
+    user_orders = [order for order in db.get('orders', []) 
+                   if order.get('username') == found_user]
+    
+    # 按创建时间倒序排列
+    user_orders.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+
+    return jsonify({
+        'success': True,
+        'username': found_user,
+        'orders': user_orders,
+        'total_count': len(user_orders)
+    })
+
+
+@api_bp.route('/payment/test/simulate-payment/<order_id>', methods=['POST'])
+def test_simulate_payment(order_id):
+    """
+    测试端点：模拟支付成功，将订单状态改为已支付并升级会员
+    """
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Missing or invalid Authorization header'}), 401
+
+    api_key = auth_header[7:]
+    if not api_key:
+        return jsonify({'error': 'Missing API key'}), 401
+
+    db = load_db()
+    found_user = None
+    for username, user_data in db['users'].items():
+        if user_data.get('api_key') == api_key:
+            found_user = username
+            break
+
+    if not found_user:
+        return jsonify({'error': 'Invalid API key'}), 403
+
+    # 查找订单
+    order = None
+    for o in db.get('orders', []):
+        if o.get('order_id') == order_id and o.get('username') == found_user:
+            order = o
+            break
+
+    if not order:
+        return jsonify({'error': '订单未找到'}), 404
+
+    if order.get('status') == 'paid':
+        return jsonify({'error': '订单已经是已支付状态'}), 400
+
+    # 更新订单状态
+    order['status'] = 'paid'
+    order['paid_at'] = datetime.utcnow().isoformat()
+
+    # 升级会员（复制webhook的逻辑）
+    user = db['users'].get(found_user)
+    if user:
+        now = datetime.utcnow()
+        current_expiry_str = user.get('membership_expiry')
+        
+        current_expiry = now
+        if current_expiry_str:
+            try:
+                current_expiry_dt = datetime.fromisoformat(current_expiry_str)
+                if current_expiry_dt > now:
+                    current_expiry = current_expiry_dt
+            except ValueError:
+                pass
+
+        new_expiry = current_expiry + timedelta(days=30)
+        user['membership_expiry'] = new_expiry.isoformat()
+        user['is_pro'] = True
+
+    save_db(db)
+
+    return jsonify({
+        'success': True,
+        'message': '支付模拟成功，会员已升级',
+        'order': order,
+        'membership_expiry': user['membership_expiry'] if user else None
+    })
+
+
+@api_bp.route('/payment/test/cleanup', methods=['DELETE'])
+def test_cleanup():
+    """
+    测试端点：删除所有测试订单
+    """
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Missing or invalid Authorization header'}), 401
+
+    api_key = auth_header[7:]
+    if not api_key:
+        return jsonify({'error': 'Missing API key'}), 401
+
+    db = load_db()
+    found_user = None
+    for username, user_data in db['users'].items():
+        if user_data.get('api_key') == api_key:
+            found_user = username
+            break
+
+    if not found_user:
+        return jsonify({'error': 'Invalid API key'}), 403
+
+    # 删除用户的测试订单
+    original_count = len(db.get('orders', []))
+    db['orders'] = [order for order in db.get('orders', []) 
+                   if not (order.get('username') == found_user and order.get('is_test'))]
+    deleted_count = original_count - len(db['orders'])
+    
+    save_db(db)
+
+    return jsonify({
+        'success': True,
+        'message': f'已删除 {deleted_count} 个测试订单',
+        'deleted_count': deleted_count
+    })
