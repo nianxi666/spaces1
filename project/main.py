@@ -17,7 +17,7 @@ from .database import load_db, save_db
 import json
 from .tasks import tasks, execute_inference_task
 from .s3_utils import generate_presigned_url, get_s3_config, get_public_s3_url
-from .utils import predict_output_filename
+from .utils import predict_output_filename, update_pro_status
 
 main_bp = Blueprint('main', __name__)
 
@@ -194,47 +194,24 @@ def profile():
         return redirect(url_for('auth.login'))
 
     db = load_db()
-    user_data = db['users'].get(session['username'], {})
+    username = session['username']
+    user_data = db['users'].get(username, {})
+
+    # Check and update membership status
+    update_pro_status(user_data, db)
+
     api_key = user_data.get('api_key', '未找到 API 密钥')
     if not session.get('is_admin') and api_key and len(api_key) > 8:
         api_key = f"{api_key[:4]}...{api_key[-4:]}"
     settings = db.get('settings', {})
-    pro_settings = db.get('pro_settings', {})
+    payment_settings = db.get('payment_settings', {})
 
     # Get today's date string in Beijing time on the server
     beijing_tz = ZoneInfo("Asia/Shanghai")
     today_str = datetime.now(beijing_tz).strftime('%Y-%m-%d')
 
-    return render_template('profile.html', user=user_data, api_key=api_key, settings=settings, pro_settings=pro_settings, today_str=today_str)
+    return render_template('profile.html', user=user_data, api_key=api_key, settings=settings, payment_settings=payment_settings, today_str=today_str)
 
-@main_bp.route('/pro/apply', methods=['GET', 'POST'])
-def pro_apply():
-    if not session.get('logged_in'):
-        return redirect(url_for('auth.login'))
-
-    db = load_db()
-    pro_settings = db.get('pro_settings', {})
-
-    if not pro_settings.get('enabled'):
-        flash('Pro 会员功能当前不可用。', 'error')
-        return redirect(url_for('main.profile'))
-
-    username = session['username']
-    user = db['users'].get(username, {})
-
-    if request.method == 'POST':
-        link = request.form.get('submission_link', '').strip()
-        if not link:
-            flash('请提交任务链接。', 'error')
-        else:
-            user['pro_submission_link'] = link
-            user['pro_submission_status'] = 'pending'
-            user['pro_submission_date'] = datetime.utcnow().isoformat()
-            save_db(db)
-            flash('申请已提交，请等待审核。', 'success')
-            return redirect(url_for('main.profile'))
-
-    return render_template('pro_apply.html', pro_settings=pro_settings, user=user)
 
 
 @main_bp.route('/check-in', methods=['POST'])

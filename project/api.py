@@ -4,7 +4,7 @@ import shlex
 import threading
 import tempfile
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from flask import (
     Blueprint, request, jsonify, url_for, current_app, Response, stream_with_context
@@ -1650,3 +1650,83 @@ def netmind_chat_completions():
         if hasattr(e, 'status_code') and e.status_code:
             return jsonify({'error': str(e)}), e.status_code
         return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/payment/payhip/webhook', methods=['POST'])
+def payhip_webhook():
+    """
+    Webhook handler for Payhip payment notifications.
+    """
+    db = load_db()
+    settings = db.get('payment_settings', {})
+
+    # 1. Verify Secret Key
+    webhook_secret = settings.get('webhook_secret', '')
+    incoming_key = request.args.get('key', '')
+
+    if not webhook_secret or incoming_key != webhook_secret:
+        return jsonify({'error': 'Invalid secret key'}), 403
+
+    # 2. Parse Payload
+    # Payhip sends data as form-data or JSON?
+    # Usually POST request with body parameters.
+    # Docs: "Payhip will send a POST request... Parameters are sent as POST parameters"
+    data = request.form.to_dict() if request.form else request.get_json(silent=True)
+    if not data:
+        return jsonify({'error': 'Empty payload'}), 400
+
+    # 3. Extract Custom Variables (username)
+    # The format is usually nested: checkout[custom_variables][username]
+    # In request.form (flat), it might look like 'checkout[custom_variables][username]': 'xxx'
+    username = data.get('checkout[custom_variables][username]')
+
+    if not username:
+        # Try to parse from a JSON structure if sent that way, or try alternate keys
+        # Sometimes it might be just custom_variables if configured differently, but standard is nested.
+        return jsonify({'error': 'Missing username in custom variables'}), 400
+
+    user = db['users'].get(username)
+    if not user:
+        return jsonify({'error': f'User {username} not found'}), 404
+
+    # 4. Update User Membership
+    current_time = datetime.utcnow()
+
+    # Parse existing expiry if it exists
+    current_expiry_str = user.get('membership_expiry')
+    current_expiry = None
+    if current_expiry_str:
+        try:
+            current_expiry = datetime.fromisoformat(current_expiry_str)
+        except ValueError:
+            pass
+
+    # Calculate new expiry: Add 30 days
+    # If currently valid, add to current expiry. If expired or none, add to now.
+    if current_expiry and current_expiry > current_time:
+        new_expiry = current_expiry + timedelta(days=30)
+    else:
+        new_expiry = current_time + timedelta(days=30)
+
+    user['membership_expiry'] = new_expiry.isoformat()
+    user['is_pro'] = True
+
+    # 5. Record Order
+    if 'orders' not in db:
+        db['orders'] = []
+
+    order_record = {
+        'id': str(uuid.uuid4()),
+        'transaction_id': data.get('transaction_id', ''),
+        'email': data.get('email', ''),
+        'amount': data.get('price', ''),
+        'currency': data.get('currency', ''),
+        'username': username,
+        'timestamp': datetime.utcnow().isoformat(),
+        'raw_data': str(data) # Keep raw just in case
+    }
+    db['orders'].append(order_record)
+
+    save_db(db)
+
+    return jsonify({'success': True, 'message': f'Membership extended for {username}'})

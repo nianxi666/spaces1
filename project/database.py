@@ -65,6 +65,13 @@ def get_default_db_structure():
         "chat_history": [],
         "articles": {},
         "invitation_codes": {},
+        "orders": [],
+        "payment_settings": {
+            "enabled": False,
+            "product_link": "",
+            "webhook_secret": "",
+            "price_display": "$5.00 / Month"
+        },
         "modal_drive_shares": {},
         "announcement": {
             "enabled": False,
@@ -232,6 +239,14 @@ def init_db():
     # Initialize invitation_codes if they don't exist
     if 'invitation_codes' not in db:
         db['invitation_codes'] = {}
+
+    # Initialize orders if not exist
+    if 'orders' not in db:
+        db['orders'] = []
+
+    # Initialize payment_settings if not exist
+    if 'payment_settings' not in db:
+        db['payment_settings'] = get_default_db_structure()['payment_settings']
 
     # Initialize announcement if it doesn't exist
     if 'announcement' not in db:

@@ -21,16 +21,15 @@ from .netmind_config import (
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
-def ensure_pro_settings(db):
-    if 'pro_settings' not in db:
-        db['pro_settings'] = {
+def ensure_payment_settings(db):
+    if 'payment_settings' not in db:
+        db['payment_settings'] = {
             'enabled': False,
-            'task_description': ''
+            'product_link': '',
+            'webhook_secret': '',
+            'price_display': '$5.00 / Month'
         }
-    else:
-        db['pro_settings'].setdefault('enabled', False)
-        db['pro_settings'].setdefault('task_description', '')
-    return db['pro_settings']
+    return db['payment_settings']
 
 def ensure_netmind_settings(db):
     if 'netmind_settings' not in db:
@@ -122,26 +121,29 @@ def system_stats():
         # In case psutil fails for some reason
         return jsonify({'error': str(e)}), 500
 
-@admin_bp.route('/pro_settings', methods=['GET', 'POST'])
-def manage_pro_settings():
+@admin_bp.route('/payment_settings', methods=['GET', 'POST'])
+def manage_payment_settings():
     db = load_db()
-    settings = ensure_pro_settings(db)
+    settings = ensure_payment_settings(db)
+    server_domain = db.get('settings', {}).get('server_domain', '')
 
     if request.method == 'POST':
         settings['enabled'] = request.form.get('enabled') == 'on'
-        settings['task_description'] = request.form.get('task_description', '')
+        settings['product_link'] = request.form.get('product_link', '').strip()
+        settings['webhook_secret'] = request.form.get('webhook_secret', '').strip()
+        settings['price_display'] = request.form.get('price_display', '$5.00 / Month').strip()
         save_db(db)
-        flash('Pro 会员设置已保存。', 'success')
-        return redirect(url_for('admin.manage_pro_settings'))
+        flash('支付配置已保存。', 'success')
+        return redirect(url_for('admin.manage_payment_settings'))
 
-    return render_template('admin_pro_settings.html', settings=settings)
+    orders = db.get('orders', [])
+    return render_template('admin_payment_settings.html', settings=settings, orders=orders, server_domain=server_domain)
 
 @admin_bp.route('/users')
 def manage_users():
     db = load_db()
     users = db.get('users', {})
     daily_active_users = db.get('daily_active_users', {})
-    pro_settings = ensure_pro_settings(db)
 
     # Date filter
     filter_date = request.args.get('date')
@@ -193,35 +195,8 @@ def manage_users():
     return render_template(
         'admin_users.html',
         users=users_list,
-        pro_enabled=pro_settings.get('enabled'),
         selected_date=filter_date
     )
-
-@admin_bp.route('/users/approve_pro/<username>', methods=['POST'])
-def approve_pro_user(username):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if user:
-        user['is_pro'] = True
-        user['pro_submission_status'] = 'approved'
-        save_db(db)
-        flash(f'用户 {username} 已升级为 Pro 会员。', 'success')
-    else:
-        flash('未找到用户。', 'error')
-    return redirect(url_for('admin.manage_users'))
-
-@admin_bp.route('/users/reject_pro/<username>', methods=['POST'])
-def reject_pro_user(username):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if user:
-        user['is_pro'] = False
-        user['pro_submission_status'] = 'rejected'
-        save_db(db)
-        flash(f'已拒绝用户 {username} 的 Pro 会员申请。', 'success')
-    else:
-        flash('未找到用户。', 'error')
-    return redirect(url_for('admin.manage_users'))
 
 @admin_bp.route('/users/<username>/custom-gpu')
 def manage_user_custom_gpu(username):
