@@ -17,7 +17,7 @@ from .database import load_db, save_db
 import json
 from .tasks import tasks, execute_inference_task
 from .s3_utils import generate_presigned_url, get_s3_config, get_public_s3_url
-from .utils import predict_output_filename, update_pro_status
+from .utils import predict_output_filename
 
 main_bp = Blueprint('main', __name__)
 
@@ -197,21 +197,82 @@ def profile():
     username = session['username']
     user_data = db['users'].get(username, {})
 
-    # Check and update membership status
-    update_pro_status(user_data, db)
+    # Check and update Pro status based on expiry
+    now = datetime.utcnow()
+    is_pro = False
+    expiry_str = user_data.get('membership_expiry')
+    if expiry_str:
+        try:
+            expiry_dt = datetime.fromisoformat(expiry_str)
+            if expiry_dt > now:
+                is_pro = True
+        except ValueError:
+            pass
+
+    # Update state if changed
+    if user_data.get('is_pro') != is_pro:
+        user_data['is_pro'] = is_pro
+        save_db(db)
 
     api_key = user_data.get('api_key', '未找到 API 密钥')
     if not session.get('is_admin') and api_key and len(api_key) > 8:
         api_key = f"{api_key[:4]}...{api_key[-4:]}"
     settings = db.get('settings', {})
+    pro_settings = db.get('pro_settings', {})
     payment_settings = db.get('payment_settings', {})
+
+    # Filter orders for this user
+    user_orders = [o for o in db.get('orders', []) if o.get('username') == username]
+    # Sort orders newest first
+    user_orders.sort(key=lambda x: x.get('created_at', ''), reverse=True)
 
     # Get today's date string in Beijing time on the server
     beijing_tz = ZoneInfo("Asia/Shanghai")
     today_str = datetime.now(beijing_tz).strftime('%Y-%m-%d')
 
-    return render_template('profile.html', user=user_data, api_key=api_key, settings=settings, payment_settings=payment_settings, today_str=today_str)
+    return render_template('profile.html',
+                           user=user_data,
+                           api_key=api_key,
+                           settings=settings,
+                           pro_settings=pro_settings,
+                           payment_settings=payment_settings,
+                           orders=user_orders,
+                           today_str=today_str)
 
+@main_bp.route('/pro/apply', methods=['GET', 'POST'])
+def pro_apply():
+    if not session.get('logged_in'):
+        return redirect(url_for('auth.login'))
+
+    db = load_db()
+    pro_settings = db.get('pro_settings', {})
+    payment_settings = db.get('payment_settings', {})
+
+    # If Payment (Payhip) is enabled, we prioritize that over manual pro application
+    if payment_settings.get('enabled'):
+        pass # Render template will handle the UI switch
+    elif not pro_settings.get('enabled'):
+        flash('Pro 会员功能当前不可用。', 'error')
+        return redirect(url_for('main.profile'))
+
+    username = session['username']
+    user = db['users'].get(username, {})
+
+    if request.method == 'POST':
+        # Handle Manual Submission
+        if not payment_settings.get('enabled'):
+            link = request.form.get('submission_link', '').strip()
+            if not link:
+                flash('请提交任务链接。', 'error')
+            else:
+                user['pro_submission_link'] = link
+                user['pro_submission_status'] = 'pending'
+                user['pro_submission_date'] = datetime.utcnow().isoformat()
+                save_db(db)
+                flash('申请已提交，请等待审核。', 'success')
+                return redirect(url_for('main.profile'))
+
+    return render_template('pro_apply.html', pro_settings=pro_settings, payment_settings=payment_settings, user=user)
 
 
 @main_bp.route('/check-in', methods=['POST'])

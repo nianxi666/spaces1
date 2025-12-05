@@ -1529,6 +1529,97 @@ def get_task_status_api(task_id):
 
 # No prefix needed since it's under api_bp which has url_prefix='/api'
 # So the route is /api/v1/chat/completions
+@api_bp.route('/payment/payhip/webhook', methods=['POST'])
+def payhip_webhook():
+    db = load_db()
+    settings = db.get('payment_settings', {})
+
+    # 1. Verification
+    secret = request.args.get('key', '').strip()
+    configured_secret = settings.get('webhook_secret', '').strip()
+
+    # If a secret is configured, verify it. If not, we might log a warning or proceed with caution (or reject).
+    # Here, we reject if configured secret is missing in request.
+    if configured_secret and secret != configured_secret:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json(silent=True) or request.form
+    if not data:
+        return jsonify({'error': 'No data received'}), 400
+
+    # 2. Extract Data
+    # Payhip typically sends flattened JSON. We look for 'email' and 'checkout_custom_variables'.
+    # checkout_custom_variables might be nested or flattened depending on implementation.
+    # In Payhip docs: "checkout_custom_variables": { "username": "..." }
+
+    email = data.get('email')
+    transaction_id = data.get('transaction_id') or data.get('id')
+    amount = data.get('price') or data.get('amount')
+    currency = data.get('currency')
+
+    custom_vars = data.get('checkout_custom_variables', {})
+    if isinstance(custom_vars, str):
+        try:
+            custom_vars = json.loads(custom_vars)
+        except Exception:
+            custom_vars = {}
+
+    username = custom_vars.get('username')
+
+    # If username is not in custom variables, we can try to find it in 'pending_payments' via email if we implemented that.
+    # But per plan, we rely on custom_variables.
+
+    if not username:
+        # Fallback: log error, maybe user forgot to include it or hacked the url
+        current_app.logger.error(f"Payhip Webhook: Username not found in custom variables. TxID: {transaction_id}, Email: {email}")
+        return jsonify({'message': 'Username not found, ignored'}), 200 # Return 200 to stop Payhip from retrying if it's a data error
+
+    user = db['users'].get(username)
+    if not user:
+        current_app.logger.error(f"Payhip Webhook: User {username} not found. TxID: {transaction_id}")
+        return jsonify({'message': 'User not found, ignored'}), 200
+
+    # 3. Process Membership
+    # Add 30 days
+    now = datetime.utcnow()
+    current_expiry_str = user.get('membership_expiry')
+
+    current_expiry = now
+    if current_expiry_str:
+        try:
+            current_expiry_dt = datetime.fromisoformat(current_expiry_str)
+            if current_expiry_dt > now:
+                current_expiry = current_expiry_dt
+        except ValueError:
+            pass
+
+    new_expiry = current_expiry + timedelta(days=30)
+    user['membership_expiry'] = new_expiry.isoformat()
+    # is_pro is dynamically calculated in logic usually, but we can set a flag if needed.
+    # The requirement said "membership_expiry" is the source of truth.
+    # We can also set is_pro = True for backward compatibility or easy checking.
+    user['is_pro'] = True
+
+    # 4. Record Order
+    if 'orders' not in db:
+        db['orders'] = []
+
+    new_order = {
+        'order_id': transaction_id,
+        'username': username,
+        'email': email,
+        'amount': amount,
+        'currency': currency,
+        'status': 'paid',
+        'created_at': now.isoformat()
+    }
+    db['orders'].append(new_order)
+
+    save_db(db)
+    current_app.logger.info(f"Payhip Webhook: User {username} upgraded until {new_expiry}. TxID: {transaction_id}")
+
+    return jsonify({'success': True})
+
 @api_bp.route('/v1/chat/completions', methods=['POST'])
 def netmind_chat_completions():
     """
@@ -1650,83 +1741,3 @@ def netmind_chat_completions():
         if hasattr(e, 'status_code') and e.status_code:
             return jsonify({'error': str(e)}), e.status_code
         return jsonify({'error': str(e)}), 500
-
-
-@api_bp.route('/payment/payhip/webhook', methods=['POST'])
-def payhip_webhook():
-    """
-    Webhook handler for Payhip payment notifications.
-    """
-    db = load_db()
-    settings = db.get('payment_settings', {})
-
-    # 1. Verify Secret Key
-    webhook_secret = settings.get('webhook_secret', '')
-    incoming_key = request.args.get('key', '')
-
-    if not webhook_secret or incoming_key != webhook_secret:
-        return jsonify({'error': 'Invalid secret key'}), 403
-
-    # 2. Parse Payload
-    # Payhip sends data as form-data or JSON?
-    # Usually POST request with body parameters.
-    # Docs: "Payhip will send a POST request... Parameters are sent as POST parameters"
-    data = request.form.to_dict() if request.form else request.get_json(silent=True)
-    if not data:
-        return jsonify({'error': 'Empty payload'}), 400
-
-    # 3. Extract Custom Variables (username)
-    # The format is usually nested: checkout[custom_variables][username]
-    # In request.form (flat), it might look like 'checkout[custom_variables][username]': 'xxx'
-    username = data.get('checkout[custom_variables][username]')
-
-    if not username:
-        # Try to parse from a JSON structure if sent that way, or try alternate keys
-        # Sometimes it might be just custom_variables if configured differently, but standard is nested.
-        return jsonify({'error': 'Missing username in custom variables'}), 400
-
-    user = db['users'].get(username)
-    if not user:
-        return jsonify({'error': f'User {username} not found'}), 404
-
-    # 4. Update User Membership
-    current_time = datetime.utcnow()
-
-    # Parse existing expiry if it exists
-    current_expiry_str = user.get('membership_expiry')
-    current_expiry = None
-    if current_expiry_str:
-        try:
-            current_expiry = datetime.fromisoformat(current_expiry_str)
-        except ValueError:
-            pass
-
-    # Calculate new expiry: Add 30 days
-    # If currently valid, add to current expiry. If expired or none, add to now.
-    if current_expiry and current_expiry > current_time:
-        new_expiry = current_expiry + timedelta(days=30)
-    else:
-        new_expiry = current_time + timedelta(days=30)
-
-    user['membership_expiry'] = new_expiry.isoformat()
-    user['is_pro'] = True
-
-    # 5. Record Order
-    if 'orders' not in db:
-        db['orders'] = []
-
-    order_record = {
-        'id': str(uuid.uuid4()),
-        'transaction_id': data.get('transaction_id', ''),
-        'email': data.get('email', ''),
-        'amount': data.get('price', ''),
-        'currency': data.get('currency', ''),
-        'username': username,
-        'timestamp': datetime.utcnow().isoformat(),
-        'raw_data': str(data) # Keep raw just in case
-    }
-    db['orders'].append(order_record)
-
-    save_db(db)
-
-    return jsonify({'success': True, 'message': f'Membership extended for {username}'})
