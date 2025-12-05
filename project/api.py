@@ -1620,6 +1620,51 @@ def payhip_webhook():
 
     return jsonify({'success': True})
 
+@api_bp.route('/payment/check_status', methods=['POST'])
+def check_payment_status():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    username = session['username']
+    db = load_db()
+
+    # Get user's orders
+    user_orders = [o for o in db.get('orders', []) if o.get('username') == username]
+
+    if not user_orders:
+        return jsonify({'success': False, 'message': 'No orders found'})
+
+    # Sort by created_at desc
+    user_orders.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+    latest_order = user_orders[0]
+
+    # Check if latest order is 'paid' and recent (e.g. within last 15 mins)
+    # We use a loose check for now: just if it's paid.
+    # But to be "Check Latest", ideally we check if it's new.
+    # Given the flow is "User clicks I Paid", checking the most recent paid order is sufficient validation
+    # that *a* payment succeeded recently if they just did it.
+
+    if latest_order.get('status') == 'paid':
+        # Check time if needed, for now just return success
+        created_at_str = latest_order.get('created_at')
+        is_recent = False
+        try:
+            created_dt = datetime.fromisoformat(created_at_str)
+            if datetime.utcnow() - created_dt < timedelta(minutes=15):
+                is_recent = True
+        except ValueError:
+            pass
+
+        if is_recent:
+            return jsonify({
+                'success': True,
+                'paid': True,
+                'order_id': latest_order.get('order_id'),
+                'new_expiry': db['users'][username].get('membership_expiry')
+            })
+
+    return jsonify({'success': False, 'message': 'Latest order not found or not recent'})
+
 @api_bp.route('/v1/chat/completions', methods=['POST'])
 def netmind_chat_completions():
     """
