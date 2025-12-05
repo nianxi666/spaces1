@@ -1081,3 +1081,69 @@ def save_ad_settings():
         },
         'message': '广告设置已更新'
     })
+
+@admin_bp.route('/membership_settings', methods=['GET', 'POST'])
+def manage_membership_settings():
+    db = load_db()
+    
+    if 'membership_settings' not in db:
+        db['membership_settings'] = {
+            'enabled': False,
+            'price_usd': 5.0,
+            'duration_days': 30,
+            'payhip_api_key': '',
+            'payhip_product_id': ''
+        }
+    
+    membership_settings = db['membership_settings']
+    
+    if request.method == 'POST':
+        membership_settings['enabled'] = request.form.get('enabled') == 'on'
+        
+        try:
+            price = float(request.form.get('price_usd', 5.0))
+            duration = int(request.form.get('duration_days', 30))
+            membership_settings['price_usd'] = max(0.01, price)
+            membership_settings['duration_days'] = max(1, duration)
+        except (ValueError, TypeError):
+            pass
+        
+        membership_settings['payhip_api_key'] = request.form.get('payhip_api_key', '').strip()
+        membership_settings['payhip_product_id'] = request.form.get('payhip_product_id', '').strip()
+        
+        save_db(db)
+        flash('会员系统设置已保存。', 'success')
+        return redirect(url_for('admin.manage_membership_settings'))
+    
+    return render_template('admin_membership_settings.html', settings=membership_settings)
+
+@admin_bp.route('/membership/set_member/<username>/<int:days>', methods=['POST'])
+def set_user_member(username, days):
+    from .membership import set_user_membership
+    
+    db = load_db()
+    if username not in db.get('users', {}):
+        return jsonify({'success': False, 'error': '用户不存在'}), 404
+    
+    if days < 1 or days > 3650:
+        return jsonify({'success': False, 'error': '天数必须在1到3650之间'}), 400
+    
+    try:
+        set_user_membership(username, days)
+        return jsonify({'success': True, 'message': f'{username} 已成为会员，有效期 {days} 天'}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/membership/revoke_member/<username>', methods=['POST'])
+def revoke_user_member(username):
+    from .membership import revoke_user_membership
+    
+    db = load_db()
+    if username not in db.get('users', {}):
+        return jsonify({'success': False, 'error': '用户不存在'}), 404
+    
+    try:
+        revoke_user_membership(username)
+        return jsonify({'success': True, 'message': f'{username} 的会员资格已取消'}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

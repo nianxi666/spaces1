@@ -98,6 +98,13 @@ def get_default_db_structure():
             "model_aliases": {},
             "rate_limit_window_seconds": DEFAULT_NETMIND_RATE_LIMIT_WINDOW_SECONDS,
             "rate_limit_max_requests": DEFAULT_NETMIND_RATE_LIMIT_MAX_REQUESTS
+        },
+        "membership_settings": {
+            "enabled": False,
+            "price_usd": 5.0,
+            "duration_days": 30,
+            "payhip_api_key": "",
+            "payhip_product_id": ""
         }
     }
 
@@ -213,6 +220,12 @@ def init_db():
             user_data['last_username_change_date'] = None
         if 's3_folder_name' not in user_data:
             user_data['s3_folder_name'] = username
+        if 'is_member' not in user_data:
+            user_data['is_member'] = False
+        if 'member_expiry_date' not in user_data:
+            user_data['member_expiry_date'] = None
+        if 'payment_history' not in user_data:
+            user_data['payment_history'] = []
 
     # Initialize articles if they don't exist
     if 'articles' not in db:
@@ -291,6 +304,28 @@ def init_db():
             current_limit,
             fallback=DEFAULT_NETMIND_RATE_LIMIT_MAX_REQUESTS
         )
+
+    # Initialize membership_settings if they don't exist
+    if 'membership_settings' not in db:
+        db['membership_settings'] = {
+            'enabled': False,
+            'price_usd': 5.0,
+            'duration_days': 30,
+            'payhip_api_key': '',
+            'payhip_product_id': ''
+        }
+    else:
+        membership_settings = db['membership_settings']
+        if 'enabled' not in membership_settings:
+            membership_settings['enabled'] = False
+        if 'price_usd' not in membership_settings:
+            membership_settings['price_usd'] = 5.0
+        if 'duration_days' not in membership_settings:
+            membership_settings['duration_days'] = 30
+        if 'payhip_api_key' not in membership_settings:
+            membership_settings['payhip_api_key'] = ''
+        if 'payhip_product_id' not in membership_settings:
+            membership_settings['payhip_product_id'] = ''
 
     save_db(db)
 

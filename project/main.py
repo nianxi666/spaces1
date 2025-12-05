@@ -193,6 +193,8 @@ def profile():
     if not session.get('logged_in'):
         return redirect(url_for('auth.login'))
 
+    from .membership import get_user_membership_status, is_membership_enabled
+
     db = load_db()
     user_data = db['users'].get(session['username'], {})
     api_key = user_data.get('api_key', '未找到 API 密钥')
@@ -200,12 +202,25 @@ def profile():
         api_key = f"{api_key[:4]}...{api_key[-4:]}"
     settings = db.get('settings', {})
     pro_settings = db.get('pro_settings', {})
+    membership_settings = db.get('membership_settings', {})
+
+    membership_status = get_user_membership_status(session['username'])
+    user_data['member_status'] = membership_status
 
     # Get today's date string in Beijing time on the server
     beijing_tz = ZoneInfo("Asia/Shanghai")
     today_str = datetime.now(beijing_tz).strftime('%Y-%m-%d')
 
-    return render_template('profile.html', user=user_data, api_key=api_key, settings=settings, pro_settings=pro_settings, today_str=today_str)
+    return render_template(
+        'profile.html',
+        user=user_data,
+        api_key=api_key,
+        settings=settings,
+        pro_settings=pro_settings,
+        today_str=today_str,
+        membership_enabled=membership_settings.get('enabled', False),
+        membership_price=membership_settings.get('price_usd', 5.0)
+    )
 
 @main_bp.route('/pro/apply', methods=['GET', 'POST'])
 def pro_apply():

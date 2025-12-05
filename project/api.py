@@ -1650,3 +1650,72 @@ def netmind_chat_completions():
         if hasattr(e, 'status_code') and e.status_code:
             return jsonify({'error': str(e)}), e.status_code
         return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/membership/status', methods=['GET'])
+def get_membership_status():
+    from .membership import get_user_membership_status, is_membership_enabled
+    
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    user = get_user_by_token(token)
+    
+    if not user:
+        return jsonify({'error': 'Invalid or missing token'}), 401
+    
+    if not is_membership_enabled():
+        return jsonify({
+            'membership_enabled': False,
+            'status': get_user_membership_status(user['username'])
+        }), 200
+    
+    return jsonify({
+        'membership_enabled': True,
+        'status': get_user_membership_status(user['username'])
+    }), 200
+
+@api_bp.route('/membership/renew', methods=['POST'])
+def renew_membership():
+    from .membership import create_payhip_payment_link, is_membership_enabled
+    
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    user = get_user_by_token(token)
+    
+    if not user:
+        return jsonify({'error': 'Invalid or missing token'}), 401
+    
+    if not is_membership_enabled():
+        return jsonify({'error': 'Membership system is not enabled'}), 403
+    
+    payment_link = create_payhip_payment_link(user['username'])
+    
+    if not payment_link:
+        return jsonify({'error': 'Failed to create payment link'}), 500
+    
+    return jsonify({
+        'payment_link': payment_link,
+        'message': 'Payment link created successfully'
+    }), 200
+
+@api_bp.route('/membership/webhook/payhip', methods=['POST'])
+def handle_payment_webhook():
+    from .membership import handle_payhip_webhook, verify_payhip_webhook
+    
+    db = load_db()
+    membership_settings = db.get('membership_settings', {})
+    api_key = membership_settings.get('payhip_api_key', '').strip()
+    
+    if not api_key:
+        return jsonify({'error': 'Webhook not configured'}), 403
+    
+    try:
+        webhook_data = request.get_json()
+        signature = request.headers.get('X-Payhip-Signature', '')
+        
+        if not verify_payhip_webhook(webhook_data, signature, api_key):
+            return jsonify({'error': 'Invalid signature'}), 403
+        
+        if handle_payhip_webhook(webhook_data):
+            return jsonify({'success': True}), 200
+        else:
+            return jsonify({'error': 'Failed to process webhook'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400

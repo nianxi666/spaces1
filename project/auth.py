@@ -58,7 +58,10 @@ def register():
             'created_at': datetime.utcnow().isoformat(),
             'deletion_requested': False,
             'avatar': 'default.png',
-            'cerebrium_configs': []
+            'cerebrium_configs': [],
+            'is_member': False,
+            'member_expiry_date': None,
+            'payment_history': []
         }
 
         # 自动创建用户目录
@@ -174,7 +177,7 @@ def github_callback():
         db['users'][target_username] = {
             'password_hash': generate_password_hash(random_password),
             'api_key': api_key,
-            'has_invitation_code': False, # GitHub 注册用户默认跳过邀请码? 或者设为 True 视为已验证?
+            'has_invitation_code': False,
             'is_linuxdo_user': False,
             'is_github_user': True,
             'github_id': github_id,
@@ -182,7 +185,10 @@ def github_callback():
             'created_at': datetime.utcnow().isoformat(),
             'deletion_requested': False,
             'avatar': github_avatar if github_avatar else 'default.png',
-            'cerebrium_configs': []
+            'cerebrium_configs': [],
+            'is_member': False,
+            'member_expiry_date': None,
+            'payment_history': []
         }
 
         # 自动创建用户目录

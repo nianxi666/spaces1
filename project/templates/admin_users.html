@@ -33,6 +33,7 @@
                         {% if pro_enabled %}
                         <th>Pro 状态</th>
                         {% endif %}
+                        <th>会员状态</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -72,6 +73,16 @@
                         </td>
                         {% endif %}
                         <td>
+                            {% if user.get('is_member') %}
+                                <span class="badge badge-success">✓ 会员</span>
+                                {% if user.get('member_expiry_date') %}
+                                    <div class="text-xs text-gray-600 mt-1">{{ user.get('member_expiry_date', '')[:10] }}</div>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge badge-secondary">非会员</span>
+                            {% endif %}
+                        </td>
+                        <td>
                             <div class="action-buttons">
                                 <a href="{{ url_for('admin.manage_user_custom_gpu', username=user.username) }}" class="btn-icon" title="管理专用 GPU">
                                     GPU
@@ -94,7 +105,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" class="empty-state">
+                        <td colspan="9" class="empty-state">
                             没有找到符合条件的用户
                         </td>
                     </tr>
