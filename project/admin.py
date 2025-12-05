@@ -1089,7 +1089,8 @@ def manage_payment_settings():
         db['payment_settings'] = {
             'enabled': False,
             'product_link': '',
-            'webhook_secret': ''
+            'webhook_secret': '',
+            'payhip_api_key': ''
         }
 
     if 'orders' not in db:
@@ -1099,6 +1100,7 @@ def manage_payment_settings():
         db['payment_settings']['enabled'] = request.form.get('enabled') == 'on'
         db['payment_settings']['product_link'] = request.form.get('product_link', '').strip()
         db['payment_settings']['webhook_secret'] = request.form.get('webhook_secret', '').strip()
+        db['payment_settings']['payhip_api_key'] = request.form.get('payhip_api_key', '').strip()
         save_db(db)
         flash('支付设置已保存。', 'success')
         return redirect(url_for('admin.manage_payment_settings'))

@@ -1534,6 +1534,12 @@ def payhip_webhook():
     db = load_db()
     settings = db.get('payment_settings', {})
 
+    # Log all incoming webhook data for debugging
+    raw_data = request.get_data(as_text=True)
+    current_app.logger.info(f"Payhip Webhook received: {raw_data}")
+    current_app.logger.info(f"Payhip Webhook headers: {dict(request.headers)}")
+    current_app.logger.info(f"Payhip Webhook query params: {dict(request.args)}")
+
     # 1. Verification
     secret = request.args.get('key', '').strip()
     configured_secret = settings.get('webhook_secret', '').strip()
@@ -1541,11 +1547,15 @@ def payhip_webhook():
     # If a secret is configured, verify it. If not, we might log a warning or proceed with caution (or reject).
     # Here, we reject if configured secret is missing in request.
     if configured_secret and secret != configured_secret:
+        current_app.logger.error(f"Payhip Webhook: Secret mismatch. Expected: {configured_secret}, Got: {secret}")
         return jsonify({'error': 'Unauthorized'}), 401
 
-    data = request.get_json(silent=True) or request.form
+    data = request.get_json(silent=True) or request.form.to_dict()
     if not data:
+        current_app.logger.error("Payhip Webhook: No data received")
         return jsonify({'error': 'No data received'}), 400
+
+    current_app.logger.info(f"Payhip Webhook parsed data: {json.dumps(data, indent=2)}")
 
     # 2. Extract Data
     # Payhip typically sends flattened JSON. We look for 'email' and 'checkout_custom_variables'.
@@ -1553,31 +1563,60 @@ def payhip_webhook():
     # In Payhip docs: "checkout_custom_variables": { "username": "..." }
 
     email = data.get('email')
-    transaction_id = data.get('transaction_id') or data.get('id')
-    amount = data.get('price') or data.get('amount')
+    transaction_id = data.get('transaction_id') or data.get('id') or data.get('sale_id')
+    amount = data.get('price') or data.get('amount') or data.get('total_price')
     currency = data.get('currency')
 
+    # Try multiple ways to get custom variables
     custom_vars = data.get('checkout_custom_variables', {})
+    if not custom_vars:
+        # Try alternative field names
+        custom_vars = data.get('custom_variables', {})
+    
     if isinstance(custom_vars, str):
         try:
             custom_vars = json.loads(custom_vars)
-        except Exception:
+        except Exception as e:
+            current_app.logger.error(f"Payhip Webhook: Failed to parse custom_vars JSON: {e}")
             custom_vars = {}
 
     username = custom_vars.get('username')
+    
+    # Also try to extract from flattened field names (e.g., checkout_custom_variables[username])
+    if not username:
+        for key in data.keys():
+            if 'username' in key.lower():
+                username = data[key]
+                current_app.logger.info(f"Payhip Webhook: Found username in field '{key}': {username}")
+                break
 
     # If username is not in custom variables, we can try to find it in 'pending_payments' via email if we implemented that.
     # But per plan, we rely on custom_variables.
 
     if not username:
         # Fallback: log error, maybe user forgot to include it or hacked the url
-        current_app.logger.error(f"Payhip Webhook: Username not found in custom variables. TxID: {transaction_id}, Email: {email}")
+        current_app.logger.error(f"Payhip Webhook: Username not found in custom variables. TxID: {transaction_id}, Email: {email}, Data: {json.dumps(data)}")
         return jsonify({'message': 'Username not found, ignored'}), 200 # Return 200 to stop Payhip from retrying if it's a data error
 
     user = db['users'].get(username)
     if not user:
         current_app.logger.error(f"Payhip Webhook: User {username} not found. TxID: {transaction_id}")
         return jsonify({'message': 'User not found, ignored'}), 200
+
+    # Check for duplicate order (prevent processing the same transaction multiple times)
+    if 'orders' not in db:
+        db['orders'] = []
+    
+    existing_order = None
+    if transaction_id:
+        for order in db['orders']:
+            if order.get('order_id') == transaction_id:
+                existing_order = order
+                break
+    
+    if existing_order:
+        current_app.logger.warning(f"Payhip Webhook: Duplicate order detected. TxID: {transaction_id}, User: {username}")
+        return jsonify({'success': True, 'message': 'Order already processed'})
 
     # 3. Process Membership
     # Add 30 days
@@ -1601,9 +1640,6 @@ def payhip_webhook():
     user['is_pro'] = True
 
     # 4. Record Order
-    if 'orders' not in db:
-        db['orders'] = []
-
     new_order = {
         'order_id': transaction_id,
         'username': username,
@@ -1611,7 +1647,8 @@ def payhip_webhook():
         'amount': amount,
         'currency': currency,
         'status': 'paid',
-        'created_at': now.isoformat()
+        'created_at': now.isoformat(),
+        'source': 'webhook'
     }
     db['orders'].append(new_order)
 
@@ -1627,41 +1664,171 @@ def check_payment_status():
 
     username = session['username']
     db = load_db()
+    settings = db.get('payment_settings', {})
+
+    current_app.logger.info(f"Check payment status for user: {username}")
 
     # Get user's orders
     user_orders = [o for o in db.get('orders', []) if o.get('username') == username]
+    current_app.logger.info(f"Found {len(user_orders)} orders for user {username}")
 
-    if not user_orders:
-        return jsonify({'success': False, 'message': 'No orders found'})
+    if user_orders:
+        # Sort by created_at desc
+        user_orders.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+        latest_order = user_orders[0]
+        current_app.logger.info(f"Latest order: {json.dumps(latest_order, indent=2)}")
 
-    # Sort by created_at desc
-    user_orders.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-    latest_order = user_orders[0]
+        # Check if latest order is 'paid' and recent (e.g. within last 15 mins)
+        if latest_order.get('status') == 'paid':
+            # Check time if needed, for now just return success
+            created_at_str = latest_order.get('created_at')
+            is_recent = False
+            try:
+                created_dt = datetime.fromisoformat(created_at_str)
+                time_diff = datetime.utcnow() - created_dt
+                if time_diff < timedelta(minutes=15):
+                    is_recent = True
+                current_app.logger.info(f"Order time diff: {time_diff}, is_recent: {is_recent}")
+            except ValueError as e:
+                current_app.logger.error(f"Failed to parse order created_at: {e}")
+                pass
 
-    # Check if latest order is 'paid' and recent (e.g. within last 15 mins)
-    # We use a loose check for now: just if it's paid.
-    # But to be "Check Latest", ideally we check if it's new.
-    # Given the flow is "User clicks I Paid", checking the most recent paid order is sufficient validation
-    # that *a* payment succeeded recently if they just did it.
+            if is_recent:
+                return jsonify({
+                    'success': True,
+                    'paid': True,
+                    'order_id': latest_order.get('order_id'),
+                    'new_expiry': db['users'][username].get('membership_expiry')
+                })
 
-    if latest_order.get('status') == 'paid':
-        # Check time if needed, for now just return success
-        created_at_str = latest_order.get('created_at')
-        is_recent = False
+    # If no recent order found in local database, try querying Payhip API
+    payhip_api_key = settings.get('payhip_api_key', '').strip()
+    if payhip_api_key:
+        current_app.logger.info("No recent local order found, querying Payhip API...")
         try:
-            created_dt = datetime.fromisoformat(created_at_str)
-            if datetime.utcnow() - created_dt < timedelta(minutes=15):
-                is_recent = True
-        except ValueError:
-            pass
-
-        if is_recent:
-            return jsonify({
-                'success': True,
-                'paid': True,
-                'order_id': latest_order.get('order_id'),
-                'new_expiry': db['users'][username].get('membership_expiry')
-            })
+            # Query Payhip API for sales (last 24 hours)
+            # Note: Payhip API endpoint might vary, this is a common pattern
+            headers = {
+                'payhip-api-key': payhip_api_key,
+                'Accept': 'application/json'
+            }
+            
+            # Try to get sales from last 24 hours
+            response = requests.get(
+                'https://payhip.com/api/v1/sales',
+                headers=headers,
+                timeout=10
+            )
+            
+            current_app.logger.info(f"Payhip API response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                sales_data = response.json()
+                current_app.logger.info(f"Payhip API sales data: {json.dumps(sales_data, indent=2)}")
+                
+                # Look for sales with our username in custom variables
+                sales = sales_data.get('data', [])
+                for sale in sales:
+                    custom_vars = sale.get('checkout_custom_variables', {})
+                    if isinstance(custom_vars, str):
+                        try:
+                            custom_vars = json.loads(custom_vars)
+                        except:
+                            continue
+                    
+                    # Check if this sale is for our user
+                    sale_username = custom_vars.get('username')
+                    if not sale_username:
+                        # Try to find username in other fields
+                        for key in sale.keys():
+                            if 'username' in key.lower():
+                                sale_username = sale[key]
+                                break
+                    
+                    if sale_username == username:
+                        # Found a sale for this user!
+                        sale_date_str = sale.get('created_at') or sale.get('date')
+                        try:
+                            sale_dt = datetime.fromisoformat(sale_date_str.replace('Z', '+00:00'))
+                            if datetime.utcnow() - sale_dt.replace(tzinfo=None) < timedelta(hours=1):
+                                current_app.logger.info(f"Found recent Payhip sale for {username}, processing...")
+                                
+                                # Process this order now
+                                transaction_id = sale.get('id') or sale.get('sale_id') or sale.get('transaction_id')
+                                
+                                # Check for duplicate order
+                                if 'orders' not in db:
+                                    db['orders'] = []
+                                
+                                existing_order = None
+                                if transaction_id:
+                                    for order in db['orders']:
+                                        if order.get('order_id') == transaction_id:
+                                            existing_order = order
+                                            break
+                                
+                                if existing_order:
+                                    current_app.logger.info(f"Payhip API: Order already processed. TxID: {transaction_id}")
+                                    # Order already exists, just return success
+                                    return jsonify({
+                                        'success': True,
+                                        'paid': True,
+                                        'order_id': transaction_id,
+                                        'new_expiry': db['users'][username].get('membership_expiry'),
+                                        'message': 'Order already processed'
+                                    })
+                                
+                                email = sale.get('email')
+                                amount = sale.get('price') or sale.get('amount') or sale.get('total_price')
+                                currency = sale.get('currency')
+                                
+                                # Update user membership
+                                user = db['users'].get(username)
+                                if user:
+                                    now = datetime.utcnow()
+                                    current_expiry_str = user.get('membership_expiry')
+                                    current_expiry = now
+                                    if current_expiry_str:
+                                        try:
+                                            current_expiry_dt = datetime.fromisoformat(current_expiry_str)
+                                            if current_expiry_dt > now:
+                                                current_expiry = current_expiry_dt
+                                        except ValueError:
+                                            pass
+                                    
+                                    new_expiry = current_expiry + timedelta(days=30)
+                                    user['membership_expiry'] = new_expiry.isoformat()
+                                    user['is_pro'] = True
+                                    
+                                    # Record order
+                                    new_order = {
+                                        'order_id': transaction_id,
+                                        'username': username,
+                                        'email': email,
+                                        'amount': amount,
+                                        'currency': currency,
+                                        'status': 'paid',
+                                        'created_at': now.isoformat(),
+                                        'source': 'payhip_api'
+                                    }
+                                    db['orders'].append(new_order)
+                                    save_db(db)
+                                    
+                                    current_app.logger.info(f"Successfully processed Payhip order for {username}")
+                                    
+                                    return jsonify({
+                                        'success': True,
+                                        'paid': True,
+                                        'order_id': transaction_id,
+                                        'new_expiry': new_expiry.isoformat()
+                                    })
+                        except Exception as e:
+                            current_app.logger.error(f"Error processing Payhip sale: {e}")
+                            continue
+            else:
+                current_app.logger.warning(f"Payhip API returned status {response.status_code}: {response.text}")
+        except Exception as e:
+            current_app.logger.error(f"Error querying Payhip API: {e}")
 
     return jsonify({'success': False, 'message': 'Latest order not found or not recent'})
 
