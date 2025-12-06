@@ -20,7 +20,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <label for="enabled" class="font-medium text-gray-900">启用 Payhip 支付</label>
-                    <p class="text-sm text-gray-500">开启后，原有的“人工审核”页面将被替换为 Payhip 支付引导。</p>
+                    <p class="text-sm text-gray-500">开启后，原有的"人工审核"页面将被替换为 Payhip 支付引导。</p>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" id="enabled" name="enabled" class="sr-only peer" {% if settings.enabled %}checked{% endif %}>
@@ -45,6 +45,19 @@
                 </p>
             </div>
 
+            <!-- Payhip API Key -->
+            <div>
+                <label for="payhip_api_key" class="block text-sm font-medium text-gray-700 mb-1">Payhip API Key (可选)</label>
+                <input type="text" id="payhip_api_key" name="payhip_api_key" value="{{ settings.payhip_api_key }}" placeholder="payhip_live_xxx... 或 payhip_test_xxx..." class="w-full rounded-lg border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500 font-mono">
+                <p class="text-xs text-gray-500 mt-1">
+                    <strong>重要：</strong>请填写 Payhip API Key，而不是 Webhook Secret！<br>
+                    • API Key 格式：<code>payhip_live_xxx...</code> 或 <code>payhip_test_xxx...</code><br>
+                    • Webhook Secret 格式：随机字符串（已在上方填写）<br>
+                    • 获取位置：<a href="https://payhip.com/account/api" target="_blank" class="text-blue-600 hover:underline">Payhip → Account → API Settings</a><br>
+                    • 官方文档：<a href="https://payhip.com/api-reference" target="_blank" class="text-blue-600 hover:underline">Payhip API Reference</a>
+                </p>
+            </div>
+
             <div class="pt-4 border-t border-gray-100">
                 <button type="submit" class="bg-gray-900 text-white px-6 py-2.5 rounded-lg hover:bg-black transition-colors font-medium">
                     保存设置
@@ -53,7 +66,268 @@
         </form>
     </div>
 
-    <!-- Recent Orders (Read-only view for now) -->
+    <!-- Debug & Manual Tools -->
+    <div class="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-6 border-b border-gray-100">
+            <h2 class="text-lg font-bold text-gray-900">调试 & 手动工具</h2>
+            <p class="text-sm text-gray-500 mt-1">测试 Payhip API 连接和手动处理订单</p>
+        </div>
+        <div class="p-6 space-y-6">
+            <!-- Test API Button -->
+            <div>
+                <button onclick="testPayhipAPI()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                    测试 Payhip API（尝试多种认证方式）
+                </button>
+                <p class="text-xs text-gray-500 mt-2">
+                    点击测试多种 API 认证方式，系统会尝试 6 种不同的方法连接 Payhip API。<br>
+                    <strong>注意</strong>：当前 API Key 可能不正确。Payhip 的 API Key 通常以 <code>payhip_</code> 开头，而不是 Webhook Secret。<br>
+                    <a href="https://payhip.com/account/api" target="_blank" class="text-blue-600 hover:underline">→ 访问 Payhip API 设置</a>
+                </p>
+                <pre id="api-test-result" class="mt-3 bg-gray-50 p-3 rounded text-xs overflow-auto max-h-96 hidden"></pre>
+                <div id="api-test-summary" class="mt-3 hidden"></div>
+            </div>
+
+            <!-- Manual Activation Form -->
+            <div class="pt-4 border-t border-gray-100">
+                <h3 class="font-medium text-gray-900 mb-3">手动激活会员</h3>
+                <p class="text-sm text-gray-500 mb-4">如果自动检测失败，可以手动输入订单信息来激活会员</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="text" id="manual-username" placeholder="用户名" class="rounded-lg border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500">
+                    <input type="text" id="manual-order-id" placeholder="订单 ID (从 Payhip 获取)" class="rounded-lg border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500">
+                    <input type="email" id="manual-email" placeholder="邮箱 (可选)" class="rounded-lg border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500">
+                </div>
+                <button onclick="manualActivate()" class="mt-3 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium">
+                    激活会员
+                </button>
+                <div id="manual-result" class="mt-3 text-sm"></div>
+            </div>
+
+            <!-- Batch Activation Form -->
+            <div class="pt-4 border-t border-gray-100">
+                <h3 class="font-medium text-gray-900 mb-3">批量激活会员</h3>
+                <p class="text-sm text-gray-500 mb-4">一次性激活多个订单，每行一个，格式：用户名,订单ID,邮箱（邮箱可选）</p>
+                <textarea id="batch-data" rows="5" placeholder="例如：&#10;user1,LWRwLk8Pza,email1@example.com&#10;user2,KzyO74ekGX&#10;user3,2GZxenZ6zp,email3@example.com" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500 font-mono text-sm"></textarea>
+                <button onclick="batchActivate()" class="mt-3 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors font-medium">
+                    批量激活
+                </button>
+                <div id="batch-result" class="mt-3 text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    async function testPayhipAPI() {
+        const resultDiv = document.getElementById('api-test-result');
+        const summaryDiv = document.getElementById('api-test-summary');
+        resultDiv.classList.remove('hidden');
+        summaryDiv.classList.remove('hidden');
+        resultDiv.textContent = '正在测试 6 种不同的认证方式...';
+        summaryDiv.innerHTML = '<div class="text-gray-600">测试中...</div>';
+        
+        try {
+            const response = await fetch('/api/payment/test_payhip_api');
+            const data = await response.json();
+            
+            // Show full results
+            resultDiv.textContent = JSON.stringify(data, null, 2);
+            
+            // Show summary
+            if (data.results) {
+                let successMethods = [];
+                let failedMethods = [];
+                
+                for (let [method, result] of Object.entries(data.results)) {
+                    if (result.SUCCESS) {
+                        successMethods.push(method);
+                    } else if (result.status_code === 200) {
+                        successMethods.push(method + ' (可能成功)');
+                    } else {
+                        failedMethods.push(`${method}: ${result.status_code || 'Error'}`);
+                    }
+                }
+                
+                let summaryHTML = '';
+                if (successMethods.length > 0) {
+                    summaryHTML += '<div class="p-3 bg-green-50 border border-green-200 rounded mb-2">';
+                    summaryHTML += '<div class="font-bold text-green-800 mb-1">✓ 成功的方法：</div>';
+                    summaryHTML += '<ul class="text-sm text-green-700 list-disc list-inside">';
+                    successMethods.forEach(m => summaryHTML += `<li>${m}</li>`);
+                    summaryHTML += '</ul></div>';
+                    
+                    // Show customer information if available
+                    for (let [method, result] of Object.entries(data.results)) {
+                        if (result.SUCCESS && result.customers && result.customers.length > 0) {
+                            summaryHTML += '<div class="p-3 bg-blue-50 border border-blue-200 rounded mb-2">';
+                            summaryHTML += `<div class="font-bold text-blue-800 mb-2">📧 找到 ${result.customer_count} 个客户/订单：</div>`;
+                            summaryHTML += '<div class="overflow-x-auto">';
+                            summaryHTML += '<table class="w-full text-xs">';
+                            summaryHTML += '<thead class="bg-blue-100"><tr>';
+                            summaryHTML += '<th class="px-2 py-1 text-left">订单 ID</th>';
+                            summaryHTML += '<th class="px-2 py-1 text-left">邮箱</th>';
+                            summaryHTML += '<th class="px-2 py-1 text-left">用户名</th>';
+                            summaryHTML += '<th class="px-2 py-1 text-left">产品</th>';
+                            summaryHTML += '<th class="px-2 py-1 text-left">日期</th>';
+                            summaryHTML += '</tr></thead><tbody>';
+                            
+                            result.customers.forEach(c => {
+                                const hasUsername = c.username ? 'bg-green-50' : 'bg-white';
+                                summaryHTML += `<tr class="${hasUsername} border-t border-blue-100">`;
+                                summaryHTML += `<td class="px-2 py-1 font-mono text-xs">${c.order_id || '-'}</td>`;
+                                summaryHTML += `<td class="px-2 py-1">${c.email || '-'}</td>`;
+                                summaryHTML += `<td class="px-2 py-1 font-bold ${c.username ? 'text-green-700' : 'text-red-500'}">${c.username || '⚠️ 未传递'}</td>`;
+                                summaryHTML += `<td class="px-2 py-1">${c.product || '-'}</td>`;
+                                summaryHTML += `<td class="px-2 py-1">${c.date ? c.date.substring(0, 10) : '-'}</td>`;
+                                summaryHTML += '</tr>';
+                            });
+                            
+                            summaryHTML += '</tbody></table></div>';
+                            summaryHTML += '<div class="text-xs text-blue-700 mt-2">';
+                            summaryHTML += '<strong>提示：</strong>绿色背景表示已正确传递用户名，可以直接使用批量激活功能。';
+                            summaryHTML += '</div></div>';
+                            break; // Only show first successful method
+                        }
+                    }
+                } else {
+                    summaryHTML += '<div class="p-3 bg-red-50 border border-red-200 rounded mb-2">';
+                    summaryHTML += '<div class="font-bold text-red-800 mb-1">✗ 所有方法都失败了</div>';
+                    summaryHTML += '<div class="text-sm text-red-700">';
+                    summaryHTML += '<strong>可能的原因：</strong><br>';
+                    summaryHTML += '1. API Key 不正确（您可能填写的是 Webhook Secret）<br>';
+                    summaryHTML += '2. Payhip 账号没有启用 API 访问<br>';
+                    summaryHTML += '3. Payhip 的 API 需要特殊权限<br><br>';
+                    summaryHTML += '<strong>建议：</strong><br>';
+                    summaryHTML += '• 访问 <a href="https://payhip.com/account/api" target="_blank" class="underline">Payhip API 设置</a> 获取正确的 API Key<br>';
+                    summaryHTML += '• 使用<strong>批量激活</strong>功能手动处理订单（100% 可靠）';
+                    summaryHTML += '</div></div>';
+                }
+                
+                summaryDiv.innerHTML = summaryHTML;
+            }
+        } catch (e) {
+            resultDiv.textContent = '错误: ' + e.message;
+            summaryDiv.innerHTML = '<div class="text-red-600">请求失败: ' + e.message + '</div>';
+        }
+    }
+
+    async function manualActivate() {
+        const username = document.getElementById('manual-username').value.trim();
+        const orderId = document.getElementById('manual-order-id').value.trim();
+        const email = document.getElementById('manual-email').value.trim();
+        const resultDiv = document.getElementById('manual-result');
+        
+        if (!username || !orderId) {
+            resultDiv.innerHTML = '<span class="text-red-600">请填写用户名和订单 ID</span>';
+            return;
+        }
+        
+        resultDiv.innerHTML = '<span class="text-gray-600">处理中...</span>';
+        
+        try {
+            const response = await fetch('/api/payment/manual_activate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, order_id: orderId, email })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                resultDiv.innerHTML = '<span class="text-green-600">✓ ' + data.message + '</span>';
+                document.getElementById('manual-username').value = '';
+                document.getElementById('manual-order-id').value = '';
+                document.getElementById('manual-email').value = '';
+                // Reload page after 1 second to show new order in list
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                resultDiv.innerHTML = '<span class="text-red-600">✗ ' + data.error + '</span>';
+            }
+        } catch (e) {
+            resultDiv.innerHTML = '<span class="text-red-600">错误: ' + e.message + '</span>';
+        }
+    }
+
+    async function batchActivate() {
+        const batchData = document.getElementById('batch-data').value.trim();
+        const resultDiv = document.getElementById('batch-result');
+        
+        if (!batchData) {
+            resultDiv.innerHTML = '<span class="text-red-600">请输入订单数据</span>';
+            return;
+        }
+        
+        const lines = batchData.split('\n').filter(line => line.trim());
+        if (lines.length === 0) {
+            resultDiv.innerHTML = '<span class="text-red-600">没有有效的数据</span>';
+            return;
+        }
+        
+        resultDiv.innerHTML = '<span class="text-gray-600">处理中... (0/' + lines.length + ')</span>';
+        
+        const results = [];
+        let successCount = 0;
+        let failCount = 0;
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            const parts = line.split(',').map(p => p.trim());
+            
+            if (parts.length < 2) {
+                results.push(`❌ 第 ${i + 1} 行格式错误: ${line}`);
+                failCount++;
+                continue;
+            }
+            
+            const [username, orderId, email] = parts;
+            
+            try {
+                const response = await fetch('/api/payment/manual_activate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, order_id: orderId, email: email || '' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    results.push(`✓ ${username} (${orderId}): 成功`);
+                    successCount++;
+                } else {
+                    results.push(`✗ ${username} (${orderId}): ${data.error}`);
+                    failCount++;
+                }
+            } catch (e) {
+                results.push(`✗ ${username} (${orderId}): ${e.message}`);
+                failCount++;
+            }
+            
+            // Update progress
+            resultDiv.innerHTML = '<span class="text-gray-600">处理中... (' + (i + 1) + '/' + lines.length + ')</span>';
+        }
+        
+        // Show final results
+        const summaryColor = failCount === 0 ? 'text-green-600' : (successCount === 0 ? 'text-red-600' : 'text-orange-600');
+        let html = '<div class="' + summaryColor + ' font-bold mb-2">完成！成功: ' + successCount + ' / 失败: ' + failCount + '</div>';
+        html += '<div class="text-xs space-y-1 max-h-48 overflow-y-auto bg-gray-50 p-2 rounded">';
+        results.forEach(r => {
+            const color = r.startsWith('✓') ? 'text-green-600' : 'text-red-600';
+            html += '<div class="' + color + '">' + r + '</div>';
+        });
+        html += '</div>';
+        resultDiv.innerHTML = html;
+        
+        // Clear input and reload if any success
+        if (successCount > 0) {
+            document.getElementById('batch-data').value = '';
+            setTimeout(() => location.reload(), 2000);
+        }
+    }
+    </script>
+
+    <!-- Recent Orders -->
     <div class="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-6 border-b border-gray-100 flex justify-between items-center">
             <h2 class="text-lg font-bold text-gray-900">最近订单</h2>
@@ -66,8 +340,9 @@
                         <th class="px-6 py-3">订单号 (TxID)</th>
                         <th class="px-6 py-3">用户</th>
                         <th class="px-6 py-3">金额</th>
-                        <th class="px-6 py-3">邮箱 (Payhip)</th>
+                        <th class="px-6 py-3">邮箱</th>
                         <th class="px-6 py-3">时间</th>
+                        <th class="px-6 py-3">来源</th>
                         <th class="px-6 py-3">状态</th>
                     </tr>
                 </thead>
@@ -80,6 +355,17 @@
                         <td class="px-6 py-3">{{ order.email }}</td>
                         <td class="px-6 py-3">{{ order.created_at[:19].replace('T', ' ') }}</td>
                         <td class="px-6 py-3">
+                            {% if order.source == 'webhook' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Webhook</span>
+                            {% elif order.source == 'payhip_api' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">API</span>
+                            {% elif order.source == 'manual_admin' %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">手动</span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">未知</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3">
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                                 {{ order.status }}
                             </span>
@@ -87,7 +373,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-gray-400">暂无订单记录</td>
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-400">暂无订单记录</td>
                     </tr>
                     {% endfor %}
                 </tbody>
