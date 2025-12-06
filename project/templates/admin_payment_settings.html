@@ -45,6 +45,22 @@
                 </p>
             </div>
 
+            <!-- Product Secret Key (For License Verification) -->
+            <div>
+                <label for="product_secret_key" class="block text-sm font-medium text-gray-700 mb-1">Payhip 商品私钥 (Product Secret Key)</label>
+                <div class="flex gap-2">
+                    <input type="text" id="product_secret_key" name="product_secret_key" value="{{ settings.product_secret_key }}" placeholder="在 Payhip 编辑商品页面获取" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500 font-mono">
+                    <button type="button" onclick="testPayhipApi()" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap">
+                        测试连接
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">
+                    用于验证激活码 (License Key)。请在 Payhip 商品编辑页面的 "License Keys" 部分找到。<br>
+                    <a href="https://help.payhip.com/article/317-software-license-keys-new" target="_blank" class="text-blue-500 hover:underline">如何获取?</a>
+                </p>
+                <p id="api-test-result" class="text-xs mt-2 font-bold"></p>
+            </div>
+
             <div class="pt-4 border-t border-gray-100">
                 <button type="submit" class="bg-gray-900 text-white px-6 py-2.5 rounded-lg hover:bg-black transition-colors font-medium">
                     保存设置
@@ -83,7 +99,10 @@
 
     <div class="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-6 border-b border-gray-100 flex justify-between items-center">
-            <h2 class="text-lg font-bold text-gray-900">最近订单</h2>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">客户列表 (本地记录)</h2>
+                <p class="text-xs text-gray-500 mt-1">由于 Payhip 不提供客户列表 API，此处仅显示通过 Webhook 同步、激活码兑换或手动补录的订单。</p>
+            </div>
             <span class="text-sm text-gray-500">显示最近 50 笔交易</span>
         </div>
         <div class="overflow-x-auto">
@@ -122,4 +141,37 @@
         </div>
     </div>
 </div>
+<script>
+async function testPayhipApi() {
+    const btn = document.querySelector('button[onclick="testPayhipApi()"]');
+    const resultP = document.getElementById('api-test-result');
+
+    btn.disabled = true;
+    btn.textContent = '测试中...';
+    resultP.textContent = '';
+    resultP.className = 'text-xs mt-2 font-bold';
+
+    try {
+        const response = await fetch('/admin/payment/test_payhip_config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            resultP.textContent = '✅ ' + data.message;
+            resultP.classList.add('text-green-600');
+        } else {
+            resultP.textContent = '❌ ' + data.message;
+            resultP.classList.add('text-red-600');
+        }
+    } catch (e) {
+        resultP.textContent = '❌ 网络请求失败';
+        resultP.classList.add('text-red-600');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '测试连接';
+    }
+}
+</script>
 {% endblock %}

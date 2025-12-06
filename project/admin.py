@@ -3,6 +3,7 @@ import uuid
 import json
 import psutil
 import time
+import requests
 from datetime import datetime, timedelta
 from flask import (
     Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
@@ -1139,6 +1140,52 @@ def add_manual_order():
     flash(f'订单 {order_id} 已补录，用户 {username} 会员已延长。', 'success')
     return redirect(url_for('admin.manage_payment_settings'))
 
+@admin_bp.route('/payment/test_payhip_config', methods=['POST'])
+def test_payhip_config():
+    """Test the Payhip API configuration by attempting a dummy license verification."""
+    # Ensure only admins can access
+    if not session.get('is_admin'):
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    db = load_db()
+    settings = db.get('payment_settings', {})
+    product_secret_key = settings.get('product_secret_key', '').strip()
+
+    if not product_secret_key:
+        return jsonify({'success': False, 'message': 'API 密钥未配置 (Product Secret Key is missing)'})
+
+    # We use a dummy license key.
+    # If API key is wrong -> 401 Unauthorized
+    # If API key is correct but license invalid -> 200 OK (with data.enabled=False)
+    # If network error -> Exception
+
+    verify_url = "https://payhip.com/api/v2/license/verify"
+    headers = {"product-secret-key": product_secret_key}
+    params = {"license_key": "TEST-CONNECTIVITY-KEY"}
+
+    try:
+        response = requests.get(verify_url, headers=headers, params=params, timeout=10)
+
+        if response.status_code == 401 or response.status_code == 403:
+            return jsonify({
+                'success': False,
+                'message': '认证失败 (Unauthorized)。请检查 Product Secret Key 是否正确。'
+            })
+        elif response.status_code == 200:
+            # Even if the key is invalid (which TEST-KEY is), a 200 means auth succeeded
+            return jsonify({
+                'success': True,
+                'message': '连接成功！API 密钥配置正确。'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'API 返回意外状态码: {response.status_code} - {response.text}'
+            })
+
+    except requests.RequestException as e:
+        return jsonify({'success': False, 'message': f'网络连接失败: {str(e)}'})
+
 @admin_bp.route('/payment_settings', methods=['GET', 'POST'])
 def manage_payment_settings():
     db = load_db()
@@ -1156,6 +1203,7 @@ def manage_payment_settings():
         db['payment_settings']['enabled'] = request.form.get('enabled') == 'on'
         db['payment_settings']['product_link'] = request.form.get('product_link', '').strip()
         db['payment_settings']['webhook_secret'] = request.form.get('webhook_secret', '').strip()
+        db['payment_settings']['product_secret_key'] = request.form.get('product_secret_key', '').strip()
         save_db(db)
         flash('支付设置已保存。', 'success')
         return redirect(url_for('admin.manage_payment_settings'))

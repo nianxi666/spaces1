@@ -1687,6 +1687,102 @@ def check_payment_status():
 
     return jsonify({'success': False, 'message': 'Latest order not found or not recent'})
 
+@api_bp.route('/payment/redeem_license', methods=['POST'])
+def redeem_license():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+
+    data = request.get_json(silent=True) or {}
+    license_key = str(data.get('license_key', '')).strip()
+
+    if not license_key:
+        return jsonify({'success': False, 'error': '请输入激活码'}), 400
+
+    db = load_db()
+    settings = db.get('payment_settings', {})
+    product_secret_key = settings.get('product_secret_key', '').strip()
+
+    if not product_secret_key:
+        return jsonify({'success': False, 'error': '系统未配置激活码验证密钥，请联系管理员'}), 503
+
+    # 1. Verify Key with Payhip
+    try:
+        verify_url = "https://payhip.com/api/v2/license/verify"
+        headers = {"product-secret-key": product_secret_key}
+        params = {"license_key": license_key}
+
+        response = requests.get(verify_url, headers=headers, params=params, timeout=10)
+
+        if response.status_code != 200:
+            current_app.logger.error(f"Payhip verify failed: {response.status_code} {response.text}")
+            return jsonify({'success': False, 'error': '激活码无效或网络错误'}), 400
+
+        payload = response.json()
+        key_data = payload.get('data', {})
+
+        if not key_data.get('enabled'):
+            return jsonify({'success': False, 'error': '该激活码已被禁用'}), 400
+
+        # Optional: Check usage limit if you want strictly 1 use per key
+        # if key_data.get('uses') > 0: ...
+
+    except Exception as e:
+        current_app.logger.error(f"Payhip verification exception: {e}")
+        return jsonify({'success': False, 'error': '验证服务暂时不可用'}), 500
+
+    # 2. Key is valid, update user
+    username = session['username']
+    user = db['users'].get(username)
+    if not user:
+        return jsonify({'success': False, 'error': '用户未找到'}), 404
+
+    # Check if this key was already used locally to prevent spamming the API
+    # (though Payhip usage count is the source of truth, we can double check local orders)
+    for order in db.get('orders', []):
+        if order.get('order_id') == license_key: # We store license key as order_id for these
+            return jsonify({'success': False, 'error': '该激活码已使用过'}), 400
+
+    # Increase Usage on Payhip
+    try:
+        usage_url = "https://payhip.com/api/v2/license/usage"
+        requests.put(usage_url, headers=headers, data={"license_key": license_key}, timeout=10)
+    except Exception as e:
+        current_app.logger.warning(f"Failed to increment license usage: {e}")
+        # We continue anyway because the key was valid
+
+    # Grant Pro
+    now = datetime.utcnow()
+    current_expiry_str = user.get('membership_expiry')
+    current_expiry = now
+    if current_expiry_str:
+        try:
+            current_expiry_dt = datetime.fromisoformat(current_expiry_str)
+            if current_expiry_dt > now:
+                current_expiry = current_expiry_dt
+        except ValueError:
+            pass
+
+    new_expiry = current_expiry + timedelta(days=30)
+    user['membership_expiry'] = new_expiry.isoformat()
+    user['is_pro'] = True
+
+    # Record Order
+    new_order = {
+        'order_id': license_key, # Use license key as the ID
+        'username': username,
+        'email': key_data.get('buyer_email', 'license_redeem'),
+        'amount': 'license',
+        'currency': 'USD',
+        'status': 'paid',
+        'created_at': now.isoformat()
+    }
+    if 'orders' not in db:
+        db['orders'] = []
+    db['orders'].append(new_order)
+
+    save_db(db)
+    return jsonify({'success': True, 'message': '激活成功'})
+
 @api_bp.route('/v1/chat/completions', methods=['POST'])
 def netmind_chat_completions():
     """

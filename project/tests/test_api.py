@@ -87,5 +87,39 @@ class TestPayhipWebhook(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Username not found', response.data)
 
+    @patch('project.api.load_db')
+    @patch('project.api.save_db')
+    @patch('project.api.requests.get')
+    @patch('project.api.requests.put')
+    def test_redeem_license_success(self, mock_put, mock_get, mock_save, mock_load):
+        # Mock Payhip Verify Response
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            'data': {
+                'enabled': True,
+                'buyer_email': 'buyer@example.com'
+            }
+        }
+
+        # Mock DB
+        mock_db = {
+            'users': {'testuser': {'membership_expiry': '2023-01-01'}},
+            'payment_settings': {'product_secret_key': 'prod_secret'},
+            'orders': []
+        }
+        mock_load.return_value = mock_db
+
+        with self.client.session_transaction() as sess:
+            sess['logged_in'] = True
+            sess['username'] = 'testuser'
+
+        response = self.client.post('/api/payment/redeem_license', json={'license_key': 'KEY-123'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(mock_save.called)
+        self.assertEqual(len(mock_db['orders']), 1)
+        self.assertEqual(mock_db['orders'][0]['order_id'], 'KEY-123')
+        self.assertTrue(mock_put.called) # Should try to increment usage
+
 if __name__ == '__main__':
     unittest.main()

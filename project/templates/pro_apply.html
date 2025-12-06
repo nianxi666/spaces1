@@ -47,7 +47,65 @@
                     </a>
                     <p class="text-xs text-gray-400">点击按钮将跳转至 Payhip 安全支付页面。支付成功后，您的会员时长将自动增加 30 天。</p>
                 </div>
+
+                <div class="border-t border-gray-100 my-6"></div>
+
+                <!-- License Key Redemption -->
+                <div class="text-center">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">已有激活码?</h3>
+                    <div class="flex max-w-sm mx-auto gap-2">
+                        <input type="text" id="license-key-input" placeholder="输入 Payhip 激活码 (License Key)" class="flex-1 rounded-xl border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500 px-4 py-2 text-center uppercase font-mono">
+                        <button onclick="redeemLicenseKey()" id="redeem-btn" class="bg-gray-900 text-white px-4 py-2 rounded-xl hover:bg-black transition-colors font-medium whitespace-nowrap">
+                            兑换
+                        </button>
+                    </div>
+                    <p id="redeem-msg" class="text-xs mt-2 h-4"></p>
+                </div>
             </div>
+
+            <script>
+            async function redeemLicenseKey() {
+                const input = document.getElementById('license-key-input');
+                const btn = document.getElementById('redeem-btn');
+                const msg = document.getElementById('redeem-msg');
+                const key = input.value.trim();
+
+                if (!key) {
+                    msg.textContent = '请输入激活码';
+                    msg.className = 'text-xs mt-2 h-4 text-red-500';
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.textContent = '验证中...';
+                msg.textContent = '';
+
+                try {
+                    const response = await fetch('/api/payment/redeem_license', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ license_key: key })
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        msg.textContent = '激活成功！正在刷新...';
+                        msg.className = 'text-xs mt-2 h-4 text-green-600';
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        msg.textContent = data.error || '激活失败';
+                        msg.className = 'text-xs mt-2 h-4 text-red-500';
+                        btn.disabled = false;
+                        btn.textContent = '兑换';
+                    }
+                } catch (e) {
+                    msg.textContent = '请求出错，请重试';
+                    msg.className = 'text-xs mt-2 h-4 text-red-500';
+                    btn.disabled = false;
+                    btn.textContent = '兑换';
+                }
+            }
+            </script>
 
             <!-- Payment Confirmation Modal -->
             <div id="payment-confirm-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4" style="background-color: rgba(0,0,0,0.4); backdrop-filter: blur(4px);">
