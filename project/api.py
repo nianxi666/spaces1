@@ -1531,6 +1531,26 @@ def get_task_status_api(task_id):
 # So the route is /api/v1/chat/completions
 @api_bp.route('/payment/payhip/webhook', methods=['POST'])
 def payhip_webhook():
+    # Debug Logging
+    current_app.logger.info("=== Payhip Webhook Received ===")
+    current_app.logger.info(f"Headers: {dict(request.headers)}")
+
+    # Log args but mask the secret key
+    safe_args = request.args.copy()
+    if 'key' in safe_args:
+        safe_args['key'] = '***'
+    current_app.logger.info(f"Args: {safe_args}")
+
+    try:
+        # Try to parse JSON first, then form data
+        json_data = request.get_json(silent=True)
+        if json_data:
+             current_app.logger.info(f"JSON Data: {json.dumps(json_data)}")
+        else:
+             current_app.logger.info(f"Form Data: {request.form}")
+    except Exception as e:
+        current_app.logger.error(f"Error logging data: {e}")
+
     db = load_db()
     settings = db.get('payment_settings', {})
 
@@ -1541,10 +1561,12 @@ def payhip_webhook():
     # If a secret is configured, verify it. If not, we might log a warning or proceed with caution (or reject).
     # Here, we reject if configured secret is missing in request.
     if configured_secret and secret != configured_secret:
+        current_app.logger.warning("Payhip Webhook Unauthorized: Invalid or missing key.")
         return jsonify({'error': 'Unauthorized'}), 401
 
     data = request.get_json(silent=True) or request.form
     if not data:
+        current_app.logger.error("Payhip Webhook: No data received")
         return jsonify({'error': 'No data received'}), 400
 
     # 2. Extract Data
