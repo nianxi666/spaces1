@@ -130,11 +130,56 @@ def manage_pro_settings():
     if request.method == 'POST':
         settings['enabled'] = request.form.get('enabled') == 'on'
         settings['task_description'] = request.form.get('task_description', '')
+        # Ko-fi settings
+        settings['kofi_shop_link'] = request.form.get('kofi_shop_link', '').strip()
+        settings['kofi_verification_token'] = request.form.get('kofi_verification_token', '').strip()
+
         save_db(db)
-        flash('Pro 会员设置已保存。', 'success')
+        flash('会员设置已保存。', 'success')
         return redirect(url_for('admin.manage_pro_settings'))
 
     return render_template('admin_pro_settings.html', settings=settings)
+
+@admin_bp.route('/pro_settings/test_webhook', methods=['POST'])
+def test_kofi_webhook():
+    import requests
+    db = load_db()
+    settings = ensure_pro_settings(db)
+    token = settings.get('kofi_verification_token')
+
+    if not token:
+        return jsonify({'success': False, 'message': '未配置 Verification Token'})
+
+    # Get local URL
+    # Assuming running on localhost/127.0.0.1 for the test, or use request.url_root
+    webhook_url = url_for('payment.kofi_webhook', _external=True)
+
+    # Fake payload
+    fake_data = {
+        'verification_token': token,
+        'message_id': 'test-msg-id',
+        'timestamp': datetime.utcnow().isoformat(),
+        'type': 'Donation',
+        'is_public': True,
+        'from_name': 'Test User',
+        'message': 'This is a test webhook',
+        'amount': '5.00',
+        'currency': 'USD',
+        'email': 'test@example.com',
+        'kofi_transaction_id': 'test-trans-id-' + str(uuid.uuid4())[:8],
+        'shop_items': [{'quantity': 1}]
+    }
+
+    try:
+        # Send as form-data 'data' field
+        response = requests.post(webhook_url, data={'data': json.dumps(fake_data)}, timeout=5)
+        if response.status_code == 200:
+             return jsonify({'success': True, 'message': f'Webhook 测试成功！响应代码: {response.status_code}'})
+        else:
+             return jsonify({'success': False, 'message': f'Webhook 返回错误代码: {response.status_code}'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'测试请求失败: {str(e)}'})
+
 
 @admin_bp.route('/users')
 def manage_users():
@@ -197,31 +242,6 @@ def manage_users():
         selected_date=filter_date
     )
 
-@admin_bp.route('/users/approve_pro/<username>', methods=['POST'])
-def approve_pro_user(username):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if user:
-        user['is_pro'] = True
-        user['pro_submission_status'] = 'approved'
-        save_db(db)
-        flash(f'用户 {username} 已升级为 Pro 会员。', 'success')
-    else:
-        flash('未找到用户。', 'error')
-    return redirect(url_for('admin.manage_users'))
-
-@admin_bp.route('/users/reject_pro/<username>', methods=['POST'])
-def reject_pro_user(username):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if user:
-        user['is_pro'] = False
-        user['pro_submission_status'] = 'rejected'
-        save_db(db)
-        flash(f'已拒绝用户 {username} 的 Pro 会员申请。', 'success')
-    else:
-        flash('未找到用户。', 'error')
-    return redirect(url_for('admin.manage_users'))
 
 @admin_bp.route('/users/<username>/custom-gpu')
 def manage_user_custom_gpu(username):

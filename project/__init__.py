@@ -88,6 +88,9 @@ def create_app(test_config=None):
     from . import terminal
     app.register_blueprint(terminal.terminal_bp)
 
+    from . import webhook_kofi
+    app.register_blueprint(webhook_kofi.payment_bp)
+
     # Register custom Jinja2 filters
     app.jinja_env.filters['format_datetime'] = format_datetime
 

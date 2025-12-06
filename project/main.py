@@ -207,34 +207,36 @@ def profile():
 
     return render_template('profile.html', user=user_data, api_key=api_key, settings=settings, pro_settings=pro_settings, today_str=today_str)
 
-@main_bp.route('/pro/apply', methods=['GET', 'POST'])
-def pro_apply():
+@main_bp.route('/bind_email', methods=['POST'])
+def bind_email():
     if not session.get('logged_in'):
-        return redirect(url_for('auth.login'))
-
-    db = load_db()
-    pro_settings = db.get('pro_settings', {})
-
-    if not pro_settings.get('enabled'):
-        flash('Pro 会员功能当前不可用。', 'error')
-        return redirect(url_for('main.profile'))
+        return jsonify({'success': False, 'error': '请先登录'}), 401
 
     username = session['username']
-    user = db['users'].get(username, {})
+    email = request.form.get('email', '').strip()
 
-    if request.method == 'POST':
-        link = request.form.get('submission_link', '').strip()
-        if not link:
-            flash('请提交任务链接。', 'error')
-        else:
-            user['pro_submission_link'] = link
-            user['pro_submission_status'] = 'pending'
-            user['pro_submission_date'] = datetime.utcnow().isoformat()
-            save_db(db)
-            flash('申请已提交，请等待审核。', 'success')
-            return redirect(url_for('main.profile'))
+    if not email:
+        return jsonify({'success': False, 'error': '邮箱不能为空'}), 400
 
-    return render_template('pro_apply.html', pro_settings=pro_settings, user=user)
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        return jsonify({'success': False, 'error': '邮箱格式不正确'}), 400
+
+    db = load_db()
+
+    # Check if this email is already used by ANOTHER user
+    for u, u_data in db['users'].items():
+        if u != username and u_data.get('email') == email:
+            return jsonify({'success': False, 'error': '该邮箱已被其他账号绑定，请使用其他邮箱。'}), 400
+
+    user = db['users'].get(username)
+    if not user:
+         return jsonify({'success': False, 'error': '用户未找到'}), 404
+
+    # Update email
+    user['email'] = email
+    save_db(db)
+
+    return jsonify({'success': True, 'message': '邮箱绑定成功'})
 
 
 @main_bp.route('/check-in', methods=['POST'])
