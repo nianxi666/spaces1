@@ -4,7 +4,7 @@ import os
 import requests
 import secrets
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, session, flash, current_app
+    Blueprint, render_template, request, redirect, url_for, session, flash, current_app, jsonify
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from .database import load_db, save_db
@@ -227,6 +227,37 @@ def delete_account():
 
     flash('无法处理您的请求。', 'error')
     return redirect(url_for('main.index'))
+
+@auth_bp.route('/bind_email', methods=['POST'])
+def bind_email():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+
+    email = request.form.get('email', '').strip().lower()
+    if not email:
+        return jsonify({'success': False, 'error': '邮箱不能为空'}), 400
+
+    # Basic email validation
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        return jsonify({'success': False, 'error': '邮箱格式不正确'}), 400
+
+    username = session['username']
+    db = load_db()
+
+    # Check if email is already used by another user
+    for user, data in db['users'].items():
+        if user != username and data.get('email') == email:
+            return jsonify({'success': False, 'error': '该邮箱已被其他账号绑定'}), 400
+
+    user_data = db['users'].get(username)
+    if not user_data:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    # Update email
+    user_data['email'] = email
+    save_db(db)
+
+    return jsonify({'success': True, 'message': '邮箱绑定成功', 'email': email})
 
 @auth_bp.route('/logout')
 def logout():

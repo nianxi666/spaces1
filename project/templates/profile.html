@@ -118,6 +118,27 @@
                         <input type="text" value="{{ api_key }}" readonly class="w-full text-sm font-mono text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none select-all">
                     </div>
                 </div>
+
+                <div class="border-t border-gray-50"></div>
+
+                <!-- Email Binding -->
+                <div class="py-2">
+                    <div class="flex justify-between items-center mb-2">
+                         <span class="text-sm font-medium text-gray-700">绑定邮箱</span>
+                    </div>
+                    {% if user.email %}
+                    <div class="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-2 rounded-lg border border-green-100">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        <span class="text-sm font-medium">已绑定: {{ user.email }}</span>
+                    </div>
+                    {% else %}
+                    <div class="flex gap-2">
+                        <input type="email" id="email-input" placeholder="输入邮箱地址" class="flex-1 text-sm border-gray-200 rounded-lg px-3 py-2 focus:ring-pumpkin-500 focus:border-pumpkin-500 bg-gray-50">
+                        <button onclick="bindEmail()" class="px-4 py-2 bg-pumpkin-500 text-white text-sm font-bold rounded-lg hover:bg-pumpkin-600 transition-colors">绑定</button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">绑定邮箱用于接收通知和恢复购买。</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
@@ -251,6 +272,31 @@
 </div>
 
 <script>
+ async function bindEmail() {
+    const input = document.getElementById('email-input');
+    const email = input.value.trim();
+    if (!email) return alert('请输入邮箱');
+
+    try {
+        const formData = new FormData();
+        formData.append('email', email);
+
+        const response = await fetch('{{ url_for("auth.bind_email") }}', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('绑定成功！');
+            window.location.reload();
+        } else {
+            alert(result.error || '绑定失败');
+        }
+    } catch (e) {
+        alert('网络错误');
+    }
+ }
+
 async function submitUsernameChange() {
     const input = document.getElementById('new-username-input');
     const errorDiv = document.getElementById('username-change-error');

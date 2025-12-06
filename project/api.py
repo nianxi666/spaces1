@@ -4,7 +4,7 @@ import shlex
 import threading
 import tempfile
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from flask import (
     Blueprint, request, jsonify, url_for, current_app, Response, stream_with_context
@@ -20,6 +20,7 @@ import secrets
 from .database import load_db, save_db, backup_db
 from .utils import allowed_file, get_user_by_token, predict_output_filename, slugify
 from . import tasks
+from .admin import ensure_kofi_settings
 from .s3_utils import (
     generate_presigned_url,
     get_public_s3_url,
@@ -45,6 +46,144 @@ from .netmind_config import (
 from .gpu_allocator import try_allocate_gpu_from_pool
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+@api_bp.route('/payment/kofi/webhook', methods=['POST'])
+def kofi_webhook():
+    """
+    Handle Ko-fi webhooks for membership top-up.
+    Parses payload, verifies token, finds user, and extends membership.
+    """
+    # 1. Load Data
+    data = request.form.get('data')
+    if not data:
+        # Sometimes Ko-fi might send JSON directly not in form data?
+        # But docs say form-data 'data' field containing JSON string.
+        # Fallback to direct json if needed
+        data_json = request.get_json(silent=True)
+        if data_json:
+             payload = data_json
+        else:
+             return jsonify({'error': 'No data provided'}), 400
+    else:
+        try:
+            payload = json.loads(data)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'Invalid JSON'}), 400
+
+    # 2. Verify Token
+    db = load_db()
+    kofi_settings = ensure_kofi_settings(db)
+    expected_token = kofi_settings.get('verification_token')
+
+    if not expected_token:
+        # If not configured, we can't verify. Log error.
+        current_app.logger.error("Ko-fi webhook received but no verification token configured.")
+        return jsonify({'error': 'Configuration error'}), 500
+
+    if payload.get('verification_token') != expected_token:
+        return jsonify({'error': 'Invalid verification token'}), 403
+
+    # 3. Extract Order Info
+    # Ko-fi payload fields: type, email, amount, currency, shop_items, is_public, from_name, message, timestamp
+    txn_type = payload.get('type', '')
+    email = payload.get('email', '').lower().strip()
+    amount = payload.get('amount', '0')
+    message = payload.get('message', '') # User might put username here?
+    shop_items = payload.get('shop_items', [])
+
+    # User Identification Strategy
+    # Priority 1: Check if email matches a user's bound email
+    target_username = None
+
+    # Try finding by email
+    if email:
+        for username, user_data in db['users'].items():
+            if user_data.get('email') == email:
+                target_username = username
+                break
+
+    # Priority 2: Check custom fields or message for username if no email match
+    # Ko-fi Shop items can have custom variants or checkout questions, often passed in 'shop_items'
+    if not target_username:
+        # Check shop items for explicit username field if available (Ko-fi specific implementation details vary)
+        # Assuming the user might put "username: myname" in the message or a custom field
+        # Simple heuristic: if message is exactly a valid username
+        potential_username = message.strip()
+        if potential_username and potential_username in db['users']:
+            target_username = potential_username
+
+    if not target_username:
+        # Log failure to find user
+        current_app.logger.warning(f"Ko-fi webhook: Could not identify user for email {email} or message {message}")
+        # Return 200 to Ko-fi so they stop retrying, but maybe log it internally as "Unclaimed"
+        # For now, just return OK.
+        return jsonify({'success': True, 'message': 'User not found, order recorded but not applied'}), 200
+
+    # 4. Calculate Membership Extension
+    # We only care about shop items for membership usually.
+    # Or if it's a "Donation" of $5 = 1 month?
+    # The prompt implies buying a product (Shop).
+
+    months_to_add = 0
+
+    if shop_items:
+        for item in shop_items:
+            # Assuming the product link provided (405169aafb) corresponds to a monthly membership
+            # We can check direct_link_code or just assume all shop items are memberships for now
+            # or check if name contains "Member"
+            qty = int(item.get('quantity', 1))
+            months_to_add += qty
+    else:
+        # If no shop items (e.g. Donation), maybe treat every $5 as a month?
+        # Let's stick to shop items as per prompt "Membership Top-up"
+        pass
+
+    if months_to_add == 0:
+        return jsonify({'success': True, 'message': 'No valid membership items found'}), 200
+
+    # 5. Apply Changes
+    user = db['users'][target_username]
+
+    # Initialize fields if missing
+    if 'membership_expiry' not in user:
+        user['membership_expiry'] = datetime.utcnow().isoformat() # or None?
+
+    current_expiry_str = user.get('membership_expiry')
+    now = datetime.utcnow()
+
+    if not current_expiry_str or current_expiry_str < now.isoformat():
+        # Expired or new -> Start from now
+        start_date = now
+    else:
+        # Active -> Start from current expiry
+        start_date = datetime.fromisoformat(current_expiry_str)
+
+    # Add days (30 days per month)
+    new_expiry = start_date + timedelta(days=30 * months_to_add)
+    user['membership_expiry'] = new_expiry.isoformat()
+    user['is_pro'] = True
+    user['pro_submission_status'] = 'approved' # Auto-approve logic replacement
+
+    # 6. Log Order
+    if 'orders' not in db:
+        db['orders'] = []
+
+    order_record = {
+        'id': str(uuid.uuid4()),
+        'provider': 'ko-fi',
+        'txn_id': payload.get('kofi_transaction_id') or payload.get('message_id'),
+        'username': target_username,
+        'email': email,
+        'amount': amount,
+        'months': months_to_add,
+        'timestamp': datetime.utcnow().isoformat(),
+        'raw_payload': payload
+    }
+    db['orders'].append(order_record)
+
+    save_db(db)
+
+    return jsonify({'success': True, 'message': f'Membership extended by {months_to_add} months for {target_username}'})
 
 HARDWARE_PROFILES = {
     'cpu': {

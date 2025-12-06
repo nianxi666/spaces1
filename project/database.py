@@ -144,6 +144,12 @@ def init_db():
     if 'richads_enabled' not in db['settings']:
         db['settings']['richads_enabled'] = True
 
+    if 'kofi_settings' not in db['settings']:
+        db['settings']['kofi_settings'] = {
+            'verification_token': '',
+            'shop_url': 'https://ko-fi.com/s/405169aafb'
+        }
+
     # Add a default Space if none exist
     if not db.get('spaces'):
         default_space_id = str(uuid.uuid4())

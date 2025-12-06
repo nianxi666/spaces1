@@ -12,47 +12,35 @@
     <div class="glass rounded-3xl overflow-hidden p-8 space-y-8">
 
         <!-- Status Banner -->
-        {% if user.pro_submission_status == 'pending' %}
-        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3">
-            <svg class="w-6 h-6 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        {% if user.is_pro %}
+        <div class="bg-green-50 border border-green-100 rounded-xl p-4 flex gap-3">
+            <svg class="w-6 h-6 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
             <div>
-                <h3 class="font-bold text-blue-800">审核中</h3>
-                <p class="text-sm text-blue-600 mt-1">您的申请已提交，管理员正在审核中。请耐心等待。</p>
-            </div>
-        </div>
-        {% elif user.pro_submission_status == 'rejected' %}
-        <div class="bg-red-50 border border-red-100 rounded-xl p-4 flex gap-3">
-            <svg class="w-6 h-6 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <div>
-                <h3 class="font-bold text-red-800">申请未通过</h3>
-                <p class="text-sm text-red-600 mt-1">很遗憾，您的申请未通过审核。您可以重新完成任务并再次提交。</p>
+                <h3 class="font-bold text-green-800">已是 Pro 会员</h3>
+                <p class="text-sm text-green-600 mt-1">有效期至: {{ user.membership_expiry if user.membership_expiry else '永久' }}</p>
             </div>
         </div>
         {% endif %}
 
-        <!-- Task Description -->
-        <div class="prose prose-pumpkin max-w-none">
-            <h3 class="text-lg font-bold text-gray-900">任务说明</h3>
-            <div class="text-gray-600 mt-2">
-                {{ pro_settings.task_description | safe }}
+        <!-- Ko-fi Top-up Card -->
+        <div class="text-center space-y-4">
+            <h2 class="text-xl font-bold text-gray-900">Pro 会员充值</h2>
+            <p class="text-gray-600">点击下方按钮前往 Ko-fi 购买会员时长。购买时请务必填写您的用户名或绑定邮箱。</p>
+
+            <div class="bg-yellow-50 p-4 rounded-xl text-left text-sm text-yellow-800 border border-yellow-100">
+                <p class="font-bold mb-1">注意：</p>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li>为了自动到账，请在 Ko-fi 支付页面的 <span class="font-bold">Message</span> 或相关字段中填写您的用户名：<span class="font-mono bg-yellow-100 px-1 rounded">{{ session.username }}</span></li>
+                    <li>或者，确保您在 Ko-fi 使用的邮箱与本站绑定邮箱一致（{{ user.email if user.email else '未绑定' }}）。</li>
+                    <li>购买多个数量将自动叠加时长（例如 2 个 = 2 个月）。</li>
+                </ul>
             </div>
+
+            <a href="https://ko-fi.com/s/405169aafb" target="_blank" class="inline-flex items-center justify-center gap-2 w-full py-4 px-6 bg-[#29abe0] text-white font-bold text-lg rounded-xl hover:shadow-lg hover:bg-[#1f93c2] transition-all transform active:scale-95">
+                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.916zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.832 3.011.723 4.311zm6.173.478c-.928.116-1.682.028-1.682.028V7.284h1.77s1.971.551 1.971 2.638c0 1.913-.985 2.667-2.059 3.015z"/></svg>
+                前往 Ko-fi 充值
+            </a>
         </div>
-
-        <div class="border-t border-gray-100"></div>
-
-        <!-- Submission Form -->
-        <form method="post" class="space-y-4">
-            <div>
-                <label for="submission_link" class="block text-sm font-medium text-gray-700 mb-2">任务完成链接</label>
-                <input type="url" id="submission_link" name="submission_link" placeholder="https://" required
-                       class="w-full rounded-xl border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500 px-4 py-3">
-                <p class="text-xs text-gray-500 mt-2">请填写您完成任务后的证明链接。</p>
-            </div>
-
-            <button type="submit" class="w-full py-3 px-6 bg-gradient-to-r from-pumpkin-500 to-rose-500 text-white font-bold rounded-xl hover:shadow-lg hover:from-pumpkin-600 hover:to-rose-600 transition-all transform active:scale-95">
-                提交申请
-            </button>
-        </form>
     </div>
 </div>
 {% endblock %}

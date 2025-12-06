@@ -3,6 +3,7 @@ import uuid
 import json
 import psutil
 import time
+import requests
 from datetime import datetime, timedelta
 from flask import (
     Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
@@ -31,6 +32,16 @@ def ensure_pro_settings(db):
         db['pro_settings'].setdefault('enabled', False)
         db['pro_settings'].setdefault('task_description', '')
     return db['pro_settings']
+
+def ensure_kofi_settings(db):
+    if 'settings' not in db:
+        db['settings'] = {}
+    if 'kofi_settings' not in db['settings']:
+        db['settings']['kofi_settings'] = {
+            'verification_token': '',
+            'shop_url': 'https://ko-fi.com/s/405169aafb'
+        }
+    return db['settings']['kofi_settings']
 
 def ensure_netmind_settings(db):
     if 'netmind_settings' not in db:
@@ -125,16 +136,85 @@ def system_stats():
 @admin_bp.route('/pro_settings', methods=['GET', 'POST'])
 def manage_pro_settings():
     db = load_db()
-    settings = ensure_pro_settings(db)
+    pro_settings = ensure_pro_settings(db)
+    kofi_settings = ensure_kofi_settings(db)
 
     if request.method == 'POST':
-        settings['enabled'] = request.form.get('enabled') == 'on'
-        settings['task_description'] = request.form.get('task_description', '')
+        pro_settings['enabled'] = request.form.get('enabled') == 'on'
+        pro_settings['task_description'] = request.form.get('task_description', '')
+
+        kofi_settings['verification_token'] = request.form.get('verification_token', '').strip()
+        kofi_settings['shop_url'] = request.form.get('shop_url', '').strip()
+
         save_db(db)
         flash('Pro 会员设置已保存。', 'success')
         return redirect(url_for('admin.manage_pro_settings'))
 
-    return render_template('admin_pro_settings.html', settings=settings)
+    return render_template('admin_pro_settings.html', settings=pro_settings, kofi_settings=kofi_settings)
+
+@admin_bp.route('/kofi/test', methods=['POST'])
+def test_kofi_webhook():
+    """Simulate a Ko-fi webhook to test configuration."""
+    if not session.get('is_admin'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    db = load_db()
+    kofi_settings = ensure_kofi_settings(db)
+    token = kofi_settings.get('verification_token')
+
+    if not token:
+        return jsonify({'success': False, 'error': '请先配置 Verification Token'}), 400
+
+    # Construct a dummy payload
+    payload = {
+        'verification_token': token,
+        'message_id': str(uuid.uuid4()),
+        'timestamp': datetime.utcnow().isoformat(),
+        'type': 'Shop Order',
+        'is_public': True,
+        'from_name': 'Test User',
+        'message': 'Test Order',
+        'amount': '5.00',
+        'currency': 'USD',
+        'email': 'admin_test@example.com',
+        'shop_items': [
+            {'direct_link_code': '405169aafb', 'quantity': 1}
+        ]
+    }
+
+    # Attempt to hit the local webhook endpoint to verifying functionality
+    # We use 127.0.0.1 explicitly to avoid DNS issues in some environments
+    port = '5001' # Default Flask port as per memory
+    if request.host and ':' in request.host:
+         port = request.host.split(':')[-1]
+
+    target_url = f"http://127.0.0.1:{port}{url_for('api.kofi_webhook')}"
+
+    try:
+        # Send data as form-data 'data' JSON string, mimicking Ko-fi
+        response = requests.post(target_url, data={'data': json.dumps(payload)}, timeout=5)
+
+        if response.status_code == 200:
+             return jsonify({
+                'success': True,
+                'message': f'测试成功！Webhook 端点响应正常 (200 OK)。\nPayload sent to: {target_url}'
+            })
+        elif response.status_code == 403:
+             return jsonify({
+                'success': False,
+                'error': f'验证失败 (403)。请检查 Verification Token 是否一致。'
+            })
+        else:
+             return jsonify({
+                'success': False,
+                'error': f'Webhook 端点返回异常状态: {response.status_code}'
+            })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'无法连接到本地 Webhook 端点 ({target_url}): {str(e)}'
+        }), 500
 
 @admin_bp.route('/users')
 def manage_users():
