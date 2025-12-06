@@ -256,7 +256,10 @@ def pro_apply():
         return redirect(url_for('main.profile'))
 
     username = session['username']
-    user = db['users'].get(username, {})
+    # Use a copy to inject username field without affecting DB
+    user_data = db['users'].get(username, {})
+    user = user_data.copy()
+    user['username'] = username
 
     if request.method == 'POST':
         # Handle Manual Submission
