@@ -73,10 +73,15 @@
             <!-- Test API Button -->
             <div>
                 <button onclick="testPayhipAPI()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
-                    测试 Payhip API
+                    测试 Payhip API（尝试多种认证方式）
                 </button>
-                <p class="text-xs text-gray-500 mt-2">点击测试 API 连接，查看返回的订单数据（需要先配置 API Key）</p>
+                <p class="text-xs text-gray-500 mt-2">
+                    点击测试多种 API 认证方式，系统会尝试 6 种不同的方法连接 Payhip API。<br>
+                    <strong>注意</strong>：当前 API Key 可能不正确。Payhip 的 API Key 通常以 <code>payhip_</code> 开头，而不是 Webhook Secret。<br>
+                    <a href="https://payhip.com/account/api" target="_blank" class="text-blue-600 hover:underline">→ 访问 Payhip API 设置</a>
+                </p>
                 <pre id="api-test-result" class="mt-3 bg-gray-50 p-3 rounded text-xs overflow-auto max-h-96 hidden"></pre>
+                <div id="api-test-summary" class="mt-3 hidden"></div>
             </div>
 
             <!-- Manual Activation Form -->
@@ -110,15 +115,60 @@
     <script>
     async function testPayhipAPI() {
         const resultDiv = document.getElementById('api-test-result');
+        const summaryDiv = document.getElementById('api-test-summary');
         resultDiv.classList.remove('hidden');
-        resultDiv.textContent = '测试中...';
+        summaryDiv.classList.remove('hidden');
+        resultDiv.textContent = '正在测试 6 种不同的认证方式...';
+        summaryDiv.innerHTML = '<div class="text-gray-600">测试中...</div>';
         
         try {
             const response = await fetch('/api/payment/test_payhip_api');
             const data = await response.json();
+            
+            // Show full results
             resultDiv.textContent = JSON.stringify(data, null, 2);
+            
+            // Show summary
+            if (data.results) {
+                let successMethods = [];
+                let failedMethods = [];
+                
+                for (let [method, result] of Object.entries(data.results)) {
+                    if (result.SUCCESS) {
+                        successMethods.push(method);
+                    } else if (result.status_code === 200) {
+                        successMethods.push(method + ' (可能成功)');
+                    } else {
+                        failedMethods.push(`${method}: ${result.status_code || 'Error'}`);
+                    }
+                }
+                
+                let summaryHTML = '';
+                if (successMethods.length > 0) {
+                    summaryHTML += '<div class="p-3 bg-green-50 border border-green-200 rounded mb-2">';
+                    summaryHTML += '<div class="font-bold text-green-800 mb-1">✓ 成功的方法：</div>';
+                    summaryHTML += '<ul class="text-sm text-green-700 list-disc list-inside">';
+                    successMethods.forEach(m => summaryHTML += `<li>${m}</li>`);
+                    summaryHTML += '</ul></div>';
+                } else {
+                    summaryHTML += '<div class="p-3 bg-red-50 border border-red-200 rounded mb-2">';
+                    summaryHTML += '<div class="font-bold text-red-800 mb-1">✗ 所有方法都失败了</div>';
+                    summaryHTML += '<div class="text-sm text-red-700">';
+                    summaryHTML += '<strong>可能的原因：</strong><br>';
+                    summaryHTML += '1. API Key 不正确（您可能填写的是 Webhook Secret）<br>';
+                    summaryHTML += '2. Payhip 账号没有启用 API 访问<br>';
+                    summaryHTML += '3. Payhip 的 API 需要特殊权限<br><br>';
+                    summaryHTML += '<strong>建议：</strong><br>';
+                    summaryHTML += '• 访问 <a href="https://payhip.com/account/api" target="_blank" class="underline">Payhip API 设置</a> 获取正确的 API Key<br>';
+                    summaryHTML += '• 使用<strong>批量激活</strong>功能手动处理订单（100% 可靠）';
+                    summaryHTML += '</div></div>';
+                }
+                
+                summaryDiv.innerHTML = summaryHTML;
+            }
         } catch (e) {
             resultDiv.textContent = '错误: ' + e.message;
+            summaryDiv.innerHTML = '<div class="text-red-600">请求失败: ' + e.message + '</div>';
         }
     }
 

@@ -1851,41 +1851,109 @@ def test_payhip_api():
     if not payhip_api_key:
         return jsonify({'success': False, 'error': 'Payhip API Key not configured'}), 400
     
-    # Try multiple possible endpoints
-    endpoints_to_try = [
-        'https://payhip.com/api/v1/sales',
-        'https://payhip.com/api/v1/sales?limit=50',
-        'https://payhip.com/api/sales',
+    # Try multiple authentication methods and endpoints
+    # Based on common API patterns and Payhip documentation
+    test_configs = [
+        {
+            'name': 'Method 1: payhip-api-key header',
+            'url': 'https://payhip.com/api/v1/sales',
+            'headers': {
+                'payhip-api-key': payhip_api_key,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        },
+        {
+            'name': 'Method 2: Authorization Bearer',
+            'url': 'https://payhip.com/api/v1/sales',
+            'headers': {
+                'Authorization': f'Bearer {payhip_api_key}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        },
+        {
+            'name': 'Method 3: URL parameter',
+            'url': f'https://payhip.com/api/v1/sales?api_key={payhip_api_key}',
+            'headers': {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        },
+        {
+            'name': 'Method 4: X-API-Key header',
+            'url': 'https://payhip.com/api/v1/sales',
+            'headers': {
+                'X-API-Key': payhip_api_key,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        },
+        {
+            'name': 'Method 5: Basic Auth',
+            'url': 'https://payhip.com/api/v1/sales',
+            'auth': (payhip_api_key, ''),
+            'headers': {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        },
+        {
+            'name': 'Method 6: Alternative endpoint with payhip-api-key',
+            'url': 'https://payhip.com/api/sales',
+            'headers': {
+                'payhip-api-key': payhip_api_key,
+                'Accept': 'application/json'
+            }
+        }
     ]
     
     results = {}
     
-    for endpoint in endpoints_to_try:
+    for config in test_configs:
+        method_name = config['name']
+        url = config['url']
+        headers = config.get('headers', {})
+        auth = config.get('auth')
+        
         try:
-            headers = {
-                'payhip-api-key': payhip_api_key,
-                'Accept': 'application/json'
-            }
+            current_app.logger.info(f"Testing: {method_name}")
             
-            current_app.logger.info(f"Testing Payhip API endpoint: {endpoint}")
-            response = requests.get(endpoint, headers=headers, timeout=10)
+            kwargs = {
+                'headers': headers,
+                'timeout': 10
+            }
+            if auth:
+                kwargs['auth'] = auth
+            
+            response = requests.get(url, **kwargs)
             
             result = {
                 'status_code': response.status_code,
                 'headers': dict(response.headers),
-                'raw_text': response.text[:1000] if response.text else None,
+                'raw_text': response.text[:500] if response.text else None,
             }
             
-            try:
-                result['json'] = response.json()
-            except:
-                result['json'] = None
+            # Try to parse JSON
+            if response.headers.get('Content-Type', '').startswith('application/json'):
+                try:
+                    result['json'] = response.json()
+                    result['is_json'] = True
+                except:
+                    result['is_json'] = False
+            else:
+                result['is_json'] = False
             
-            results[endpoint] = result
+            results[method_name] = result
+            
+            # If we got a successful JSON response, highlight it
+            if response.status_code == 200 and result.get('is_json'):
+                results[method_name]['SUCCESS'] = True
+                
         except Exception as e:
-            results[endpoint] = {'error': str(e)}
+            results[method_name] = {'error': str(e)}
     
-    return jsonify({'success': True, 'results': results})
+    return jsonify({'success': True, 'results': results, 'note': '查找标记为 SUCCESS=True 的方法'})
 
 @api_bp.route('/payment/manual_activate', methods=['POST'])
 def manual_activate_membership():
