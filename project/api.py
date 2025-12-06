@@ -1832,6 +1832,134 @@ def check_payment_status():
 
     return jsonify({'success': False, 'message': 'Latest order not found or not recent'})
 
+@api_bp.route('/payment/test_payhip_api', methods=['GET'])
+def test_payhip_api():
+    """Admin endpoint to test Payhip API and see raw response"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+    
+    username = session.get('username')
+    db = load_db()
+    user = db['users'].get(username)
+    
+    if not user or not user.get('is_admin'):
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    
+    settings = db.get('payment_settings', {})
+    payhip_api_key = settings.get('payhip_api_key', '').strip()
+    
+    if not payhip_api_key:
+        return jsonify({'success': False, 'error': 'Payhip API Key not configured'}), 400
+    
+    # Try multiple possible endpoints
+    endpoints_to_try = [
+        'https://payhip.com/api/v1/sales',
+        'https://payhip.com/api/v1/sales?limit=50',
+        'https://payhip.com/api/sales',
+    ]
+    
+    results = {}
+    
+    for endpoint in endpoints_to_try:
+        try:
+            headers = {
+                'payhip-api-key': payhip_api_key,
+                'Accept': 'application/json'
+            }
+            
+            current_app.logger.info(f"Testing Payhip API endpoint: {endpoint}")
+            response = requests.get(endpoint, headers=headers, timeout=10)
+            
+            result = {
+                'status_code': response.status_code,
+                'headers': dict(response.headers),
+                'raw_text': response.text[:1000] if response.text else None,
+            }
+            
+            try:
+                result['json'] = response.json()
+            except:
+                result['json'] = None
+            
+            results[endpoint] = result
+        except Exception as e:
+            results[endpoint] = {'error': str(e)}
+    
+    return jsonify({'success': True, 'results': results})
+
+@api_bp.route('/payment/manual_activate', methods=['POST'])
+def manual_activate_membership():
+    """Admin endpoint to manually activate membership based on order ID verification"""
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+    
+    current_user = session.get('username')
+    db = load_db()
+    admin_user = db['users'].get(current_user)
+    
+    if not admin_user or not admin_user.get('is_admin'):
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    
+    data = request.get_json()
+    target_username = data.get('username', '').strip()
+    order_id = data.get('order_id', '').strip()
+    email = data.get('email', '').strip()
+    
+    if not target_username or not order_id:
+        return jsonify({'success': False, 'error': 'Username and order_id are required'}), 400
+    
+    target_user = db['users'].get(target_username)
+    if not target_user:
+        return jsonify({'success': False, 'error': f'User {target_username} not found'}), 404
+    
+    # Check for duplicate order
+    if 'orders' not in db:
+        db['orders'] = []
+    
+    for order in db['orders']:
+        if order.get('order_id') == order_id:
+            return jsonify({'success': False, 'error': 'Order already processed', 'order': order}), 400
+    
+    # Process membership
+    now = datetime.utcnow()
+    current_expiry_str = target_user.get('membership_expiry')
+    current_expiry = now
+    
+    if current_expiry_str:
+        try:
+            current_expiry_dt = datetime.fromisoformat(current_expiry_str)
+            if current_expiry_dt > now:
+                current_expiry = current_expiry_dt
+        except ValueError:
+            pass
+    
+    new_expiry = current_expiry + timedelta(days=30)
+    target_user['membership_expiry'] = new_expiry.isoformat()
+    target_user['is_pro'] = True
+    
+    # Record order
+    new_order = {
+        'order_id': order_id,
+        'username': target_username,
+        'email': email,
+        'amount': 0,
+        'currency': 'USD',
+        'status': 'paid',
+        'created_at': now.isoformat(),
+        'source': 'manual_admin',
+        'processed_by': current_user
+    }
+    db['orders'].append(new_order)
+    save_db(db)
+    
+    current_app.logger.info(f"Admin {current_user} manually activated membership for {target_username} with order {order_id}")
+    
+    return jsonify({
+        'success': True,
+        'message': f'Membership activated for {target_username} until {new_expiry.isoformat()}',
+        'new_expiry': new_expiry.isoformat()
+    })
+
 @api_bp.route('/v1/chat/completions', methods=['POST'])
 def netmind_chat_completions():
     """
