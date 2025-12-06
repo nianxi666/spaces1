@@ -201,7 +201,51 @@ def test_kofi_webhook():
 def manage_orders():
     db = load_db()
     orders = db.get('orders', [])
-    return render_template('admin_orders.html', orders=orders)
+    webhook_events = db.get('webhook_events', [])
+    return render_template('admin_orders.html', orders=orders, webhook_events=webhook_events)
+
+@admin_bp.route('/orders/generate_test_orders', methods=['POST'])
+def generate_test_orders():
+    db = load_db()
+
+    # 1. Fake Success Order
+    fake_order = {
+        'id': f'test-success-{str(uuid.uuid4())[:8]}',
+        'user': session.get('username', 'admin_user'),
+        'provider': 'kofi',
+        'amount': '5.00',
+        'currency': 'USD',
+        'quantity': 1,
+        'days_added': 30,
+        'timestamp': datetime.utcnow().isoformat(),
+        'raw_data': {'message': 'Generated Test Order'}
+    }
+    if 'orders' not in db:
+        db['orders'] = []
+    db['orders'].append(fake_order)
+
+    # 2. Fake Failed Webhook Event
+    fake_event = {
+        'id': str(uuid.uuid4()),
+        'timestamp': datetime.utcnow().isoformat(),
+        'payload': {
+            'from_name': 'Unknown User',
+            'email': 'unknown@test.com',
+            'amount': '10.00',
+            'currency': 'USD'
+        },
+        'status': 'ignored',
+        'message': 'User not found for Email=unknown@test.com',
+        'order_id': None,
+        'is_recovered': False
+    }
+    if 'webhook_events' not in db:
+        db['webhook_events'] = []
+    db['webhook_events'].insert(0, fake_event)
+
+    save_db(db)
+    flash('测试数据已生成。', 'success')
+    return redirect(url_for('admin.manage_orders'))
 
 @admin_bp.route('/users')
 def manage_users():
