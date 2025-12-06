@@ -93,6 +93,17 @@
                 </button>
                 <div id="manual-result" class="mt-3 text-sm"></div>
             </div>
+
+            <!-- Batch Activation Form -->
+            <div class="pt-4 border-t border-gray-100">
+                <h3 class="font-medium text-gray-900 mb-3">批量激活会员</h3>
+                <p class="text-sm text-gray-500 mb-4">一次性激活多个订单，每行一个，格式：用户名,订单ID,邮箱（邮箱可选）</p>
+                <textarea id="batch-data" rows="5" placeholder="例如：&#10;user1,LWRwLk8Pza,email1@example.com&#10;user2,KzyO74ekGX&#10;user3,2GZxenZ6zp,email3@example.com" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500 font-mono text-sm"></textarea>
+                <button onclick="batchActivate()" class="mt-3 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors font-medium">
+                    批量激活
+                </button>
+                <div id="batch-result" class="mt-3 text-sm"></div>
+            </div>
         </div>
     </div>
 
@@ -147,6 +158,84 @@
             }
         } catch (e) {
             resultDiv.innerHTML = '<span class="text-red-600">错误: ' + e.message + '</span>';
+        }
+    }
+
+    async function batchActivate() {
+        const batchData = document.getElementById('batch-data').value.trim();
+        const resultDiv = document.getElementById('batch-result');
+        
+        if (!batchData) {
+            resultDiv.innerHTML = '<span class="text-red-600">请输入订单数据</span>';
+            return;
+        }
+        
+        const lines = batchData.split('\n').filter(line => line.trim());
+        if (lines.length === 0) {
+            resultDiv.innerHTML = '<span class="text-red-600">没有有效的数据</span>';
+            return;
+        }
+        
+        resultDiv.innerHTML = '<span class="text-gray-600">处理中... (0/' + lines.length + ')</span>';
+        
+        const results = [];
+        let successCount = 0;
+        let failCount = 0;
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            const parts = line.split(',').map(p => p.trim());
+            
+            if (parts.length < 2) {
+                results.push(`❌ 第 ${i + 1} 行格式错误: ${line}`);
+                failCount++;
+                continue;
+            }
+            
+            const [username, orderId, email] = parts;
+            
+            try {
+                const response = await fetch('/api/payment/manual_activate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, order_id: orderId, email: email || '' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    results.push(`✓ ${username} (${orderId}): 成功`);
+                    successCount++;
+                } else {
+                    results.push(`✗ ${username} (${orderId}): ${data.error}`);
+                    failCount++;
+                }
+            } catch (e) {
+                results.push(`✗ ${username} (${orderId}): ${e.message}`);
+                failCount++;
+            }
+            
+            // Update progress
+            resultDiv.innerHTML = '<span class="text-gray-600">处理中... (' + (i + 1) + '/' + lines.length + ')</span>';
+        }
+        
+        // Show final results
+        const summaryColor = failCount === 0 ? 'text-green-600' : (successCount === 0 ? 'text-red-600' : 'text-orange-600');
+        let html = '<div class="' + summaryColor + ' font-bold mb-2">完成！成功: ' + successCount + ' / 失败: ' + failCount + '</div>';
+        html += '<div class="text-xs space-y-1 max-h-48 overflow-y-auto bg-gray-50 p-2 rounded">';
+        results.forEach(r => {
+            const color = r.startsWith('✓') ? 'text-green-600' : 'text-red-600';
+            html += '<div class="' + color + '">' + r + '</div>';
+        });
+        html += '</div>';
+        resultDiv.innerHTML = html;
+        
+        // Clear input and reload if any success
+        if (successCount > 0) {
+            document.getElementById('batch-data').value = '';
+            setTimeout(() => location.reload(), 2000);
         }
     }
     </script>
