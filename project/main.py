@@ -256,21 +256,24 @@ def pro_apply():
         return redirect(url_for('main.profile'))
 
     username = session['username']
-    # Use a copy to inject username field without affecting DB
+    # Use a copy to inject username field without affecting DB for template rendering
     user_data = db['users'].get(username, {})
     user = user_data.copy()
     user['username'] = username
 
     if request.method == 'POST':
+        # Refresh user from DB for mutation to ensure we don't save the shallow copy back
+        # The user_data variable already holds the reference to the DB object
+        user_for_db = user_data
         # Handle Manual Submission
         if not payment_settings.get('enabled'):
             link = request.form.get('submission_link', '').strip()
             if not link:
                 flash('请提交任务链接。', 'error')
             else:
-                user['pro_submission_link'] = link
-                user['pro_submission_status'] = 'pending'
-                user['pro_submission_date'] = datetime.utcnow().isoformat()
+                user_for_db['pro_submission_link'] = link
+                user_for_db['pro_submission_status'] = 'pending'
+                user_for_db['pro_submission_date'] = datetime.utcnow().isoformat()
                 save_db(db)
                 flash('申请已提交，请等待审核。', 'success')
                 return redirect(url_for('main.profile'))

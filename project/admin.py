@@ -1082,6 +1082,63 @@ def save_ad_settings():
         'message': '广告设置已更新'
     })
 
+@admin_bp.route('/payment/add_manual_order', methods=['POST'])
+def add_manual_order():
+    db = load_db()
+    order_id = request.form.get('order_id', '').strip()
+    username = request.form.get('username', '').strip()
+    email = request.form.get('email', '').strip()
+
+    if not order_id or not username:
+        flash('订单号和用户名必填。', 'error')
+        return redirect(url_for('admin.manage_payment_settings'))
+
+    # Check if order already exists
+    for order in db.get('orders', []):
+        if order.get('order_id') == order_id:
+            flash(f'订单 {order_id} 已存在。', 'error')
+            return redirect(url_for('admin.manage_payment_settings'))
+
+    # Verify user exists
+    user = db.get('users', {}).get(username)
+    if not user:
+        flash(f'用户 {username} 不存在。', 'error')
+        return redirect(url_for('admin.manage_payment_settings'))
+
+    # Add 30 days to user membership
+    now = datetime.utcnow()
+    current_expiry_str = user.get('membership_expiry')
+    current_expiry = now
+    if current_expiry_str:
+        try:
+            current_expiry_dt = datetime.fromisoformat(current_expiry_str)
+            if current_expiry_dt > now:
+                current_expiry = current_expiry_dt
+        except ValueError:
+            pass
+
+    new_expiry = current_expiry + timedelta(days=30)
+    user['membership_expiry'] = new_expiry.isoformat()
+    user['is_pro'] = True
+
+    # Record Order
+    new_order = {
+        'order_id': order_id,
+        'username': username,
+        'email': email,
+        'amount': 'manual', # Indicate manual entry
+        'currency': 'USD',
+        'status': 'paid',
+        'created_at': now.isoformat()
+    }
+    if 'orders' not in db:
+        db['orders'] = []
+    db['orders'].append(new_order)
+
+    save_db(db)
+    flash(f'订单 {order_id} 已补录，用户 {username} 会员已延长。', 'success')
+    return redirect(url_for('admin.manage_payment_settings'))
+
 @admin_bp.route('/payment_settings', methods=['GET', 'POST'])
 def manage_payment_settings():
     db = load_db()

@@ -54,6 +54,33 @@
     </div>
 
     <!-- Recent Orders (Read-only view for now) -->
+    <!-- Manual Order Recovery -->
+    <div class="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-6 border-b border-gray-100">
+            <h2 class="text-lg font-bold text-gray-900">手动补录订单</h2>
+            <p class="text-sm text-gray-500 mt-1">如果自动同步失败，可在此手动输入订单信息进行补录。补录后用户将自动获得 Pro 会员资格。</p>
+        </div>
+        <form action="{{ url_for('admin.add_manual_order') }}" method="post" class="p-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div>
+                <label for="manual_order_id" class="block text-sm font-medium text-gray-700 mb-1">订单号 (TxID)</label>
+                <input type="text" id="manual_order_id" name="order_id" placeholder="例如: LWRwLk8Pza" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500 font-mono">
+            </div>
+            <div>
+                <label for="manual_username" class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                <input type="text" id="manual_username" name="username" placeholder="关联的网站用户名" required class="w-full rounded-lg border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500">
+            </div>
+            <div>
+                <label for="manual_email" class="block text-sm font-medium text-gray-700 mb-1">邮箱 (选填)</label>
+                <input type="email" id="manual_email" name="email" placeholder="customer@example.com" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500">
+            </div>
+            <div>
+                <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                    补录订单
+                </button>
+            </div>
+        </form>
+    </div>
+
     <div class="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="p-6 border-b border-gray-100 flex justify-between items-center">
             <h2 class="text-lg font-bold text-gray-900">最近订单</h2>
