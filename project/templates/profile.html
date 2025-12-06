@@ -57,7 +57,7 @@
                         </div>
                         <div class="flex-1">
                             <h3 class="font-bold text-gray-900">升级到 Pro</h3>
-                            <p class="text-sm text-gray-500">无限次推理，专用 GPU，更多高级功能。</p>
+                            <p class="text-sm text-gray-500">{{ pro_settings.task_description | default('无限次推理，专用 GPU，更多高级功能。', true) | markdown | striptags }}</p>
                         </div>
                         {% if pro_settings.kofi_shop_link %}
                         <a href="{{ pro_settings.kofi_shop_link }}" target="_blank" class="px-4 py-2 bg-gradient-to-r from-pumpkin-500 to-red-500 text-white text-xs font-bold rounded-lg hover:from-pumpkin-600 hover:to-red-600 transition-all shadow-md hover:shadow-lg flex items-center gap-1">

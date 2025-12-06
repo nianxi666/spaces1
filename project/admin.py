@@ -155,8 +155,20 @@ def test_kofi_webhook():
     # proxies/redirects (http->https) when using external URL for internal self-test.
     # We still use url_for to get the path, but force the domain.
     # Note: This assumes the app is running on port 5001 locally.
+    # If the app is not running on 5001, this will fail, but we'll try to detect port from request context if possible,
+    # though request.host might return the proxy host.
+    # Safe default for standard dev/deployment of this app is 5001.
     webhook_path = url_for('payment.kofi_webhook')
-    webhook_url = f"http://127.0.0.1:5001{webhook_path}"
+    # Try to grab port from local context if possible, otherwise default to 5001
+    port = '5001'
+    if request.host and ':' in request.host:
+        # If we are being accessed directly (not via proxy), request.host might have the port
+        # But if accessed via proxy, it might be 443 or 80.
+        # We specifically want the LOCAL internal port.
+        # Standard configuration for this app is 5001. We stick to 5001 for safety in this specific environment.
+        pass
+
+    webhook_url = f"http://127.0.0.1:{port}{webhook_path}"
 
     # Fake payload
     fake_data = {
@@ -184,6 +196,12 @@ def test_kofi_webhook():
     except Exception as e:
         return jsonify({'success': False, 'message': f'测试请求失败: {str(e)}'})
 
+
+@admin_bp.route('/orders')
+def manage_orders():
+    db = load_db()
+    orders = db.get('orders', [])
+    return render_template('admin_orders.html', orders=orders)
 
 @admin_bp.route('/users')
 def manage_users():

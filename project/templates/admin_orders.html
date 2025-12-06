@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+{% block title %}充值订单 - 南瓜AI 管理后台{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto pb-12">
+    <div class="flex items-center gap-4 mb-6">
+        <a href="{{ url_for('admin.admin_panel') }}" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </a>
+        <h1 class="text-2xl font-bold text-gray-900">充值订单记录</h1>
+    </div>
+
+    <div class="glass rounded-3xl overflow-hidden shadow-lg bg-white">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-100">
+                        <th class="p-4 font-bold text-gray-600 text-sm">时间</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">用户</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">金额</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">时长 (天)</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">Ko-fi ID / 备注</th>
+                        <th class="p-4 font-bold text-gray-600 text-sm">来源</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm">
+                    {% for order in orders | reverse %}
+                    <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                        <td class="p-4 text-gray-600">
+                            {{ order.timestamp | replace('T', ' ') | truncate(19, True, '') }}
+                        </td>
+                        <td class="p-4">
+                            <span class="font-bold text-gray-900">{{ order.user }}</span>
+                            {% if order.raw_data.email %}
+                            <div class="text-xs text-gray-400 mt-0.5">{{ order.raw_data.email }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 font-mono text-green-600 font-bold">
+                            {{ order.currency }} {{ order.amount }}
+                        </td>
+                        <td class="p-4">
+                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded-md text-xs font-bold">+{{ order.days_added }} 天</span>
+                        </td>
+                        <td class="p-4 text-gray-500 font-mono text-xs">
+                            {{ order.id }}
+                            {% if order.raw_data.message %}
+                            <div class="mt-1 text-gray-400 italic">"{{ order.raw_data.message }}"</div>
+                            {% endif %}
+                        </td>
+                        <td class="p-4">
+                            <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs">Ko-fi</span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="p-8 text-center text-gray-400">
+                            暂无充值记录
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
