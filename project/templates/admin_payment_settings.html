@@ -48,10 +48,13 @@
             <!-- Payhip API Key -->
             <div>
                 <label for="payhip_api_key" class="block text-sm font-medium text-gray-700 mb-1">Payhip API Key (可选)</label>
-                <input type="text" id="payhip_api_key" name="payhip_api_key" value="{{ settings.payhip_api_key }}" placeholder="payhip_xxx..." class="w-full rounded-lg border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500 font-mono">
+                <input type="text" id="payhip_api_key" name="payhip_api_key" value="{{ settings.payhip_api_key }}" placeholder="payhip_live_xxx... 或 payhip_test_xxx..." class="w-full rounded-lg border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500 font-mono">
                 <p class="text-xs text-gray-500 mt-1">
-                    填写后，如果 Webhook 未触发（例如使用了 100% 优惠码），系统将主动查询 Payhip API 来确认订单。<br>
-                    您可以在 Payhip 后台的 "Settings → API" 中获取 API Key。
+                    <strong>重要：</strong>请填写 Payhip API Key，而不是 Webhook Secret！<br>
+                    • API Key 格式：<code>payhip_live_xxx...</code> 或 <code>payhip_test_xxx...</code><br>
+                    • Webhook Secret 格式：随机字符串（已在上方填写）<br>
+                    • 获取位置：<a href="https://payhip.com/account/api" target="_blank" class="text-blue-600 hover:underline">Payhip → Account → API Settings</a><br>
+                    • 官方文档：<a href="https://payhip.com/api-reference" target="_blank" class="text-blue-600 hover:underline">Payhip API Reference</a>
                 </p>
             </div>
 

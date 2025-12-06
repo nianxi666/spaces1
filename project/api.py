@@ -1706,21 +1706,24 @@ def check_payment_status():
     if payhip_api_key:
         current_app.logger.info("No recent local order found, querying Payhip API...")
         try:
-            # Query Payhip API for sales (last 24 hours)
-            # Note: Payhip API endpoint might vary, this is a common pattern
+            # Based on Payhip official API documentation
+            # Try license_keys endpoint first (more reliable for tracking sales)
             headers = {
-                'payhip-api-key': payhip_api_key,
-                'Accept': 'application/json'
+                'payhip-api-key': payhip_api_key
             }
             
-            # Try to get sales from last 24 hours
-            response = requests.get(
-                'https://payhip.com/api/v1/sales',
-                headers=headers,
-                timeout=10
-            )
+            # Calculate date range (last 24 hours)
+            end_date = datetime.utcnow()
+            start_date = end_date - timedelta(hours=24)
+            
+            # Try license_keys endpoint with date range
+            url = f'https://payhip.com/api/v1/license_keys?start_date={start_date.strftime("%Y-%m-%d")}&end_date={end_date.strftime("%Y-%m-%d")}'
+            
+            current_app.logger.info(f"Querying Payhip API: {url}")
+            response = requests.get(url, headers=headers, timeout=10)
             
             current_app.logger.info(f"Payhip API response status: {response.status_code}")
+            current_app.logger.info(f"Payhip API response headers: {dict(response.headers)}")
             
             if response.status_code == 200:
                 sales_data = response.json()
@@ -1851,59 +1854,55 @@ def test_payhip_api():
     if not payhip_api_key:
         return jsonify({'success': False, 'error': 'Payhip API Key not configured'}), 400
     
-    # Try multiple authentication methods and endpoints
-    # Based on common API patterns and Payhip documentation
+    # Based on Payhip official API documentation
+    # https://payhip.com/api-reference
+    
+    # Calculate date range for recent sales (last 7 days)
+    from datetime import datetime, timedelta
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=7)
+    
     test_configs = [
         {
-            'name': 'Method 1: payhip-api-key header',
+            'name': 'Official: /api/v1/license_keys (recommended)',
+            'url': 'https://payhip.com/api/v1/license_keys',
+            'headers': {
+                'payhip-api-key': payhip_api_key
+            }
+        },
+        {
+            'name': 'Official: /api/v1/license_keys with date range',
+            'url': f'https://payhip.com/api/v1/license_keys?start_date={start_date.strftime("%Y-%m-%d")}&end_date={end_date.strftime("%Y-%m-%d")}',
+            'headers': {
+                'payhip-api-key': payhip_api_key
+            }
+        },
+        {
+            'name': 'Official: /api/v1/sales',
             'url': 'https://payhip.com/api/v1/sales',
             'headers': {
-                'payhip-api-key': payhip_api_key,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'payhip-api-key': payhip_api_key
             }
         },
         {
-            'name': 'Method 2: Authorization Bearer',
-            'url': 'https://payhip.com/api/v1/sales',
+            'name': 'Official: /api/v1/sales with limit',
+            'url': 'https://payhip.com/api/v1/sales?limit=50',
             'headers': {
-                'Authorization': f'Bearer {payhip_api_key}',
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'payhip-api-key': payhip_api_key
             }
         },
         {
-            'name': 'Method 3: URL parameter',
-            'url': f'https://payhip.com/api/v1/sales?api_key={payhip_api_key}',
+            'name': 'Alternative: Authorization header',
+            'url': 'https://payhip.com/api/v1/license_keys',
             'headers': {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Authorization': f'Bearer {payhip_api_key}'
             }
         },
         {
-            'name': 'Method 4: X-API-Key header',
-            'url': 'https://payhip.com/api/v1/sales',
+            'name': 'Test: Verify API key format',
+            'url': 'https://payhip.com/api/v1/verify',
             'headers': {
-                'X-API-Key': payhip_api_key,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        },
-        {
-            'name': 'Method 5: Basic Auth',
-            'url': 'https://payhip.com/api/v1/sales',
-            'auth': (payhip_api_key, ''),
-            'headers': {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        },
-        {
-            'name': 'Method 6: Alternative endpoint with payhip-api-key',
-            'url': 'https://payhip.com/api/sales',
-            'headers': {
-                'payhip-api-key': payhip_api_key,
-                'Accept': 'application/json'
+                'payhip-api-key': payhip_api_key
             }
         }
     ]
