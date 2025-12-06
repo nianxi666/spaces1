@@ -1172,15 +1172,23 @@ def test_payhip_config():
                 'message': '认证失败 (Unauthorized)。请检查 Product Secret Key 是否正确。'
             })
         elif response.status_code == 200:
-            # Even if the key is invalid (which TEST-KEY is), a 200 means auth succeeded
+            # Valid license key found (unlikely for dummy key but possible)
             return jsonify({
                 'success': True,
                 'message': '连接成功！API 密钥配置正确。'
             })
+        elif response.status_code == 400:
+            # Bad Request usually means the license key is invalid, BUT Auth was successful.
+            # Payhip returns 400 {"data":[],"error":true} for invalid license keys if the secret key IS correct.
+            # If the secret key was wrong, it would be 401.
+            return jsonify({
+                'success': True,
+                'message': '连接成功！API 密钥验证通过 (测试用的激活码无效是正常的)。'
+            })
         else:
             return jsonify({
                 'success': False,
-                'message': f'API 返回意外状态码: {response.status_code} - {response.text}'
+                'message': f'API 返回意外状态码: {response.status_code}'
             })
 
     except requests.RequestException as e:
