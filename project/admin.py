@@ -151,8 +151,12 @@ def test_kofi_webhook():
         return jsonify({'success': False, 'message': '未配置 Verification Token'})
 
     # Get local URL
-    # Assuming running on localhost/127.0.0.1 for the test, or use request.url_root
-    webhook_url = url_for('payment.kofi_webhook', _external=True)
+    # Force use of 127.0.0.1:5001 to avoid 405 Method Not Allowed issues caused by
+    # proxies/redirects (http->https) when using external URL for internal self-test.
+    # We still use url_for to get the path, but force the domain.
+    # Note: This assumes the app is running on port 5001 locally.
+    webhook_path = url_for('payment.kofi_webhook')
+    webhook_url = f"http://127.0.0.1:5001{webhook_path}"
 
     # Fake payload
     fake_data = {
