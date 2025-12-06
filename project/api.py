@@ -1945,9 +1945,50 @@ def test_payhip_api():
             
             results[method_name] = result
             
-            # If we got a successful JSON response, highlight it
+            # If we got a successful JSON response, highlight it and extract customer info
             if response.status_code == 200 and result.get('is_json'):
                 results[method_name]['SUCCESS'] = True
+                
+                # Extract customer information for easy viewing
+                try:
+                    json_data = result.get('json', {})
+                    customers = []
+                    
+                    # Try to extract from different possible structures
+                    data_list = json_data.get('data', [])
+                    if not data_list and isinstance(json_data, list):
+                        data_list = json_data
+                    
+                    for item in data_list:
+                        customer_info = {
+                            'order_id': item.get('id') or item.get('order_id') or item.get('sale_id'),
+                            'email': item.get('email'),
+                            'product': item.get('product_name') or item.get('product'),
+                            'date': item.get('created_at') or item.get('date'),
+                            'amount': item.get('price') or item.get('amount') or item.get('total'),
+                            'currency': item.get('currency'),
+                        }
+                        
+                        # Extract custom variables
+                        custom_vars = item.get('checkout_custom_variables', {})
+                        if isinstance(custom_vars, str):
+                            try:
+                                custom_vars = json.loads(custom_vars)
+                            except:
+                                pass
+                        
+                        customer_info['username'] = custom_vars.get('username') if isinstance(custom_vars, dict) else None
+                        
+                        # Only add if we have at least an order_id or email
+                        if customer_info['order_id'] or customer_info['email']:
+                            customers.append(customer_info)
+                    
+                    if customers:
+                        results[method_name]['customers'] = customers
+                        results[method_name]['customer_count'] = len(customers)
+                        
+                except Exception as e:
+                    current_app.logger.error(f"Error extracting customer info: {e}")
                 
         except Exception as e:
             results[method_name] = {'error': str(e)}

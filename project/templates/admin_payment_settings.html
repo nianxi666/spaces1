@@ -153,6 +153,40 @@
                     summaryHTML += '<ul class="text-sm text-green-700 list-disc list-inside">';
                     successMethods.forEach(m => summaryHTML += `<li>${m}</li>`);
                     summaryHTML += '</ul></div>';
+                    
+                    // Show customer information if available
+                    for (let [method, result] of Object.entries(data.results)) {
+                        if (result.SUCCESS && result.customers && result.customers.length > 0) {
+                            summaryHTML += '<div class="p-3 bg-blue-50 border border-blue-200 rounded mb-2">';
+                            summaryHTML += `<div class="font-bold text-blue-800 mb-2">📧 找到 ${result.customer_count} 个客户/订单：</div>`;
+                            summaryHTML += '<div class="overflow-x-auto">';
+                            summaryHTML += '<table class="w-full text-xs">';
+                            summaryHTML += '<thead class="bg-blue-100"><tr>';
+                            summaryHTML += '<th class="px-2 py-1 text-left">订单 ID</th>';
+                            summaryHTML += '<th class="px-2 py-1 text-left">邮箱</th>';
+                            summaryHTML += '<th class="px-2 py-1 text-left">用户名</th>';
+                            summaryHTML += '<th class="px-2 py-1 text-left">产品</th>';
+                            summaryHTML += '<th class="px-2 py-1 text-left">日期</th>';
+                            summaryHTML += '</tr></thead><tbody>';
+                            
+                            result.customers.forEach(c => {
+                                const hasUsername = c.username ? 'bg-green-50' : 'bg-white';
+                                summaryHTML += `<tr class="${hasUsername} border-t border-blue-100">`;
+                                summaryHTML += `<td class="px-2 py-1 font-mono text-xs">${c.order_id || '-'}</td>`;
+                                summaryHTML += `<td class="px-2 py-1">${c.email || '-'}</td>`;
+                                summaryHTML += `<td class="px-2 py-1 font-bold ${c.username ? 'text-green-700' : 'text-red-500'}">${c.username || '⚠️ 未传递'}</td>`;
+                                summaryHTML += `<td class="px-2 py-1">${c.product || '-'}</td>`;
+                                summaryHTML += `<td class="px-2 py-1">${c.date ? c.date.substring(0, 10) : '-'}</td>`;
+                                summaryHTML += '</tr>';
+                            });
+                            
+                            summaryHTML += '</tbody></table></div>';
+                            summaryHTML += '<div class="text-xs text-blue-700 mt-2">';
+                            summaryHTML += '<strong>提示：</strong>绿色背景表示已正确传递用户名，可以直接使用批量激活功能。';
+                            summaryHTML += '</div></div>';
+                            break; // Only show first successful method
+                        }
+                    }
                 } else {
                     summaryHTML += '<div class="p-3 bg-red-50 border border-red-200 rounded mb-2">';
                     summaryHTML += '<div class="font-bold text-red-800 mb-1">✗ 所有方法都失败了</div>';
