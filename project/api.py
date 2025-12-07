@@ -1527,6 +1527,30 @@ def get_task_status_api(task_id):
     return jsonify(task)
 
 
+@api_bp.route('/user/status', methods=['GET'])
+def get_user_status():
+    """
+    API endpoint to get the current user's status (e.g., membership).
+    Used for frontend polling after recharge.
+    """
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+
+    username = session['username']
+    db = load_db()
+    user = db.get('users', {}).get(username)
+
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    return jsonify({
+        'success': True,
+        'username': username,
+        'is_pro': user.get('is_pro', False),
+        'membership_expiry': user.get('membership_expiry')
+    })
+
+
 # No prefix needed since it's under api_bp which has url_prefix='/api'
 # So the route is /api/v1/chat/completions
 @api_bp.route('/v1/chat/completions', methods=['POST'])
