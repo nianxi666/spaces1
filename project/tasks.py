@@ -3,6 +3,10 @@ import subprocess
 import shlex
 import time
 import select
+import threading
+import queue
+import requests
+import json
 from .database import load_db, save_db
 from .utils import predict_output_filename
 from project import create_app
@@ -11,6 +15,16 @@ from project import create_app
 # Note: This is in-memory and will be lost on app restart.
 # For persistence, a more robust solution like Redis or a database would be needed.
 tasks = {}
+
+# Space Queue System
+# Holds a Queue for each Space ID to ensure serial execution
+space_queues = {}
+
+# Tracks running worker threads: { (space_id, api_url): thread_object }
+active_workers = {}
+
+# Tracks the current target URLs for a space: { space_id: set([url1, url2, ...]) }
+space_target_urls = {}
 
 def _reset_user_waiting_status(api_key):
     """Finds a user by API key and resets their waiting status."""
@@ -30,10 +44,149 @@ def _reset_user_waiting_status(api_key):
         print(f"Reset waiting status for user: {found_user}")
 
 
+def get_space_queue(space_id):
+    if space_id not in space_queues:
+        space_queues[space_id] = queue.Queue()
+    return space_queues[space_id]
+
+
+def space_worker_loop(space_id, worker_url):
+    """
+    Continuous loop that processes tasks for a specific space one by one, using a specific worker URL.
+    Checks `space_target_urls` to see if it should retire.
+    """
+    print(f"Worker started for space {space_id} on URL {worker_url}")
+    q = space_queues[space_id]
+
+    while True:
+        # Check if this worker URL is still valid for this space
+        current_valid_urls = space_target_urls.get(space_id, set())
+        if worker_url not in current_valid_urls:
+            print(f"Worker for {worker_url} retired (removed from config).")
+            # Remove self from active_workers registry before exiting
+            if (space_id, worker_url) in active_workers:
+                del active_workers[(space_id, worker_url)]
+            break
+
+        # Get task with a timeout to allow periodic checking of retirement status
+        try:
+            task_data = q.get(timeout=5)
+        except queue.Empty:
+            continue
+
+        try:
+            process_http_task(task_data, worker_url)
+        except Exception as e:
+            print(f"Error processing task in queue {space_id} on {worker_url}: {e}")
+            # Ensure task is marked failed if something blows up outside process_http_task
+            task_id = task_data.get('task_id')
+            if task_id in tasks:
+                 tasks[task_id]['status'] = 'failed'
+                 tasks[task_id]['logs'] += f"\nWorker Exception: {str(e)}"
+                 _reset_user_waiting_status(task_data.get('user_api_key'))
+        finally:
+            q.task_done()
+
+
+def add_task_to_space_queue(space_id, task_data, api_urls=None):
+    """
+    Adds a task to the space's queue and ensures workers are running for all api_urls.
+    """
+    if api_urls is None:
+        api_urls = []
+
+    # Update the set of valid URLs for this space
+    space_target_urls[space_id] = set(api_urls)
+
+    # Ensure queue exists
+    q = get_space_queue(space_id)
+
+    # Spin up workers for new URLs
+    for url in api_urls:
+        if (space_id, url) not in active_workers or not active_workers[(space_id, url)].is_alive():
+            print(f"Starting new worker for space {space_id} -> {url}")
+            worker = threading.Thread(target=space_worker_loop, args=(space_id, url), daemon=True)
+            worker.start()
+            active_workers[(space_id, url)] = worker
+
+    task_id = task_data['task_id']
+    username = task_data['username']
+
+    # Initialize task status
+    tasks[task_id] = {
+        'status': 'queued',
+        'logs': f'Task queued at {time.strftime("%H:%M:%S")}... Waiting for available GPU worker.\n',
+        'result_files': [],
+        'username': username
+    }
+
+    q.put(task_data)
+    return task_id
+
+
+def process_http_task(task_data, api_url):
+    """
+    Executes a task by sending a POST request to the remote GPU server.
+    """
+    task_id = task_data['task_id']
+    username = task_data['username']
+    user_api_key = task_data['user_api_key']
+
+    tasks[task_id]['status'] = 'running'
+    tasks[task_id]['logs'] += f"Task started processing at {time.strftime('%H:%M:%S')}\n"
+    tasks[task_id]['logs'] += f"Assigned to worker: {api_url}\n"
+
+    try:
+        # Construct payload
+        payload = {
+            'task_id': task_id,
+            'username': username,
+            'prompt': task_data.get('prompt', ''),
+            'params': task_data.get('params', {}),
+            # 'files': task_data.get('files', {}) # Pass file URLs if needed
+            'presigned_url': task_data.get('presigned_url'), # Send upload URL to remote
+            's3_object_name': task_data.get('s3_object_name')
+        }
+
+        # Log payload (redacted)
+        tasks[task_id]['logs'] += f"Sending payload to remote server...\n"
+
+        # Send Request
+        response = requests.post(api_url, json=payload, timeout=600) # 10 minutes timeout
+
+        if response.status_code == 200:
+            result = response.json()
+            tasks[task_id]['logs'] += "Request successful.\n"
+
+            if 'result_url' in result:
+                tasks[task_id]['logs'] += f"Result URL: {result['result_url']}\n"
+                tasks[task_id]['result_files'] = [result['result_url']]
+
+            # If the remote server didn't return a URL but said success,
+            # we assume it uploaded to the presigned_url we sent.
+            # So we set the result file to our expected S3 key.
+            elif task_data.get('s3_object_name'):
+                 tasks[task_id]['result_files'] = [task_data.get('s3_object_name')]
+
+            if 'logs' in result:
+                tasks[task_id]['logs'] += f"\n--- Remote Logs ---\n{result['logs']}\n"
+
+            tasks[task_id]['status'] = 'completed'
+        else:
+            tasks[task_id]['status'] = 'failed'
+            tasks[task_id]['logs'] += f"Request failed with status {response.status_code}\n"
+            tasks[task_id]['logs'] += f"Response: {response.text}\n"
+
+    except Exception as e:
+        tasks[task_id]['status'] = 'failed'
+        tasks[task_id]['logs'] += f"\nHTTP Request Exception: {str(e)}"
+    finally:
+        _reset_user_waiting_status(user_api_key)
+
+
 def execute_inference_task(task_id, username, command, temp_upload_paths, user_api_key, server_url, template, prompt, seed, presigned_url, s3_object_name, predicted_filename):
     """
-    Executes the inference command, captures logs, and handles result upload directly to S3.
-    This version includes logic to retry with a new key if a limit is reached.
+    Executes the inference command (Standard Modal/Inferless), captures logs, and handles result upload directly to S3.
     """
     app = create_app()
     with app.app_context():
