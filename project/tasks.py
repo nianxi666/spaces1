@@ -76,6 +76,22 @@ def execute_inference_task(task_id, username, command, temp_upload_paths, user_a
                 # Main executable command (modal, inferless, etc.)
                 if command_runner == 'modal':
                     main_executable_cmd = f'modal run {entrypoint_script} --command "{final_inner_command_str}"'
+                elif command_runner == 'shell':
+                    # Use the raw command directly, no wrapper
+                    # For shell runner, 'command' usually contains the full script invocation.
+                    # We might ignore sub_command or just append them.
+                    # Here we treat 'command' as the main thing to run.
+                    # If the template has 'base_command', api.py constructs 'full_cmd'.
+                    # So 'command' here IS the full command (e.g. "python3 script.py --prompt ...")
+                    # We skip the "inner_command_parts" logic effectively because 'final_inner_command_str'
+                    # is built from 'command' + 'curl'.
+                    # If the runner script handles upload, we don't need 'curl'.
+                    # BUT 'final_inner_command_str' HAS curl appended.
+                    # If we use 'shell', we might not want 'curl' if the script does it.
+                    # However, to be generic, we let it execute.
+                    # If 'call_remote_api.py' saves to local disk, then 'curl' uploads it.
+                    # So:
+                    main_executable_cmd = final_inner_command_str
                 else:
                     main_executable_cmd = (f'inferless remote-run {entrypoint_script} -c inferless-runtime-config.yaml --command "{final_inner_command_str}"')
 
@@ -268,6 +284,8 @@ def execute_inference_task_stream(username, command, temp_upload_paths, user_api
             # Main executable command (modal, inferless, etc.)
             if command_runner == 'modal':
                 main_executable_cmd = f'modal run {entrypoint_script} --command "{final_inner_command_str}"'
+            elif command_runner == 'shell':
+                main_executable_cmd = final_inner_command_str
             else:
                 main_executable_cmd = (f'inferless remote-run {entrypoint_script} -c inferless-runtime-config.yaml --command "{final_inner_command_str}"')
 
