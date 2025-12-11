@@ -6,6 +6,8 @@ import select
 from .database import load_db, save_db
 from .utils import predict_output_filename
 from project import create_app
+import shutil
+from gradio_client import Client, handle_file
 
 # This dictionary will hold the state of all running/completed tasks.
 # Note: This is in-memory and will be lost on app restart.
@@ -74,61 +76,150 @@ def execute_inference_task(task_id, username, command, temp_upload_paths, user_a
                 entrypoint_script = template.get('entrypoint_script', 'app.py')
 
                 # Main executable command (modal, inferless, etc.)
-                if command_runner == 'modal':
+                if command_runner == 'gradio_client':
+                    # In-process execution using gradio_client
+                    api_url = template['base_command'] # Assuming base_command holds the URL
+                    tasks[task_id]['logs'] += f'Connecting to remote Gradio API: {api_url}\n'
+                    tasks[task_id]['logs'] += f'Prompt: {prompt}\n'
+
+                    try:
+                        client = Client(api_url)
+
+                        # Prepare dummy wav if needed
+                        dummy_wav = "dummy_prompt.wav"
+                        if not os.path.exists(dummy_wav):
+                            import wave, struct, math
+                            with wave.open(dummy_wav, 'w') as file:
+                                file.setparams((1, 2, 44100, 44100, 'NONE', 'not compressed'))
+                                values = [struct.pack('h', int(math.sin(i/100.0)*32767)) for i in range(44100)]
+                                file.writeframes(b''.join(values))
+
+                        # Call predict
+                        # Hardcoded params for IndexTTS for now, as we don't have a generic param mapper yet
+                        result = client.predict(
+                            "Same as the voice reference",
+                            handle_file(dummy_wav),
+                            prompt,
+                            handle_file(dummy_wav),
+                            0.8,
+                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                            "",
+                            False,
+                            120,
+                            True, 0.8, 30, 0.8, 0.0, 3, 10.0, 1500,
+                            api_name="/generate"
+                        )
+
+                        # Handle result
+                        if isinstance(result, dict) and 'value' in result:
+                            src_path = result['value']
+                        elif isinstance(result, str):
+                            src_path = result
+                        elif isinstance(result, tuple):
+                            src_path = result[1]
+                        else:
+                            raise ValueError(f"Unknown result format: {result}")
+
+                        # Copy to expected output location so curl can pick it up (or we skip curl if we want)
+                        # The code below will execute curl if we don't change logic.
+                        # But wait, we are in the `command_runner` block.
+                        # We are replacing `subprocess.Popen`.
+                        # So we need to handle the "upload" part ourselves or let the flow continue?
+                        # The original code runs `process = subprocess.Popen(...)` which runs the FULL command (inference + curl).
+                        # If we replace Popen, we replace the curl execution too.
+                        # So we must handle S3 upload here or save file and run curl manually?
+
+                        # We will save the file to `predicted_filename`.
+                        # But we need to UPLOAD it to S3.
+                        # `execute_inference_task` constructs `curl_cmd` but that was for the shell command.
+                        # Since we are in python, we can use boto3? Or just run the curl command via subprocess?
+                        # Using subprocess for curl is easiest to reuse the presigned_url logic.
+
+                        os.makedirs(os.path.dirname(remote_output_filepath), exist_ok=True)
+                        shutil.copy(src_path, remote_output_filepath)
+                        tasks[task_id]['logs'] += f"Saved local result to {remote_output_filepath}\n"
+
+                        # Upload using curl
+                        upload_cmd = f'curl -X PUT -T {shlex.quote(remote_output_filepath)} {quoted_presigned_url}'
+                        tasks[task_id]['logs'] += f"Uploading to S3...\n"
+
+                        upload_proc = subprocess.run(upload_cmd, shell=True, capture_output=True, text=True)
+                        if upload_proc.returncode == 0:
+                            tasks[task_id]['logs'] += "Upload successful.\n"
+                            process = type('obj', (object,), {'returncode': 0, 'stdout': []}) # Mock process object
+                        else:
+                            tasks[task_id]['logs'] += f"Upload failed: {upload_proc.stderr}\n"
+                            process = type('obj', (object,), {'returncode': 1, 'stdout': []})
+
+                        limit_reached = False
+
+                    except Exception as e:
+                        tasks[task_id]['logs'] += f"Gradio Client Error: {e}\n"
+                        process = type('obj', (object,), {'returncode': 1, 'stdout': []})
+                        limit_reached = False
+
+                elif command_runner == 'modal':
                     main_executable_cmd = f'modal run {entrypoint_script} --command "{final_inner_command_str}"'
-                elif command_runner == 'shell':
-                    # Use the raw command directly, no wrapper
-                    # For shell runner, 'command' usually contains the full script invocation.
-                    # We might ignore sub_command or just append them.
-                    # Here we treat 'command' as the main thing to run.
-                    # If the template has 'base_command', api.py constructs 'full_cmd'.
-                    # So 'command' here IS the full command (e.g. "python3 script.py --prompt ...")
-                    # We skip the "inner_command_parts" logic effectively because 'final_inner_command_str'
-                    # is built from 'command' + 'curl'.
-                    # If the runner script handles upload, we don't need 'curl'.
-                    # BUT 'final_inner_command_str' HAS curl appended.
-                    # If we use 'shell', we might not want 'curl' if the script does it.
-                    # However, to be generic, we let it execute.
-                    # If 'call_remote_api.py' saves to local disk, then 'curl' uploads it.
-                    # So:
-                    main_executable_cmd = final_inner_command_str
-                else:
-                    main_executable_cmd = (f'inferless remote-run {entrypoint_script} -c inferless-runtime-config.yaml --command "{final_inner_command_str}"')
+                    buffered_main_cmd = f"stdbuf -oL {main_executable_cmd}"
+                    full_command = buffered_main_cmd
+                    if template.get('pre_command'):
+                        pre_cmd = template['pre_command'].strip()
+                        if pre_cmd:
+                            if not pre_cmd.endswith('&&'):
+                                pre_cmd += ' && '
+                            full_command = pre_cmd + buffered_main_cmd
 
-                # Force line-buffering on the main executable command
-                buffered_main_cmd = f"stdbuf -oL {main_executable_cmd}"
+                    tasks[task_id]['logs'] += f'Attempt {retry_count + 1}: Executing command: {full_command}\n'
+                    tasks[task_id]['logs'] += f'Predicted output filename: {predicted_filename}\n'
 
-                # Combine with pre-command if it exists
-                full_command = buffered_main_cmd
-                if template.get('pre_command'):
-                    pre_cmd = template['pre_command'].strip()
-                    if pre_cmd:
-                        if not pre_cmd.endswith('&&'):
-                            pre_cmd += ' && '
-                        full_command = pre_cmd + buffered_main_cmd
-
-                tasks[task_id]['logs'] += f'Attempt {retry_count + 1}: Executing command: {full_command}\n'
-                tasks[task_id]['logs'] += f'Predicted output filename: {predicted_filename}\n'
-
-                process = subprocess.Popen(
-                    full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, encoding='utf-8', errors='replace', bufsize=1, universal_newlines=True
-                )
-
-                limit_reached = False
-                if command_runner == 'modal':
+                    process = subprocess.Popen(
+                        full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        text=True, encoding='utf-8', errors='replace', bufsize=1, universal_newlines=True
+                    )
+                    limit_reached = False
                     for line in process.stdout:
                         tasks[task_id]['logs'] += line
                         if "limit reached" in line.lower():
                             tasks[task_id]['logs'] += "\n--- 'Limit reached' detected in modal task. ---\n"
                             limit_reached = True
-                            # Don't break, let the modal task finish, but we have flagged it.
-                else:
-                     for line in process.stdout:
+                    process.wait()
+
+                elif command_runner == 'shell':
+                    # Use the raw command directly, no wrapper
+                    main_executable_cmd = final_inner_command_str
+                    buffered_main_cmd = f"stdbuf -oL {main_executable_cmd}"
+                    full_command = buffered_main_cmd # Shell usually doesn't need pre_command logic if it's all in one
+
+                    tasks[task_id]['logs'] += f'Attempt {retry_count + 1}: Executing command: {full_command}\n'
+                    process = subprocess.Popen(
+                        full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        text=True, encoding='utf-8', errors='replace', bufsize=1, universal_newlines=True
+                    )
+                    limit_reached = False
+                    for line in process.stdout:
                         tasks[task_id]['logs'] += line
+                    process.wait()
 
+                else:
+                    main_executable_cmd = (f'inferless remote-run {entrypoint_script} -c inferless-runtime-config.yaml --command "{final_inner_command_str}"')
+                    buffered_main_cmd = f"stdbuf -oL {main_executable_cmd}"
+                    full_command = buffered_main_cmd
+                    if template.get('pre_command'):
+                        pre_cmd = template['pre_command'].strip()
+                        if pre_cmd:
+                            if not pre_cmd.endswith('&&'):
+                                pre_cmd += ' && '
+                            full_command = pre_cmd + buffered_main_cmd
 
-                process.wait()
+                    tasks[task_id]['logs'] += f'Attempt {retry_count + 1}: Executing command: {full_command}\n'
+                    process = subprocess.Popen(
+                        full_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        text=True, encoding='utf-8', errors='replace', bufsize=1, universal_newlines=True
+                    )
+                    limit_reached = False
+                    for line in process.stdout:
+                        tasks[task_id]['logs'] += line
+                    process.wait()
 
                 if limit_reached:
                     retry_count += 1
