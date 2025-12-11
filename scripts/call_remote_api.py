@@ -6,31 +6,53 @@ from gradio_client import Client, handle_file
 from project.database import load_db
 from project import create_app
 
-def run_remote_inference(prompt, output_path):
-    print(f"Connecting to Remote Gemini...")
+def run_remote_inference(prompt, output_path, config_name=None, direct_url=None):
+    api_url = None
 
-    # Get URL from DB
-    app = create_app()
-    with app.app_context():
-        db = load_db()
-        # Find config again just to be dynamic
-        target_config = None
-        for u, d in db.get('users', {}).items():
-            for c in d.get('cerebrium_configs', []):
-                if c.get('name') == 'Remote Gemini':
-                    target_config = c
+    if direct_url:
+        print(f"Using direct URL: {direct_url}")
+        api_url = direct_url
+    elif config_name:
+        print(f"Looking up config: {config_name}...")
+        app = create_app()
+        with app.app_context():
+            db = load_db()
+            target_config = None
+            for u, d in db.get('users', {}).items():
+                for c in d.get('cerebrium_configs', []):
+                    if c.get('name') == config_name:
+                        target_config = c
+                        break
+                if target_config:
                     break
 
-        if not target_config:
-            print("Error: Remote Gemini config not found.")
-            return
+            if target_config:
+                api_url = target_config['api_url']
+            else:
+                print(f"Error: GPU configuration '{config_name}' not found.")
+                exit(1)
+    else:
+        # Backward compatibility default
+        print("No config specified, defaulting to 'Remote Gemini' lookup...")
+        app = create_app()
+        with app.app_context():
+            db = load_db()
+            for u, d in db.get('users', {}).items():
+                for c in d.get('cerebrium_configs', []):
+                    if c.get('name') == 'Remote Gemini':
+                        api_url = c['api_url']
+                        break
+                if api_url: break
 
-        api_url = target_config['api_url']
+    if not api_url:
+        print("Error: Could not determine API URL.")
+        exit(1)
+
+    print(f"Connecting to {api_url}...")
 
     try:
         client = Client(api_url)
 
-        # We need a dummy wav if the model requires it
         dummy_wav = "dummy_prompt.wav"
         if not os.path.exists(dummy_wav):
             import wave, struct, math
@@ -54,8 +76,6 @@ def run_remote_inference(prompt, output_path):
             api_name="/generate"
         )
 
-        # Result is a dict or path. Gradio client usually returns path to tmp file.
-        # {'visible': True, 'value': '/tmp/...wav', ...} or just path string
         print(f"Raw result: {result}")
 
         if isinstance(result, dict) and 'value' in result:
@@ -63,28 +83,25 @@ def run_remote_inference(prompt, output_path):
         elif isinstance(result, str):
             src_path = result
         elif isinstance(result, tuple):
-            src_path = result[1] # Sometimes it returns (json, path)
+            src_path = result[1]
         else:
             print("Unknown result format.")
-            return
+            exit(1)
 
-        # Move to output path
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         shutil.copy(src_path, output_path)
         print(f"Saved output to {output_path}")
 
     except Exception as e:
         print(f"Inference failed: {e}")
-        # Create a dummy failure file so pipeline doesn't hang? No, let it fail.
         exit(1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--prompt", required=True, help="Text prompt")
-    # tasks.py might not pass output filename as arg easily unless we put it in base_command
-    # But tasks.py expects the file to be at `predicted_filename`.
-    # We will hardcode output path or accept it.
     parser.add_argument("--output", default="output/output.wav", help="Output file path")
+    parser.add_argument("--config-name", help="Name of the Custom GPU config to use")
+    parser.add_argument("--url", help="Direct API URL (overrides config-name)")
 
     args = parser.parse_args()
-    run_remote_inference(args.prompt, args.output)
+    run_remote_inference(args.prompt, args.output, args.config_name, args.url)
