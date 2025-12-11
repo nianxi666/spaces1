@@ -605,82 +605,177 @@ def run_inference(ai_project_id):
         return jsonify({'error': '服务器域名未配置'}), 500
 
     prompt = request.form.get('prompt', '')
-    base_cmd = template.get("base_command", "")
-    full_cmd = base_cmd
-    if not template.get('disable_prompt'):
-        full_cmd += f' --prompt {shlex.quote(prompt)}'
+    command_runner = template.get('command_runner')
+    temp_upload_paths = []
 
-    preset_params = template.get("preset_params", "").strip()
-    if preset_params:
-        full_cmd += f' {preset_params}'
+    if command_runner == 'gradio_client':
+        # --- Gradio Client Logic (Generic) ---
+        gradio_args = []
 
-    # Handle file selected from S3 browser
-    if s3_keys_str:
-        s3_keys = json.loads(s3_keys_str)
-        if s3_keys:
-            s3_key = s3_keys[0]  # Use the first selected file
-            file_url = get_public_s3_url(s3_key)
+        # 1. Handle S3/File uploads first (append as special objects for task processor)
+        if s3_keys_str:
+            s3_keys = json.loads(s3_keys_str)
+            if s3_keys:
+                s3_key = s3_keys[0]
+                file_url = get_public_s3_url(s3_key)
+                if file_url:
+                    gradio_args.append({'_is_file': True, 'url': file_url})
+                else:
+                    return jsonify({'error': '无法为所选文件生成下载链接'}), 500
 
-            if file_url:
-                s3_key_lower = s3_key.lower()
-                if s3_key_lower.endswith('.safetensors'):
-                    arg_name = '--lora'
-                elif s3_key_lower.endswith('.glb'):
+        files = request.files.getlist('input_file')
+        for file in files:
+            if file and file.filename != '':
+                filename = secure_filename(file.filename)
+                unique_filename = f"{uuid.uuid4()}_{filename}"
+                upload_dir = os.path.join(current_app.instance_path, current_app.config['UPLOAD_FOLDER'])
+                os.makedirs(upload_dir, exist_ok=True)
+                temp_path = os.path.join(upload_dir, unique_filename)
+                file.save(temp_path)
+                temp_upload_paths.append(temp_path)
+                file_url = f"{server_url}/uploads/{unique_filename}"
+                gradio_args.append({'_is_file': True, 'url': file_url})
+
+        # 2. Handle Params (including Prompt if not disabled)
+        if not template.get('disable_prompt'):
+            gradio_args.append(prompt)
+
+        # 3. Handle Template Params
+        if template.get("params") and isinstance(template["params"], list):
+            for param in template["params"]:
+                name = param.get("name")
+                if not name: continue
+
+                user_value = request.form.get(name)
+                # For seeds, try to parse int
+                if name.lower() == 'seed' and user_value:
+                    try:
+                        seed = int(user_value)
+                    except (ValueError, TypeError):
+                        seed = str(user_value)
+
+                param_type = param.get("type", "text")
+                if param_type == 'boolean':
+                    # Explicitly pass True if checked, False if not
+                    gradio_args.append(True if user_value else False)
+                else:
+                    final_value = user_value if user_value is not None else param.get("default", "")
+                    gradio_args.append(final_value)
+
+        payload = {
+            'api_url': template.get('base_command'),
+            'args': gradio_args,
+            'api_name': template.get('sub_command') or '/predict'
+        }
+        full_cmd = json.dumps(payload)
+
+    else:
+        # --- CLI Logic (Legacy) ---
+
+        # Seed initialization for CLI logic (moved from top level)
+        seed = None
+
+        base_cmd = template.get("base_command", "")
+        full_cmd = base_cmd
+        if not template.get('disable_prompt'):
+            full_cmd += f' --prompt {shlex.quote(prompt)}'
+
+        preset_params = template.get("preset_params", "").strip()
+        if preset_params:
+            full_cmd += f' {preset_params}'
+
+        # Handle file selected from S3 browser
+        if s3_keys_str:
+            s3_keys = json.loads(s3_keys_str)
+            if s3_keys:
+                s3_key = s3_keys[0]  # Use the first selected file
+                file_url = get_public_s3_url(s3_key)
+
+                if file_url:
+                    s3_key_lower = s3_key.lower()
+                    if s3_key_lower.endswith('.safetensors'):
+                        arg_name = '--lora'
+                    elif s3_key_lower.endswith('.glb'):
+                        arg_name = '--input_model'
+                    else:
+                        arg_name = '--input_image'
+                    full_cmd += f' {arg_name} {shlex.quote(file_url)}'
+                else:
+                    return jsonify({'error': '无法为所选文件生成下载链接，请检查S3配置。'}), 500
+
+        files = request.files.getlist('input_file')
+
+        if template.get('enable_lora_upload') and len(files) > 0:
+            if len(files) > 2:
+                return jsonify({'error': 'Lora模式最多只能上传2个文件。'}), 400
+
+            safetensors_file = None
+            other_file = None
+            for file in files:
+                if file.filename.endswith('.safetensors'):
+                    safetensors_file = file
+                else:
+                    other_file = file
+
+            if safetensors_file and other_file:
+                # Handle safetensors file
+                sf_filename = secure_filename(safetensors_file.filename)
+                sf_unique_filename = f"{uuid.uuid4()}_{sf_filename}"
+                upload_dir = os.path.join(current_app.instance_path, current_app.config['UPLOAD_FOLDER'])
+                os.makedirs(upload_dir, exist_ok=True)
+                sf_temp_path = os.path.join(upload_dir, sf_unique_filename)
+                safetensors_file.save(sf_temp_path)
+                temp_upload_paths.append(sf_temp_path)
+                lora_url = f"{server_url}/uploads/{sf_unique_filename}"
+                full_cmd += f' --lora {shlex.quote(lora_url)}'
+
+                # Handle other file
+                ot_filename = secure_filename(other_file.filename)
+                ot_unique_filename = f"{uuid.uuid4()}_{ot_filename}"
+                ot_temp_path = os.path.join(upload_dir, ot_unique_filename)
+                other_file.save(ot_temp_path)
+                temp_upload_paths.append(ot_temp_path)
+                file_url = f"{server_url}/uploads/{ot_unique_filename}"
+
+                ext = ot_filename.rsplit('.', 1)[1].lower()
+                if ext == 'glb':
                     arg_name = '--input_model'
                 else:
-                    arg_name = '--input_image'
+                    arg_map = {
+                        'png': '--input_image', 'jpg': '--input_image', 'jpeg': '--input_image', 'gif': '--input_image',
+                        'wav': '--input_audio', 'mp3': '--input_audio', 'ogg': '--input_audio',
+                        'mp4': '--input_video', 'webm': '--input_video', 'mov': '--input_video'
+                    }
+                    arg_name = arg_map.get(ext, '--input_image')
                 full_cmd += f' {arg_name} {shlex.quote(file_url)}'
-            else:
-                return jsonify({'error': '无法为所选文件生成下载链接，请检查S3配置。'}), 500
 
-    temp_upload_paths = []
-    files = request.files.getlist('input_file')
+            elif len(files) == 1: # Only one file was uploaded
+                file = files[0]
+                if file and file.filename != '':
+                    filename = secure_filename(file.filename)
+                    unique_filename = f"{uuid.uuid4()}_{filename}"
+                    upload_dir = os.path.join(current_app.instance_path, current_app.config['UPLOAD_FOLDER'])
+                    os.makedirs(upload_dir, exist_ok=True)
+                    temp_path = os.path.join(upload_dir, unique_filename)
+                    file.save(temp_path)
+                    temp_upload_paths.append(temp_path)
+                    file_url = f"{server_url}/uploads/{unique_filename}"
 
-    if template.get('enable_lora_upload') and len(files) > 0:
-        if len(files) > 2:
-            return jsonify({'error': 'Lora模式最多只能上传2个文件。'}), 400
+                    ext = filename.rsplit('.', 1)[1].lower()
+                    if ext == 'safetensors':
+                        full_cmd += f' --lora {shlex.quote(file_url)}'
+                    elif ext == 'glb':
+                        full_cmd += f' --input_model {shlex.quote(file_url)}'
+                    else:
+                        arg_map = {
+                            'png': '--input_image', 'jpg': '--input_image', 'jpeg': '--input_image', 'gif': '--input_image',
+                            'wav': '--input_audio', 'mp3': '--input_audio', 'ogg': '--input_audio',
+                            'mp4': '--input_video', 'webm': '--input_video', 'mov': '--input_video'
+                        }
+                        arg_name = arg_map.get(ext, '--input_image')
+                        full_cmd += f' {arg_name} {shlex.quote(file_url)}'
 
-        safetensors_file = None
-        other_file = None
-        for file in files:
-            if file.filename.endswith('.safetensors'):
-                safetensors_file = file
-            else:
-                other_file = file
-
-        if safetensors_file and other_file:
-            # Handle safetensors file
-            sf_filename = secure_filename(safetensors_file.filename)
-            sf_unique_filename = f"{uuid.uuid4()}_{sf_filename}"
-            upload_dir = os.path.join(current_app.instance_path, current_app.config['UPLOAD_FOLDER'])
-            os.makedirs(upload_dir, exist_ok=True)
-            sf_temp_path = os.path.join(upload_dir, sf_unique_filename)
-            safetensors_file.save(sf_temp_path)
-            temp_upload_paths.append(sf_temp_path)
-            lora_url = f"{server_url}/uploads/{sf_unique_filename}"
-            full_cmd += f' --lora {shlex.quote(lora_url)}'
-
-            # Handle other file
-            ot_filename = secure_filename(other_file.filename)
-            ot_unique_filename = f"{uuid.uuid4()}_{ot_filename}"
-            ot_temp_path = os.path.join(upload_dir, ot_unique_filename)
-            other_file.save(ot_temp_path)
-            temp_upload_paths.append(ot_temp_path)
-            file_url = f"{server_url}/uploads/{ot_unique_filename}"
-
-            ext = ot_filename.rsplit('.', 1)[1].lower()
-            if ext == 'glb':
-                arg_name = '--input_model'
-            else:
-                arg_map = {
-                    'png': '--input_image', 'jpg': '--input_image', 'jpeg': '--input_image', 'gif': '--input_image',
-                    'wav': '--input_audio', 'mp3': '--input_audio', 'ogg': '--input_audio',
-                    'mp4': '--input_video', 'webm': '--input_video', 'mov': '--input_video'
-                }
-                arg_name = arg_map.get(ext, '--input_image')
-            full_cmd += f' {arg_name} {shlex.quote(file_url)}'
-
-        elif len(files) == 1: # Only one file was uploaded
+        elif len(files) > 0: # Not a lora-enabled template, handle first file only
             file = files[0]
             if file and file.filename != '':
                 filename = secure_filename(file.filename)
@@ -693,10 +788,8 @@ def run_inference(ai_project_id):
                 file_url = f"{server_url}/uploads/{unique_filename}"
 
                 ext = filename.rsplit('.', 1)[1].lower()
-                if ext == 'safetensors':
-                    full_cmd += f' --lora {shlex.quote(file_url)}'
-                elif ext == 'glb':
-                    full_cmd += f' --input_model {shlex.quote(file_url)}'
+                if ext == 'glb':
+                    arg_name = '--input_model'
                 else:
                     arg_map = {
                         'png': '--input_image', 'jpg': '--input_image', 'jpeg': '--input_image', 'gif': '--input_image',
@@ -704,57 +797,28 @@ def run_inference(ai_project_id):
                         'mp4': '--input_video', 'webm': '--input_video', 'mov': '--input_video'
                     }
                     arg_name = arg_map.get(ext, '--input_image')
-                    full_cmd += f' {arg_name} {shlex.quote(file_url)}'
+                full_cmd += f' {arg_name} {shlex.quote(file_url)}'
 
-    elif len(files) > 0: # Not a lora-enabled template, handle first file only
-        file = files[0]
-        if file and file.filename != '':
-            filename = secure_filename(file.filename)
-            unique_filename = f"{uuid.uuid4()}_{filename}"
-            upload_dir = os.path.join(current_app.instance_path, current_app.config['UPLOAD_FOLDER'])
-            os.makedirs(upload_dir, exist_ok=True)
-            temp_path = os.path.join(upload_dir, unique_filename)
-            file.save(temp_path)
-            temp_upload_paths.append(temp_path)
-            file_url = f"{server_url}/uploads/{unique_filename}"
+        if template.get("params") and isinstance(template["params"], list):
+            param_parts = []
+            for param in template["params"]:
+                name = param.get("name")
+                if not name: continue
 
-            ext = filename.rsplit('.', 1)[1].lower()
-            if ext == 'glb':
-                arg_name = '--input_model'
-            else:
-                arg_map = {
-                    'png': '--input_image', 'jpg': '--input_image', 'jpeg': '--input_image', 'gif': '--input_image',
-                    'wav': '--input_audio', 'mp3': '--input_audio', 'ogg': '--input_audio',
-                    'mp4': '--input_video', 'webm': '--input_video', 'mov': '--input_video'
-                }
-                arg_name = arg_map.get(ext, '--input_image')
-            full_cmd += f' {arg_name} {shlex.quote(file_url)}'
+                user_value = request.form.get(name)
+                # seed handling already done at top, but reused here for string construction
 
-    seed = None
-    if template.get("params") and isinstance(template["params"], list):
-        param_parts = []
-        for param in template["params"]:
-            name = param.get("name")
-            if not name: continue
-
-            user_value = request.form.get(name)
-            if name.lower() == 'seed' and user_value:
-                try:
-                    seed = int(user_value)
-                except (ValueError, TypeError):
-                    seed = str(user_value)
-
-            param_type = param.get("type", "text")
-            if param_type == 'boolean':
-                if user_value:
-                    param_parts.append(f"--{name}")
-            else:
-                final_value = user_value if user_value is not None else param.get("default", "")
-                if final_value:
-                    param_parts.append(f"--{name}")
-                    param_parts.append(shlex.quote(str(final_value)))
-        if param_parts:
-            full_cmd += " " + " ".join(param_parts)
+                param_type = param.get("type", "text")
+                if param_type == 'boolean':
+                    if user_value:
+                        param_parts.append(f"--{name}")
+                else:
+                    final_value = user_value if user_value is not None else param.get("default", "")
+                    if final_value:
+                        param_parts.append(f"--{name}")
+                        param_parts.append(shlex.quote(str(final_value)))
+            if param_parts:
+                full_cmd += " " + " ".join(param_parts)
 
     # --- S3 Upload Logic ---
     # Use the admin-defined filename if it exists, otherwise predict it.
