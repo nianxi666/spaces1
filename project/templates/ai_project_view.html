@@ -50,14 +50,13 @@
                 </div>
                 {% endif %}
 
-                <div class="form-group">
+                <div class="form-group" style="display: none;">
                     <label for="custom-gpu-select" class="form-label">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
                         请选择一个GPU
                     </label>
                     <select id="custom-gpu-select" {% if not custom_gpu_configs %}disabled{% endif %}>
                         {% if custom_gpu_configs %}
-                        <option value="">-- 请选择一个GPU --</option>
                         {% for config in custom_gpu_configs %}
                         <option value="{{ config.id }}">{{ config.name }}</option>
                         {% endfor %}
@@ -65,7 +64,6 @@
                         <option value="">暂无可用GPU，请联系管理员</option>
                         {% endif %}
                     </select>
-                    <small style="color: #666; display:block; margin-top:4px;">管理员可以为你分配多个请求地址与密钥，此处以 GPU 名称展示。</small>
                 </div>
 
                 <div class="form-group">
@@ -1000,10 +998,21 @@ function initCustomGpuFlow() {
             showError('请联系管理员分配 GPU 后再尝试');
             return;
         }
-        const selectedConfig = gpuSelect ? configsById[gpuSelect.value] : null;
+        // Auto-select a GPU config (Random Load Balancing)
+        let selectedConfig = null;
+        if (customGpuConfigs.length > 0) {
+            // Simple random selection for client-side load balancing
+            const randomIndex = Math.floor(Math.random() * customGpuConfigs.length);
+            selectedConfig = customGpuConfigs[randomIndex];
+
+            // Sync the hidden select box
+            if (gpuSelect) {
+                gpuSelect.value = selectedConfig.id;
+            }
+        }
+
         if (!selectedConfig) {
-            showError('请选择一个 GPU');
-            promptGpuSelection();
+            showError('未找到可用的 GPU 配置，请联系管理员。');
             return;
         }
 
