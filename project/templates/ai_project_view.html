@@ -1288,6 +1288,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         templateSelect.innerHTML = '<option value="">-- 请选择一个GPU --</option>';
+        let validTemplateCount = 0;
+        let lastValidTemplateId = null;
+
         templateIds.forEach(id => {
             const template = templates[id];
             const option = document.createElement('option');
@@ -1304,12 +1307,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 option.style.color = '#999';
             } else {
                 option.textContent = template.name;
+                validTemplateCount++;
+                lastValidTemplateId = id;
             }
             templateSelect.appendChild(option);
         });
 
         if (hasRestrictedTemplates && !userHasCode) {
             document.getElementById('invitation-nag-message').style.display = 'block';
+        }
+
+        // Auto-select if there is exactly one valid template
+        if (validTemplateCount === 1 && lastValidTemplateId) {
+            // Use setTimeout to ensure the DOM is ready and event listeners are attached
+            setTimeout(() => {
+                templateSelect.value = lastValidTemplateId;
+                templateSelect.dispatchEvent(new Event('change'));
+
+                // Optional: Hide the select box if you want to make it seamless
+                // document.getElementById('template-select').closest('.form-group').style.display = 'none';
+            }, 0);
         }
 
         templateSelect.addEventListener('change', function() {
