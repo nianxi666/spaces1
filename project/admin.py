@@ -612,6 +612,12 @@ def add_edit_space(space_id=None):
             space['cover_type'] = cover_type
             space['card_type'] = card_type
             space['cerebrium_timeout_seconds'] = timeout_seconds
+
+            # Custom GPU Input Flags
+            space['cerebrium_enable_video'] = request.form.get('cerebrium_enable_video') == 'on'
+            space['cerebrium_enable_audio'] = request.form.get('cerebrium_enable_audio') == 'on'
+            space['cerebrium_enable_prompt'] = request.form.get('cerebrium_enable_prompt') == 'on'
+
             if card_type == 'netmind':
                 space['netmind_model'] = netmind_alias
                 space['netmind_upstream_model'] = netmind_upstream or ''
@@ -629,7 +635,10 @@ def add_edit_space(space_id=None):
                 'cerebrium_timeout_seconds': timeout_seconds,
                 'templates': {}, # Initialize with an empty templates dict
                 'netmind_model': netmind_alias if card_type == 'netmind' else '',
-                'netmind_upstream_model': netmind_upstream if card_type == 'netmind' else ''
+                'netmind_upstream_model': netmind_upstream if card_type == 'netmind' else '',
+                'cerebrium_enable_video': request.form.get('cerebrium_enable_video') == 'on',
+                'cerebrium_enable_audio': request.form.get('cerebrium_enable_audio') == 'on',
+                'cerebrium_enable_prompt': request.form.get('cerebrium_enable_prompt') == 'on'
             }
         sync_netmind_aliases(db)
         save_db(db)

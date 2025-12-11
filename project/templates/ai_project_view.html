@@ -68,7 +68,8 @@
                     <small style="color: #666; display:block; margin-top:4px;">管理员可以为你分配多个请求地址与密钥，此处以 GPU 名称展示。</small>
                 </div>
 
-                <div class="form-group">
+                {% if ai_project.cerebrium_enable_video %}
+                <div class="form-group" id="cerebrium-video-group">
                     <label class="form-label">视频输入</label>
                     <div class="mode-selector">
                         <label><input type="radio" name="video-source" value="pan" checked> 从网盘选择</label>
@@ -82,8 +83,10 @@
                         <input type="text" id="video-url-input" placeholder="https://example.com/video.mp4">
                     </div>
                 </div>
+                {% endif %}
 
-                <div class="form-group">
+                {% if ai_project.cerebrium_enable_audio %}
+                <div class="form-group" id="cerebrium-audio-group">
                     <label class="form-label">音频输入</label>
                     <div class="mode-selector">
                         <label><input type="radio" name="audio-source" value="pan" checked> 从网盘选择</label>
@@ -97,6 +100,19 @@
                         <input type="text" id="audio-url-input" placeholder="https://example.com/audio.wav">
                     </div>
                 </div>
+                {% endif %}
+
+                {% if ai_project.cerebrium_enable_prompt %}
+                <div class="form-group" id="cerebrium-prompt-group">
+                    <label for="cerebrium-prompt" class="form-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        提示词 (Prompt)
+                    </label>
+                    <textarea id="cerebrium-prompt" name="cerebrium_prompt"
+                              placeholder="在此输入提示词..."
+                              rows="4"></textarea>
+                </div>
+                {% endif %}
 
                 <input type="hidden" id="video-file-key">
                 <input type="hidden" id="audio-file-key">
@@ -569,6 +585,8 @@ function initCustomGpuFlow() {
     const errorBox = document.getElementById('custom-gpu-error');
     const statusBox = document.getElementById('status');
     const resultContent = document.getElementById('result-content');
+
+    // Optional Elements (depending on flags)
     const selectVideoBtn = document.getElementById('select-video-btn');
     const selectAudioBtn = document.getElementById('select-audio-btn');
     const videoKeyInput = document.getElementById('video-file-key');
@@ -583,6 +601,8 @@ function initCustomGpuFlow() {
     const videoUrlSection = document.getElementById('video-url-section');
     const audioPanSection = document.getElementById('audio-pan-section');
     const audioUrlSection = document.getElementById('audio-url-section');
+    const promptInput = document.getElementById('cerebrium-prompt'); // New prompt input
+
     const modal = document.getElementById('file-browser-modal');
     const fileListContainer = document.getElementById('file-browser-list');
     const closeBtn = document.querySelector('.close-button');
@@ -590,6 +610,11 @@ function initCustomGpuFlow() {
     const s3ContextUrl = '{{ url_for("api.get_custom_gpu_s3_context") }}';
     const resultsUrl = '{{ url_for("results.my_results") }}';
     const saveResultUrl = '{{ url_for("api.save_custom_gpu_result") }}';
+
+    // Feature flags
+    const enableVideo = {{ 'true' if ai_project.cerebrium_enable_video else 'false' }};
+    const enableAudio = {{ 'true' if ai_project.cerebrium_enable_audio else 'false' }};
+    const enablePrompt = {{ 'true' if ai_project.cerebrium_enable_prompt else 'false' }};
 
     if (!submitButton) {
         return;
@@ -624,6 +649,12 @@ function initCustomGpuFlow() {
     }
 
     function isSourceReady(kind) {
+        if (kind === 'video' && !enableVideo) return true;
+        if (kind === 'audio' && !enableAudio) return true;
+        if (kind === 'prompt') {
+            return !enablePrompt || (promptInput && promptInput.value.trim().length > 0);
+        }
+
         const mode = document.querySelector(`input[name="${kind}-source"]:checked`);
         if (!mode) return false;
         if (mode.value === 'pan') {
@@ -640,7 +671,13 @@ function initCustomGpuFlow() {
         }
         const videoReady = isSourceReady('video');
         const audioReady = isSourceReady('audio');
-        submitButton.disabled = !(videoReady && audioReady) || isSubmitting || isPendingLocked;
+        // If prompt is enabled, we could require it, or make it optional.
+        // Usually prompt is required if enabled, but let's make it strict for now.
+        // If the user wants it optional, they can update the logic.
+        // Assuming strict requirement for now.
+        const promptReady = isSourceReady('prompt');
+
+        submitButton.disabled = !(videoReady && audioReady && promptReady) || isSubmitting || isPendingLocked;
     }
 
     function bindSourceToggle(radios, panSection, urlSection) {
@@ -919,6 +956,10 @@ function initCustomGpuFlow() {
     bindFilePicker(selectAudioBtn, audioKeyInput, audioDisplay);
 
     function resolveMediaUrl(kind) {
+        if ((kind === 'video' && !enableVideo) || (kind === 'audio' && !enableAudio)) {
+            return null;
+        }
+
         const mode = document.querySelector(`input[name="${kind}-source"]:checked`);
         if (!mode) {
             throw new Error('请选择文件来源');
@@ -979,8 +1020,9 @@ function initCustomGpuFlow() {
     }
 
     attachInputListener(gpuSelect);
-    attachInputListener(videoUrlInput);
-    attachInputListener(audioUrlInput);
+    if (videoUrlInput) attachInputListener(videoUrlInput);
+    if (audioUrlInput) attachInputListener(audioUrlInput);
+    if (promptInput) attachInputListener(promptInput);
 
     if (gpuSelect) {
         gpuSelect.addEventListener('change', () => {
@@ -1022,6 +1064,8 @@ function initCustomGpuFlow() {
 
             const videoUrl = resolveMediaUrl('video');
             const audioUrl = resolveMediaUrl('audio');
+            const promptVal = promptInput ? promptInput.value : null;
+
             const finalUrl = `${publicBaseUrl}/${outputKey}`;
             const fileName = outputKey.split('/').pop();
 
@@ -1033,10 +1077,11 @@ function initCustomGpuFlow() {
 
             setStatus('2. 正在调用 GPU 服务...');
             const payload = {
-                video_url: videoUrl,
-                audio_url: audioUrl,
                 output_presigned_url: uploadUrl
             };
+            if (videoUrl) payload.video_url = videoUrl;
+            if (audioUrl) payload.audio_url = audioUrl;
+            if (promptVal) payload.prompt = promptVal;
 
             const response = await fetch(selectedConfig.api_url, {
                 method: 'POST',

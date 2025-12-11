@@ -58,6 +58,25 @@
                    value="{{ timeout_minutes }}"
                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
     <small style="color: #666;">当用户发起自定义 GPU 推理后，在该时间内若未收到结果会提示超时，并允许重新发送。</small>
+
+            <div style="margin-top: 15px; background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #dee2e6;">
+                <label style="display: block; margin-bottom: 10px; font-weight: bold;">输入功能开关</label>
+                <div style="display: flex; gap: 20px;">
+                    <label>
+                        <input type="checkbox" name="cerebrium_enable_video" {% if space and space.cerebrium_enable_video %}checked{% endif %}>
+                        启用视频输入
+                    </label>
+                    <label>
+                        <input type="checkbox" name="cerebrium_enable_audio" {% if space and space.cerebrium_enable_audio %}checked{% endif %}>
+                        启用音频输入
+                    </label>
+                    <label>
+                        <input type="checkbox" name="cerebrium_enable_prompt" {% if space and space.cerebrium_enable_prompt %}checked{% endif %}>
+                        启用提示词输入
+                    </label>
+                </div>
+                <small style="color: #666; display: block; margin-top: 5px;">勾选后，对应的输入框将显示在 Space 详情页中。</small>
+            </div>
         </div>
         <div style="margin-bottom: 15px;">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">封面图片</label>
