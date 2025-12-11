@@ -537,6 +537,62 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     renderTemplateList();
+
+    // Toggle fields based on runner
+    if (document.getElementById('template-modal')) {
+        const runnerSelect = document.getElementById('command_runner_select');
+        if (runnerSelect) {
+            runnerSelect.addEventListener('change', updateRunnerFields);
+            // Also need to trigger on modal open, which is handled by jsonToForm theoretically,
+            // but we need to hook into form reset/load.
+            // We can attach a mutation observer or just call it when modal opens.
+            // Simplified: Add a listener to the select, and call it when opening modal.
+            const addBtn = document.getElementById('add-template-btn');
+            if(addBtn) addBtn.addEventListener('click', () => setTimeout(updateRunnerFields, 50));
+            const listEl = document.getElementById('template-list');
+            if(listEl) listEl.addEventListener('click', (e) => {
+                if(e.target.classList.contains('edit-template-btn')) setTimeout(updateRunnerFields, 50);
+            });
+        }
+
+        function updateRunnerFields() {
+            const runner = document.getElementById('command_runner_select').value;
+            const fields = document.querySelectorAll('.runner-field');
+            const baseLabel = document.getElementById('base_command_label');
+            const baseHelp = document.getElementById('base_command_help');
+
+            fields.forEach(f => {
+                if (f.classList.contains(`runner-field-${runner}`)) {
+                    f.style.display = 'block';
+                } else if (f.classList.contains('runner-field-inferless') && runner === 'inferless') {
+                     f.style.display = 'block';
+                } else if (f.classList.contains('runner-field-modal') && runner === 'modal') {
+                     f.style.display = 'block';
+                } else {
+                    f.style.display = 'none';
+                }
+            });
+
+            // Special handling because we used shared classes above for brevity but logic is specific
+            // Actually, let's just hide all `runner-field` by default and show based on logic.
+            fields.forEach(f => f.style.display = 'none');
+
+            if (runner === 'gradio_client') {
+                baseLabel.textContent = 'API 地址 (URL)';
+                baseHelp.textContent = '请输入远程 Gradio 服务的完整 URL，例如 http://1.2.3.4:7860';
+                // Gradio client doesn't need other fields visible
+            } else {
+                baseLabel.textContent = '基础命令';
+                baseHelp.textContent = '';
+                // Show standard fields
+                fields.forEach(f => {
+                    if (f.classList.contains('runner-field-inferless') || f.classList.contains('runner-field-modal')) {
+                        f.style.display = 'block';
+                    }
+                });
+            }
+        }
+    }
 });
 </script>
 
@@ -650,30 +706,31 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div style="margin-bottom: 15px;">
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">命令运行器</label>
-                <select name="command_runner" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                <select name="command_runner" id="command_runner_select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
                     <option value="inferless">Inferless</option>
                     <option value="modal">Modal</option>
                     <option value="gradio_client">Remote Gradio (In-Process)</option>
                 </select>
             </div>
-            <div style="margin-bottom: 15px;">
+            <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">入口脚本 (Entrypoint Script)</label>
                 <input type="text" name="entrypoint_script" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="app.py">
                 <small style="color: #666;">运行命令时要执行的脚本文件，例如 `app.py` 或 `gradio.py`。</small>
             </div>
-            <div style="margin-bottom: 15px;">
+            <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">主命令前置 (可选)</label>
                 <input type="text" name="pre_command" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="例如: cd flux &&">
             </div>
-            <div style="margin-bottom: 15px;">
+            <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">子命令前置 (可选)</label>
                 <input type="text" name="sub_command" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="例如: cd workspace &&">
             </div>
             <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">基础命令</label>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;" id="base_command_label">基础命令</label>
                 <input type="text" name="base_command" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;">
+                <small id="base_command_help" style="color: #666;"></small>
             </div>
-            <div style="margin-bottom: 15px;">
+            <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">预设参数 (管理员定义)</label>
                 <input type="text" name="preset_params" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="例如: --height 720 --width 1280">
             </div>

@@ -73,10 +73,6 @@
                         {% endif %}
                         <td>
                             <div class="action-buttons">
-                                <a href="{{ url_for('admin.manage_user_custom_gpu', username=user.username) }}" class="btn-icon" title="管理专用 GPU">
-                                    GPU
-                                </a>
-
                                 {% if pro_enabled and user.pro_submission_status == 'pending' %}
                                     <form action="{{ url_for('admin.approve_pro_user', username=user.username) }}" method="post" class="inline-form">
                                         <button type="submit" class="btn-icon success" title="通过">✓</button>
