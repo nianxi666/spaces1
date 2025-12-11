@@ -316,120 +316,6 @@ def manage_users():
     )
 
 
-@admin_bp.route('/users/<username>/custom-gpu')
-def manage_user_custom_gpu(username):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if not user:
-        flash('未找到用户。', 'error')
-        return redirect(url_for('admin.manage_users'))
-
-    if 'cerebrium_configs' not in user:
-        user['cerebrium_configs'] = []
-        save_db(db)
-
-    return render_template('admin_user_cerebrium.html', target_user=username, user=user)
-
-
-@admin_bp.route('/users/<username>/custom-gpu/add', methods=['POST'])
-def add_user_custom_gpu_config(username):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if not user:
-        flash('未找到用户。', 'error')
-        return redirect(url_for('admin.manage_users'))
-
-    name = request.form.get('name', '').strip()
-    api_url = request.form.get('api_url', '').strip()
-    api_token = request.form.get('api_token', '').strip()
-
-    if not all([name, api_url, api_token]):
-        flash('名称、API地址和密钥均不能为空。', 'error')
-        return redirect(url_for('admin.manage_user_custom_gpu', username=username))
-
-    config = {
-        'id': str(uuid.uuid4()),
-        'name': name,
-        'api_url': api_url,
-        'api_token': api_token,
-        'created_at': datetime.utcnow().isoformat()
-    }
-
-    user.setdefault('cerebrium_configs', []).append(config)
-
-    # Auto-send message to group chat
-    if db.get('settings', {}).get('chat_enabled', True):
-        # Construct bilingual message
-        # Use a safe fallback for the admin username, though session should have it
-        admin_username = session.get('username', 'Admin')
-        msg_content = (
-            f"已为用户 @{username} 添加 {name}，其他用户请耐心等待。\n"
-            f"Added {name} for user @{username}, other users please wait patiently."
-        )
-
-        new_message = {
-            'id': str(uuid.uuid4()),
-            'username': admin_username,
-            'content': msg_content,
-            'timestamp': time.time()
-        }
-
-        if 'chat_messages' not in db:
-            db['chat_messages'] = []
-
-        db['chat_messages'].append(new_message)
-
-        # Archiving logic (keep last 100 messages)
-        if len(db['chat_messages']) > 99:
-            if 'chat_history' not in db:
-                db['chat_history'] = []
-            db['chat_history'].append(db['chat_messages'].pop(0))
-
-    save_db(db)
-    flash('已添加新的 GPU 配置。', 'success')
-    return redirect(url_for('admin.manage_user_custom_gpu', username=username))
-
-@admin_bp.route('/users/<username>/custom-gpu/<config_id>/edit', methods=['POST'])
-def edit_user_custom_gpu_config(username, config_id):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if not user:
-        flash('未找到用户。', 'error')
-        return redirect(url_for('admin.manage_users'))
-
-    configs = user.setdefault('cerebrium_configs', [])
-    config = next((c for c in configs if c.get('id') == config_id), None)
-    if not config:
-        flash('未找到配置。', 'error')
-        return redirect(url_for('admin.manage_user_custom_gpu', username=username))
-
-    config['name'] = request.form.get('name', config.get('name', '')).strip()
-    config['api_url'] = request.form.get('api_url', config.get('api_url', '')).strip()
-    config['api_token'] = request.form.get('api_token', config.get('api_token', '')).strip()
-    config['updated_at'] = datetime.utcnow().isoformat()
-
-    save_db(db)
-    flash('配置已更新。', 'success')
-    return redirect(url_for('admin.manage_user_custom_gpu', username=username))
-
-@admin_bp.route('/users/<username>/custom-gpu/<config_id>/delete', methods=['POST'])
-def delete_user_custom_gpu_config(username, config_id):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if not user:
-        flash('未找到用户。', 'error')
-        return redirect(url_for('admin.manage_users'))
-
-    configs = user.setdefault('cerebrium_configs', [])
-    new_configs = [c for c in configs if c.get('id') != config_id]
-    if len(new_configs) == len(configs):
-        flash('未找到配置。', 'error')
-        return redirect(url_for('admin.manage_user_custom_gpu', username=username))
-
-    user['cerebrium_configs'] = new_configs
-    save_db(db)
-    flash('配置已删除。', 'success')
-    return redirect(url_for('admin.manage_user_custom_gpu', username=username))
 
 @admin_bp.route('/users/delete/<username>', methods=['POST'])
 def delete_user(username):
@@ -505,57 +391,6 @@ def manage_announcement():
                            chat_announcement=chat_announcement,
                            terminal_announcement=terminal_announcement)
 
-@admin_bp.route('/gpu-pool', methods=['GET'])
-def manage_gpu_pool():
-    db = load_db()
-    # Initialize if missing (handled in load_db actually, but explicitly here for safety)
-    if 'gpu_pool' not in db:
-        db['gpu_pool'] = []
-    return render_template('admin_gpu_pool.html', gpu_pool=db['gpu_pool'])
-
-@admin_bp.route('/gpu-pool/add', methods=['POST'])
-def add_gpu_to_pool():
-    db = load_db()
-    if 'gpu_pool' not in db:
-        db['gpu_pool'] = []
-
-    name = request.form.get('name', '').strip()
-    api_url = request.form.get('api_url', '').strip()
-    api_token = request.form.get('api_token', '').strip()
-
-    if not all([name, api_url, api_token]):
-        flash('所有字段都是必填的。', 'error')
-        return redirect(url_for('admin.manage_gpu_pool'))
-
-    new_gpu = {
-        'id': str(uuid.uuid4()),
-        'name': name,
-        'api_url': api_url,
-        'api_token': api_token,
-        'added_at': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-    }
-
-    db['gpu_pool'].append(new_gpu)
-    save_db(db)
-    flash(f'GPU {name} 已添加到池中。', 'success')
-    return redirect(url_for('admin.manage_gpu_pool'))
-
-@admin_bp.route('/gpu-pool/delete/<pool_id>', methods=['POST'])
-def delete_gpu_from_pool(pool_id):
-    db = load_db()
-    if 'gpu_pool' not in db:
-        return redirect(url_for('admin.manage_gpu_pool'))
-
-    initial_len = len(db['gpu_pool'])
-    db['gpu_pool'] = [gpu for gpu in db['gpu_pool'] if gpu['id'] != pool_id]
-
-    if len(db['gpu_pool']) < initial_len:
-        save_db(db)
-        flash('GPU 已从池中移除。', 'success')
-    else:
-        flash('未找到该 GPU。', 'error')
-
-    return redirect(url_for('admin.manage_gpu_pool'))
 
 @admin_bp.route('/banner', methods=['GET', 'POST'])
 def manage_banner():
@@ -618,6 +453,10 @@ def add_edit_space(space_id=None):
             space['cerebrium_enable_audio'] = request.form.get('cerebrium_enable_audio') == 'on'
             space['cerebrium_enable_prompt'] = request.form.get('cerebrium_enable_prompt') == 'on'
 
+            # Remote Inference Settings
+            space['remote_inference_api_url'] = request.form.get('remote_inference_api_url', '').strip()
+            space['remote_inference_api_token'] = request.form.get('remote_inference_api_token', '').strip()
+
             if card_type == 'netmind':
                 space['netmind_model'] = netmind_alias
                 space['netmind_upstream_model'] = netmind_upstream or ''
@@ -638,7 +477,9 @@ def add_edit_space(space_id=None):
                 'netmind_upstream_model': netmind_upstream if card_type == 'netmind' else '',
                 'cerebrium_enable_video': request.form.get('cerebrium_enable_video') == 'on',
                 'cerebrium_enable_audio': request.form.get('cerebrium_enable_audio') == 'on',
-                'cerebrium_enable_prompt': request.form.get('cerebrium_enable_prompt') == 'on'
+                'cerebrium_enable_prompt': request.form.get('cerebrium_enable_prompt') == 'on',
+                'remote_inference_api_url': request.form.get('remote_inference_api_url', '').strip(),
+                'remote_inference_api_token': request.form.get('remote_inference_api_token', '').strip()
             }
         sync_netmind_aliases(db)
         save_db(db)

@@ -16,10 +16,9 @@
         </div>
         <div style="margin-bottom: 15px;">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">Space 卡片类型</label>
-            {% set card_type = space.card_type if space else 'standard' %}
+            {% set card_type = space.card_type if space else 'remote_inference' %}
             <select name="card_type" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                <option value="standard" {% if card_type == 'standard' %}selected{% endif %}>标准命令型 (Inferless/Modal)</option>
-                <option value="cerebrium" {% if card_type == 'cerebrium' %}selected{% endif %}>自定义 GPU API 型</option>
+                <option value="remote_inference" {% if card_type == 'remote_inference' %}selected{% endif %}>远程推理 (Remote Inference)</option>
                 <option value="netmind" {% if card_type == 'netmind' %}selected{% endif %}>模型代理聊天型</option>
             </select>
             <small style="color: #666;">该类型会通过代理 API 转发聊天请求，可将对外模型名称与真实上游解耦。</small>
@@ -48,35 +47,21 @@
             {% endif %}
         </div>
 
-{% set timeout_seconds = space.cerebrium_timeout_seconds if space and space.cerebrium_timeout_seconds is not none else 300 %}
-{% set timeout_minutes = (timeout_seconds / 60) | int %}
-<div id="custom-gpu-settings" style="margin-bottom: 15px; {% if card_type != 'cerebrium' %}display: none;{% endif %}">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">推理超时时间（分钟）</label>
-            <input type="number"
-                   name="cerebrium_timeout_minutes"
-                   min="1"
-                   value="{{ timeout_minutes }}"
+        <div id="remote-inference-settings" style="margin-bottom: 15px; {% if card_type != 'remote_inference' %}display: none;{% endif %}">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Gradio API URL</label>
+            <input type="text"
+                   name="remote_inference_api_url"
+                   value="{{ space.remote_inference_api_url if space else '' }}"
+                   placeholder="例如: http://direct.virtaicloud.com:21564"
                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-    <small style="color: #666;">当用户发起自定义 GPU 推理后，在该时间内若未收到结果会提示超时，并允许重新发送。</small>
+            <small style="color: #666;">请输入远程 Gradio 服务的 API 地址。</small>
 
-            <div style="margin-top: 15px; background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #dee2e6;">
-                <label style="display: block; margin-bottom: 10px; font-weight: bold;">输入功能开关</label>
-                <div style="display: flex; gap: 20px;">
-                    <label>
-                        <input type="checkbox" name="cerebrium_enable_video" {% if space and space.cerebrium_enable_video %}checked{% endif %}>
-                        启用视频输入
-                    </label>
-                    <label>
-                        <input type="checkbox" name="cerebrium_enable_audio" {% if space and space.cerebrium_enable_audio %}checked{% endif %}>
-                        启用音频输入
-                    </label>
-                    <label>
-                        <input type="checkbox" name="cerebrium_enable_prompt" {% if space and space.cerebrium_enable_prompt %}checked{% endif %}>
-                        启用提示词输入
-                    </label>
-                </div>
-                <small style="color: #666; display: block; margin-top: 5px;">勾选后，对应的输入框将显示在 Space 详情页中。</small>
-            </div>
+            <label style="display: block; margin-top: 15px; margin-bottom: 5px; font-weight: bold;">API Token (可选)</label>
+            <input type="text"
+                   name="remote_inference_api_token"
+                   value="{{ space.remote_inference_api_token if space else '' }}"
+                   placeholder="如果服务受保护，请输入 Bearer Token"
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
         </div>
         <div style="margin-bottom: 15px;">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">封面图片</label>
@@ -139,7 +124,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (cardTypeSelect) {
         const toggleSettings = () => {
             const val = cardTypeSelect.value;
-            if (customGpuSettings) customGpuSettings.style.display = val === 'cerebrium' ? 'block' : 'none';
+            const remoteSettings = document.getElementById('remote-inference-settings');
+            if (remoteSettings) remoteSettings.style.display = val === 'remote_inference' ? 'block' : 'none';
             if (netmindSettings) netmindSettings.style.display = val === 'netmind' ? 'block' : 'none';
         };
         cardTypeSelect.addEventListener('change', toggleSettings);
