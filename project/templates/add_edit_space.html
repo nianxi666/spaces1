@@ -8,39 +8,42 @@
     <form method="post">
         <div style="margin-bottom: 15px;">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">名称</label>
-            <input type="text" name="name" value="{{ space.name if space else '' }}" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            <input type="text" name="name" value="{{ space.name if space else '' }}" required
+                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
         </div>
         <div style="margin-bottom: 15px;">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">描述</label>
-            <textarea name="description" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; height: 80px;">{{ space.description if space else '' }}</textarea>
+            <textarea name="description"
+                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; height: 80px;">{{ space.description if space else '' }}</textarea>
         </div>
         <div style="margin-bottom: 15px;">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">Space 卡片类型</label>
             {% set card_type = space.card_type if space else 'standard' %}
-            <select name="card_type" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                <option value="standard" {% if card_type == 'standard' %}selected{% endif %}>标准命令型 (Inferless/Modal)</option>
-                <option value="cerebrium" {% if card_type == 'cerebrium' %}selected{% endif %}>自定义 GPU API 型</option>
-                <option value="netmind" {% if card_type == 'netmind' %}selected{% endif %}>模型代理聊天型</option>
+            <select name="card_type"
+                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                <option value="standard" {% if card_type=='standard' %}selected{% endif %}>标准命令型</option>
+                <option value="remote_inference" {% if card_type=='remote_inference' %}selected{% endif %}>远程推理型 (Remote
+                    Inference)</option>
+                <option value="netmind" {% if card_type=='netmind' %}selected{% endif %}>模型代理聊天型</option>
             </select>
-            <small style="color: #666;">该类型会通过代理 API 转发聊天请求，可将对外模型名称与真实上游解耦。</small>
+            <small style="color: #666;">远程推理型用于调用远程 GPU API 服务；聊天型会通过代理 API 转发聊天请求。</small>
         </div>
 
-        <div id="netmind-settings" style="margin-bottom: 15px; {% if card_type != 'netmind' %}display: none;{% endif %}">
+        <div id="netmind-settings"
+            style="margin-bottom: 15px; {% if card_type != 'netmind' %}display: none;{% endif %}">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">对外展示的模型 ID</label>
-            <input type="text"
-                   name="netmind_model"
-                   value="{{ space.netmind_model if space and space.netmind_model else '' }}"
-                   placeholder="例如: gpt-4-turbo 或 llama-3-70b"
-                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            <input type="text" name="netmind_model"
+                value="{{ space.netmind_model if space and space.netmind_model else '' }}"
+                placeholder="例如: gpt-4-turbo 或 llama-3-70b"
+                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
             <small style="color: #666;">请输入面向外部用户展示的模型 ID，用户调用 API / Chat 页面时会传递它。</small>
 
             <label style="display: block; margin: 15px 0 5px; font-weight: bold;">上游模型 ID</label>
-            <input type="text"
-                   name="netmind_upstream_model"
-                   value="{{ space.netmind_upstream_model if space and space.netmind_upstream_model else (space.netmind_model if space and space.netmind_model else '') }}"
-                   placeholder="例如: deepseek-chat 或 azure-gpt4"
-                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; {% if not alias_enabled %}background: #f5f5f5; color: #888;{% endif %}"
-                   {% if not alias_enabled %}readonly{% endif %}>
+            <input type="text" name="netmind_upstream_model"
+                value="{{ space.netmind_upstream_model if space and space.netmind_upstream_model else (space.netmind_model if space and space.netmind_model else '') }}"
+                placeholder="例如: deepseek-chat 或 azure-gpt4"
+                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; {% if not alias_enabled %}background: #f5f5f5; color: #888;{% endif %}"
+                {% if not alias_enabled %}readonly{% endif %}>
             {% if alias_enabled %}
             <small style="color: #666;">该值为部署在服务器上的真实模型 ID。系统会在调用上游接口时自动将自定义名称映射到此 ID。</small>
             {% else %}
@@ -48,37 +51,45 @@
             {% endif %}
         </div>
 
-{% set timeout_seconds = space.cerebrium_timeout_seconds if space and space.cerebrium_timeout_seconds is not none else 300 %}
-{% set timeout_minutes = (timeout_seconds / 60) | int %}
-<div id="custom-gpu-settings" style="margin-bottom: 15px; {% if card_type != 'cerebrium' %}display: none;{% endif %}">
+        {% set timeout_seconds = space.remote_inference_timeout_seconds if space and
+        space.remote_inference_timeout_seconds is not none else 300 %}
+        {% set timeout_minutes = (timeout_seconds / 60) | int %}
+        <div id="remote-inference-settings"
+            style="margin-bottom: 15px; {% if card_type != 'remote_inference' %}display: none;{% endif %}">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">推理超时时间（分钟）</label>
-            <input type="number"
-                   name="cerebrium_timeout_minutes"
-                   min="1"
-                   value="{{ timeout_minutes }}"
-                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-    <small style="color: #666;">当用户发起自定义 GPU 推理后，在该时间内若未收到结果会提示超时，并允许重新发送。</small>
+            <input type="number" name="remote_inference_timeout_minutes" min="1" value="{{ timeout_minutes }}"
+                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            <small style="color: #666;">当用户发起远程推理后，在该时间内若未收到结果会提示超时，并允许重新发送。</small>
         </div>
         <div style="margin-bottom: 15px;">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">封面图片</label>
             <div style="display: flex; flex-direction: column; gap: 5px;">
-                <input type="file" id="cover_file_input" accept="image/*,video/*" style="padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-                <button type="button" id="select-cover-btn" class="btn btn-secondary" style="width: fit-content;">从我的作品中选择</button>
+                <input type="file" id="cover_file_input" accept="image/*,video/*"
+                    style="padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                <button type="button" id="select-cover-btn" class="btn btn-secondary"
+                    style="width: fit-content;">从我的作品中选择</button>
             </div>
             <input type="hidden" name="cover" id="cover_url_input" value="{{ space.cover if space else '' }}">
-            <input type="hidden" name="cover_type" id="cover_type_input" value="{{ space.cover_type if space else 'image' }}">
+            <input type="hidden" name="cover_type" id="cover_type_input"
+                value="{{ space.cover_type if space else 'image' }}">
             <div id="upload-status" style="margin-top: 10px; font-weight: bold;"></div>
-            <div id="cover-preview-container" style="margin-top: 10px; {% if not space or not space.cover %}display: none;{% endif %}">
+            <div id="cover-preview-container"
+                style="margin-top: 10px; {% if not space or not space.cover %}display: none;{% endif %}">
                 <p style="color: #666; margin: 0;">当前:</p>
                 {% if space and space.cover %}
-                    {% set cover_url = space.cover if space.cover.startswith('http') else to_s3_url(space.cover) %}
-                    {% if space.cover_type == 'video' %}
-                        <video id="cover-preview-video" src="{{ cover_url }}" style="width: 150px; height: auto; vertical-align: middle; border-radius: 4px;" controls></video>
-                        <img id="cover-preview-img" src="" style="display: none; width: 100px; height: 100px; object-fit: cover; vertical-align: middle; border-radius: 4px;">
-                    {% else %}
-                        <video id="cover-preview-video" src="" style="display: none; width: 150px; height: auto; vertical-align: middle; border-radius: 4px;" controls></video>
-                        <img id="cover-preview-img" src="{{ cover_url }}" style="width: 100px; height: 100px; object-fit: cover; vertical-align: middle; border-radius: 4px;">
-                    {% endif %}
+                {% set cover_url = space.cover if space.cover.startswith('http') else to_s3_url(space.cover) %}
+                {% if space.cover_type == 'video' %}
+                <video id="cover-preview-video" src="{{ cover_url }}"
+                    style="width: 150px; height: auto; vertical-align: middle; border-radius: 4px;" controls></video>
+                <img id="cover-preview-img" src=""
+                    style="display: none; width: 100px; height: 100px; object-fit: cover; vertical-align: middle; border-radius: 4px;">
+                {% else %}
+                <video id="cover-preview-video" src=""
+                    style="display: none; width: 150px; height: auto; vertical-align: middle; border-radius: 4px;"
+                    controls></video>
+                <img id="cover-preview-img" src="{{ cover_url }}"
+                    style="width: 100px; height: 100px; object-fit: cover; vertical-align: middle; border-radius: 4px;">
+                {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -90,194 +101,200 @@
             <div id="template-list">
                 <p>此 Space 还没有GPU。</p>
             </div>
-            <button type="button" id="add-template-btn" style="margin-top: 15px; background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">+ 添加新GPU</button>
+            <button type="button" id="add-template-btn"
+                style="margin-top: 15px; background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">+
+                添加新GPU</button>
         </div>
         {% else %}
-        <div class="alert alert-info" style="padding: 15px; background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; border-radius: 4px;">
+        <div class="alert alert-info"
+            style="padding: 15px; background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; border-radius: 4px;">
             请先保存 Space，然后您才能向其添加GPU。
         </div>
         {% endif %}
 
-        <button type="submit" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">保存 Space</button>
+        <button type="submit"
+            style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">保存
+            Space</button>
     </form>
 </div>
 
 <!-- Cover Image Scripts -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const coverFileInput = document.getElementById('cover_file_input');
-    const coverUrlInput = document.getElementById('cover_url_input');
-    const coverTypeInput = document.getElementById('cover_type_input');
-    const uploadStatus = document.getElementById('upload-status');
-    const previewContainer = document.getElementById('cover-preview-container');
-    const previewImg = document.getElementById('cover-preview-img');
-    const previewVideo = document.getElementById('cover-preview-video');
-    const spaceId = "{{ space.id if space else '' }}";
-    const cardTypeSelect = document.querySelector('select[name="card_type"]');
-    const customGpuSettings = document.getElementById('custom-gpu-settings');
-    const netmindSettings = document.getElementById('netmind-settings');
+    document.addEventListener('DOMContentLoaded', function () {
+        const coverFileInput = document.getElementById('cover_file_input');
+        const coverUrlInput = document.getElementById('cover_url_input');
+        const coverTypeInput = document.getElementById('cover_type_input');
+        const uploadStatus = document.getElementById('upload-status');
+        const previewContainer = document.getElementById('cover-preview-container');
+        const previewImg = document.getElementById('cover-preview-img');
+        const previewVideo = document.getElementById('cover-preview-video');
+        const spaceId = "{{ space.id if space else '' }}";
+        const cardTypeSelect = document.querySelector('select[name="card_type"]');
+        const remoteInferenceSettings = document.getElementById('remote-inference-settings');
+        const netmindSettings = document.getElementById('netmind-settings');
 
-    if (cardTypeSelect) {
-        const toggleSettings = () => {
-            const val = cardTypeSelect.value;
-            if (customGpuSettings) customGpuSettings.style.display = val === 'cerebrium' ? 'block' : 'none';
-            if (netmindSettings) netmindSettings.style.display = val === 'netmind' ? 'block' : 'none';
-        };
-        cardTypeSelect.addEventListener('change', toggleSettings);
-        toggleSettings();
-    }
-
-    function updateCoverPreview(url, type) {
-        if (!previewContainer) return;
-        previewContainer.style.display = 'block';
-        if (type === 'video') {
-            if (previewImg) {
-                previewImg.style.display = 'none';
-                previewImg.src = '';
-            }
-            if (previewVideo) {
-                previewVideo.style.display = 'block';
-                previewVideo.src = url;
-            }
-        } else {
-            if (previewVideo) {
-                previewVideo.style.display = 'none';
-                previewVideo.src = '';
-            }
-            if (previewImg) {
-                previewImg.style.display = 'block';
-                previewImg.src = url;
-            }
+        if (cardTypeSelect) {
+            const toggleSettings = () => {
+                const val = cardTypeSelect.value;
+                if (remoteInferenceSettings) remoteInferenceSettings.style.display = val === 'remote_inference' ? 'block' : 'none';
+                if (netmindSettings) netmindSettings.style.display = val === 'netmind' ? 'block' : 'none';
+            };
+            cardTypeSelect.addEventListener('change', toggleSettings);
+            toggleSettings();
         }
-    }
 
-    if (coverFileInput) {
-        coverFileInput.addEventListener('change', async function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            uploadStatus.textContent = '正在获取上传许可...';
-            uploadStatus.style.color = '#007bff';
-
-            try {
-                const presignedUrlResponse = await fetch(`/api/generate-upload-url?fileName=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type || 'application/octet-stream')}`);
-                if (!presignedUrlResponse.ok) throw new Error('无法从服务器获取上传URL。');
-
-                const data = await presignedUrlResponse.json();
-                if (!data.success) throw new Error(data.error || '生成上传URL失败。');
-
-                const { presigned_url, final_url } = data;
-                uploadStatus.textContent = '正在上传...';
-
-                const uploadResponse = await fetch(presigned_url, {
-                    method: 'PUT',
-                    body: file,
-                    headers: { 'Content-Type': file.type || 'application/octet-stream' }
-                });
-                if (!uploadResponse.ok) throw new Error('上传到S3失败。');
-
-                const fileType = file.type.startsWith('video') ? 'video' : 'image';
-                coverUrlInput.value = final_url;
-                coverTypeInput.value = fileType;
-
-                updateCoverPreview(final_url, fileType);
-                uploadStatus.textContent = '封面上传成功！';
-                uploadStatus.style.color = 'green';
-
-            } catch (error) {
-                console.error('Upload failed:', error);
-                uploadStatus.textContent = `上传失败: ${error.message}`;
-                uploadStatus.style.color = 'red';
-                coverFileInput.value = '';
-            }
-        });
-    }
-
-    const coverModal = document.getElementById('file-browser-modal');
-    const selectCoverBtn = document.getElementById('select-cover-btn');
-
-    if (coverModal && selectCoverBtn && spaceId) {
-        const closeBtn = coverModal.querySelector('.close-button');
-        const fileListContainer = coverModal.querySelector('#file-browser-list');
-
-        selectCoverBtn.addEventListener('click', async () => {
-            coverModal.style.display = 'flex';
-            fileListContainer.innerHTML = '<p>正在加载图片...</p>';
-            try {
-                const response = await fetch('{{ url_for("api.list_my_s3_files") }}');
-                const data = await response.json();
-                if (data.success) {
-                    renderFileList(data.files.filter(f => f.is_image));
-                } else {
-                    fileListContainer.innerHTML = `<p style="color: red;">无法加载文件: ${data.error}</p>`;
+        function updateCoverPreview(url, type) {
+            if (!previewContainer) return;
+            previewContainer.style.display = 'block';
+            if (type === 'video') {
+                if (previewImg) {
+                    previewImg.style.display = 'none';
+                    previewImg.src = '';
                 }
-            } catch (error) {
-                fileListContainer.innerHTML = `<p style="color: red;">加载文件时出错: ${error.message}</p>`;
+                if (previewVideo) {
+                    previewVideo.style.display = 'block';
+                    previewVideo.src = url;
+                }
+            } else {
+                if (previewVideo) {
+                    previewVideo.style.display = 'none';
+                    previewVideo.src = '';
+                }
+                if (previewImg) {
+                    previewImg.style.display = 'block';
+                    previewImg.src = url;
+                }
             }
-        });
-
-        if(closeBtn) {
-            closeBtn.addEventListener('click', () => { coverModal.style.display = 'none'; });
         }
 
-        window.addEventListener('click', (event) => {
-            if (event.target == coverModal) coverModal.style.display = 'none';
-        });
+        if (coverFileInput) {
+            coverFileInput.addEventListener('change', async function (event) {
+                const file = event.target.files[0];
+                if (!file) return;
 
-        function renderFileList(files) {
-            if (files.length === 0) {
-                fileListContainer.innerHTML = '<p>您还没有生成任何图片。请先在AI空间中创作。</p>';
-                return;
-            }
-            fileListContainer.innerHTML = '';
-            files.forEach(file => {
-                const fileItem = document.createElement('div');
-                fileItem.className = 'file-item';
-                fileItem.dataset.key = file.key;
-                fileItem.innerHTML = `<img src="${file.preview_url}" alt="${file.filename}"><p>${file.filename}</p>`;
-                fileListContainer.appendChild(fileItem);
+                uploadStatus.textContent = '正在获取上传许可...';
+                uploadStatus.style.color = '#007bff';
+
+                try {
+                    const presignedUrlResponse = await fetch(`/api/generate-upload-url?fileName=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type || 'application/octet-stream')}`);
+                    if (!presignedUrlResponse.ok) throw new Error('无法从服务器获取上传URL。');
+
+                    const data = await presignedUrlResponse.json();
+                    if (!data.success) throw new Error(data.error || '生成上传URL失败。');
+
+                    const { presigned_url, final_url } = data;
+                    uploadStatus.textContent = '正在上传...';
+
+                    const uploadResponse = await fetch(presigned_url, {
+                        method: 'PUT',
+                        body: file,
+                        headers: { 'Content-Type': file.type || 'application/octet-stream' }
+                    });
+                    if (!uploadResponse.ok) throw new Error('上传到S3失败。');
+
+                    const fileType = file.type.startsWith('video') ? 'video' : 'image';
+                    coverUrlInput.value = final_url;
+                    coverTypeInput.value = fileType;
+
+                    updateCoverPreview(final_url, fileType);
+                    uploadStatus.textContent = '封面上传成功！';
+                    uploadStatus.style.color = 'green';
+
+                } catch (error) {
+                    console.error('Upload failed:', error);
+                    uploadStatus.textContent = `上传失败: ${error.message}`;
+                    uploadStatus.style.color = 'red';
+                    coverFileInput.value = '';
+                }
             });
         }
 
-        if(fileListContainer) {
-            fileListContainer.addEventListener('click', async (event) => {
-                const fileItem = event.target.closest('.file-item');
-                if (fileItem) {
-                    const fileKey = fileItem.dataset.key;
-                    try {
-                        const response = await fetch(`/admin/space/${spaceId}/set_cover`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ s3_key: fileKey }),
-                        });
-                        const result = await response.json();
-                        if (result.success) {
-                            coverUrlInput.value = result.new_cover_url;
-                            coverTypeInput.value = 'image';
-                            updateCoverPreview(result.new_cover_url, 'image');
-                            coverModal.style.display = 'none';
-                            uploadStatus.textContent = '封面选择成功！';
-                            uploadStatus.style.color = 'green';
-                        } else {
-                            alert('更新封面失败: ' + result.error);
-                        }
-                    } catch (error) {
-                        alert('更新封面时出错: ' + error.message);
+        const coverModal = document.getElementById('file-browser-modal');
+        const selectCoverBtn = document.getElementById('select-cover-btn');
+
+        if (coverModal && selectCoverBtn && spaceId) {
+            const closeBtn = coverModal.querySelector('.close-button');
+            const fileListContainer = coverModal.querySelector('#file-browser-list');
+
+            selectCoverBtn.addEventListener('click', async () => {
+                coverModal.style.display = 'flex';
+                fileListContainer.innerHTML = '<p>正在加载图片...</p>';
+                try {
+                    const response = await fetch('{{ url_for("api.list_my_s3_files") }}');
+                    const data = await response.json();
+                    if (data.success) {
+                        renderFileList(data.files.filter(f => f.is_image));
+                    } else {
+                        fileListContainer.innerHTML = `<p style="color: red;">无法加载文件: ${data.error}</p>`;
                     }
+                } catch (error) {
+                    fileListContainer.innerHTML = `<p style="color: red;">加载文件时出错: ${error.message}</p>`;
                 }
             });
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => { coverModal.style.display = 'none'; });
+            }
+
+            window.addEventListener('click', (event) => {
+                if (event.target == coverModal) coverModal.style.display = 'none';
+            });
+
+            function renderFileList(files) {
+                if (files.length === 0) {
+                    fileListContainer.innerHTML = '<p>您还没有生成任何图片。请先在AI空间中创作。</p>';
+                    return;
+                }
+                fileListContainer.innerHTML = '';
+                files.forEach(file => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.dataset.key = file.key;
+                    fileItem.innerHTML = `<img src="${file.preview_url}" alt="${file.filename}"><p>${file.filename}</p>`;
+                    fileListContainer.appendChild(fileItem);
+                });
+            }
+
+            if (fileListContainer) {
+                fileListContainer.addEventListener('click', async (event) => {
+                    const fileItem = event.target.closest('.file-item');
+                    if (fileItem) {
+                        const fileKey = fileItem.dataset.key;
+                        try {
+                            const response = await fetch(`/admin/space/${spaceId}/set_cover`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ s3_key: fileKey }),
+                            });
+                            const result = await response.json();
+                            if (result.success) {
+                                coverUrlInput.value = result.new_cover_url;
+                                coverTypeInput.value = 'image';
+                                updateCoverPreview(result.new_cover_url, 'image');
+                                coverModal.style.display = 'none';
+                                uploadStatus.textContent = '封面选择成功！';
+                                uploadStatus.style.color = 'green';
+                            } else {
+                                alert('更新封面失败: ' + result.error);
+                            }
+                        } catch (error) {
+                            alert('更新封面时出错: ' + error.message);
+                        }
+                    }
+                });
+            }
         }
-    }
-});
+    });
 </script>
 
 <!-- Template Editor Scripts -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const spaceId = "{{ space.id if space else '' }}";
-    if (!spaceId) return;
+    document.addEventListener('DOMContentLoaded', function () {
+        const spaceId = "{{ space.id if space else '' }}";
+        if (!spaceId) return;
 
-    const templates = {{ space.templates | tojson | safe if space and space.templates else '{}' }};
+        const templates = {{ space.templates | tojson | safe if space and space.templates else '{}'
+    }};
     let currentEditorMode = 'normal';
     let codeEditor;
 
@@ -303,7 +320,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         if (toggleModeBtn) {
-            toggleModeBtn.addEventListener('click', function() {
+            toggleModeBtn.addEventListener('click', function () {
                 if (currentEditorMode === 'normal') {
                     switchToAdvancedMode();
                 } else {
@@ -461,14 +478,14 @@ document.addEventListener('DOMContentLoaded', function() {
         showTemplateModal();
     }
 
-    function showTemplateModal() { if(templateModal) templateModal.style.display = 'block'; }
-    function hideTemplateModal() { if(templateModal) templateModal.style.display = 'none'; }
+    function showTemplateModal() { if (templateModal) templateModal.style.display = 'block'; }
+    function hideTemplateModal() { if (templateModal) templateModal.style.display = 'none'; }
 
-    if(addTemplateBtn) addTemplateBtn.addEventListener('click', openAddModal);
-    if(cancelBtn) cancelBtn.addEventListener('click', hideTemplateModal);
+    if (addTemplateBtn) addTemplateBtn.addEventListener('click', openAddModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', hideTemplateModal);
 
     if (templateListEl) {
-        templateListEl.addEventListener('click', function(e) {
+        templateListEl.addEventListener('click', function (e) {
             if (e.target.classList.contains('edit-template-btn')) {
                 openEditModal(e.target.dataset.id);
             }
@@ -495,7 +512,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (saveBtn) {
-        saveBtn.addEventListener('click', function(e) {
+        saveBtn.addEventListener('click', function (e) {
             e.preventDefault();
             let data;
             if (currentEditorMode === 'advanced') {
@@ -520,19 +537,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             })
-            .then(res => res.json())
-            .then(result => {
-                if (result.success) {
-                    location.reload();
-                } else {
-                    alert('Error: ' + result.error);
-                }
-            })
-            .catch(err => alert('保存GPU时出错。'))
-            .finally(() => {
-                saveBtn.disabled = false;
-                saveBtn.textContent = '保存GPU';
-            });
+                .then(res => res.json())
+                .then(result => {
+                    if (result.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                })
+                .catch(err => alert('保存GPU时出错。'))
+                .finally(() => {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = '保存GPU';
+                });
         });
     }
 
@@ -548,10 +565,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // We can attach a mutation observer or just call it when modal opens.
             // Simplified: Add a listener to the select, and call it when opening modal.
             const addBtn = document.getElementById('add-template-btn');
-            if(addBtn) addBtn.addEventListener('click', () => setTimeout(updateRunnerFields, 50));
+            if (addBtn) addBtn.addEventListener('click', () => setTimeout(updateRunnerFields, 50));
             const listEl = document.getElementById('template-list');
-            if(listEl) listEl.addEventListener('click', (e) => {
-                if(e.target.classList.contains('edit-template-btn')) setTimeout(updateRunnerFields, 50);
+            if (listEl) listEl.addEventListener('click', (e) => {
+                if (e.target.classList.contains('edit-template-btn')) setTimeout(updateRunnerFields, 50);
             });
         }
 
@@ -565,9 +582,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (f.classList.contains(`runner-field-${runner}`)) {
                     f.style.display = 'block';
                 } else if (f.classList.contains('runner-field-inferless') && runner === 'inferless') {
-                     f.style.display = 'block';
+                    f.style.display = 'block';
                 } else if (f.classList.contains('runner-field-modal') && runner === 'modal') {
-                     f.style.display = 'block';
+                    f.style.display = 'block';
                 } else {
                     f.style.display = 'none';
                 }
@@ -597,82 +614,99 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-/* Modal Styles copied from profile.html */
-.modal {
-    position: fixed;
-    z-index: 1050; /* Higher than other elements */
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0,0,0,0.5);
-    display: none;
-    align-items: center;
-    justify-content: center;
-}
+    /* Modal Styles copied from profile.html */
+    .modal {
+        position: fixed;
+        z-index: 1050;
+        /* Higher than other elements */
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+    }
 
-.modal-content {
-    background-color: #fefefe;
-    margin: auto;
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%;
-    max-width: 900px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-    display: flex;
-    flex-direction: column;
-    max-height: 90vh;
-}
+    .modal-content {
+        background-color: #fefefe;
+        margin: auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        max-width: 900px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        max-height: 90vh;
+    }
 
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 10px;
-    margin-bottom: 20px;
-}
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
 
-.modal-header h2 { margin: 0; font-size: 24px; }
+    .modal-header h2 {
+        margin: 0;
+        font-size: 24px;
+    }
 
-.close-button {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-    cursor: pointer;
-}
-.close-button:hover, .close-button:focus { color: black; }
-.modal-body { overflow-y: auto; }
+    .close-button {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
 
-.file-list-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 16px;
-}
-.file-item {
-    cursor: pointer;
-    border: 2px solid transparent;
-    border-radius: 8px;
-    padding: 8px;
-    text-align: center;
-}
-.file-item:hover { border-color: #007bff; }
-.file-item img {
-    width: 100%;
-    height: 120px;
-    object-fit: cover;
-    border-radius: 4px;
-}
-.file-item p {
-    margin: 8px 0 0;
-    font-size: 14px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+    .close-button:hover,
+    .close-button:focus {
+        color: black;
+    }
+
+    .modal-body {
+        overflow-y: auto;
+    }
+
+    .file-list-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 16px;
+    }
+
+    .file-item {
+        cursor: pointer;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        padding: 8px;
+        text-align: center;
+    }
+
+    .file-item:hover {
+        border-color: #007bff;
+    }
+
+    .file-item img {
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 4px;
+    }
+
+    .file-item p {
+        margin: 8px 0 0;
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 </style>
 
 <!-- File Browser Modal -->
@@ -691,95 +725,119 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- Add/Edit Template Modal -->
-<div id="template-modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
-    <div style="background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 700px; border-radius: 8px; box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
+<div id="template-modal"
+    style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+    <div
+        style="background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 700px; border-radius: 8px; box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);">
         <h4 id="modal-title">添加新GPU</h4>
         <form id="template-form">
             <div style="text-align: right; margin-bottom: 10px;">
                 <button type="button" id="toggle-mode-btn" class="btn btn-secondary btn-sm">切换到高级模式</button>
             </div>
             <div id="normal-editor">
-            <input type="hidden" id="template-id" name="template_id">
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">GPU名称</label>
-                <input type="text" name="template_name" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                <input type="hidden" id="template-id" name="template_id">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">GPU名称</label>
+                    <input type="text" name="template_name" required
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">命令运行器</label>
+                    <select name="command_runner" id="command_runner_select"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        <option value="gradio_client">Remote Gradio (远程推理)</option>
+                        <option value="custom">自定义命令</option>
+                    </select>
+                </div>
+                <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">入口脚本 (Entrypoint
+                        Script)</label>
+                    <input type="text" name="entrypoint_script"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
+                        placeholder="app.py">
+                    <small style="color: #666;">运行命令时要执行的脚本文件，例如 `app.py` 或 `gradio.py`。</small>
+                </div>
+                <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">主命令前置 (可选)</label>
+                    <input type="text" name="pre_command"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
+                        placeholder="例如: cd flux &&">
+                </div>
+                <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">子命令前置 (可选)</label>
+                    <input type="text" name="sub_command"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
+                        placeholder="例如: cd workspace &&">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;"
+                        id="base_command_label">基础命令</label>
+                    <input type="text" name="base_command" required
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;">
+                    <small id="base_command_help" style="color: #666;"></small>
+                </div>
+                <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">预设参数 (管理员定义)</label>
+                    <input type="text" name="preset_params"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
+                        placeholder="例如: --height 720 --width 1280">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">预测输出文件名 (可选)</label>
+                    <input type="text" name="predicted_output_filename"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
+                        placeholder="例如: output.wav">
+                    <small style="color: #666;">如果留空，将根据prompt和seed自动生成文件名。可以包含路径，例如 `assets/output.glb`，否则将默认保存在
+                        `output/` 目录下。</small>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">附加参数GPU</label>
+                    <div id="modal-params-container" style="display: flex; flex-direction: column; gap: 15px;"></div>
+                    <button type="button" id="modal-add-param"
+                        style="margin-top: 15px; background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">+
+                        添加参数</button>
+                    <input type="hidden" name="params" id="modal-params-hidden-input">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">超时时间 (秒)</label>
+                    <input type="number" name="timeout" value="300"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">强制上传文件</label>
+                    <input type="checkbox" name="force_upload" style="width: auto;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">开启 Lora 上传</label>
+                    <input type="checkbox" name="enable_lora_upload" style="width: auto;">
+                    <small style="color: #666;">如果选中，将允许上传一个额外的 lora safetensors 文件。</small>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">关闭提示词</label>
+                    <input type="checkbox" name="disable_prompt" style="width: auto;">
+                    <small style="color: #666;">如果选中，该模板将不再有提示词输入功能。</small>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">需要邀请码</label>
+                    <input type="checkbox" name="requires_invitation_code" style="width: auto;">
+                    <small style="color: #666;">如果选中，只有拥有邀请码的用户才能使用此GPU。</small>
+                </div>
+            </div> <!-- closes normal-editor -->
+            <div id="advanced-editor" style="display: none;">
+                <div style="margin-bottom: 15px;">
+                    <label for="template-json-editor"
+                        style="display: block; margin-bottom: 5px; font-weight: bold;">模板代码 (JSON)</label>
+                    <textarea id="template-json-editor"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace; height: 300px;"></textarea>
+                </div>
             </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">命令运行器</label>
-                <select name="command_runner" id="command_runner_select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                    <option value="inferless">Inferless</option>
-                    <option value="modal">Modal</option>
-                    <option value="gradio_client">Remote Gradio (In-Process)</option>
-                </select>
-            </div>
-            <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">入口脚本 (Entrypoint Script)</label>
-                <input type="text" name="entrypoint_script" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="app.py">
-                <small style="color: #666;">运行命令时要执行的脚本文件，例如 `app.py` 或 `gradio.py`。</small>
-            </div>
-            <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">主命令前置 (可选)</label>
-                <input type="text" name="pre_command" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="例如: cd flux &&">
-            </div>
-            <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">子命令前置 (可选)</label>
-                <input type="text" name="sub_command" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="例如: cd workspace &&">
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;" id="base_command_label">基础命令</label>
-                <input type="text" name="base_command" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;">
-                <small id="base_command_help" style="color: #666;"></small>
-            </div>
-            <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">预设参数 (管理员定义)</label>
-                <input type="text" name="preset_params" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="例如: --height 720 --width 1280">
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">预测输出文件名 (可选)</label>
-                <input type="text" name="predicted_output_filename" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;" placeholder="例如: output.wav">
-                <small style="color: #666;">如果留空，将根据prompt和seed自动生成文件名。可以包含路径，例如 `assets/output.glb`，否则将默认保存在 `output/` 目录下。</small>
-            </div>
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 10px; font-weight: bold;">附加参数GPU</label>
-                <div id="modal-params-container" style="display: flex; flex-direction: column; gap: 15px;"></div>
-                <button type="button" id="modal-add-param" style="margin-top: 15px; background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">+ 添加参数</button>
-                <input type="hidden" name="params" id="modal-params-hidden-input">
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">超时时间 (秒)</label>
-                <input type="number" name="timeout" value="300" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">强制上传文件</label>
-                <input type="checkbox" name="force_upload" style="width: auto;">
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">开启 Lora 上传</label>
-                <input type="checkbox" name="enable_lora_upload" style="width: auto;">
-                <small style="color: #666;">如果选中，将允许上传一个额外的 lora safetensors 文件。</small>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">关闭提示词</label>
-                <input type="checkbox" name="disable_prompt" style="width: auto;">
-                <small style="color: #666;">如果选中，该模板将不再有提示词输入功能。</small>
-            </div>
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">需要邀请码</label>
-                <input type="checkbox" name="requires_invitation_code" style="width: auto;">
-                <small style="color: #666;">如果选中，只有拥有邀请码的用户才能使用此GPU。</small>
-            </div>
-        </div> <!-- closes normal-editor -->
-        <div id="advanced-editor" style="display: none;">
-            <div style="margin-bottom: 15px;">
-                <label for="template-json-editor" style="display: block; margin-bottom: 5px; font-weight: bold;">模板代码 (JSON)</label>
-                <textarea id="template-json-editor" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace; height: 300px;"></textarea>
-            </div>
-        </div>
 
-        <div style="text-align: right;">
-            <button type="button" id="cancel-template-btn" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">取消</button>
-            <button type="submit" id="save-template-btn" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">保存GPU</button>
-        </div>
+            <div style="text-align: right;">
+                <button type="button" id="cancel-template-btn"
+                    style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">取消</button>
+                <button type="submit" id="save-template-btn"
+                    style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">保存GPU</button>
+            </div>
         </form>
     </div>
 </div>

@@ -334,8 +334,8 @@ def ai_project_view(ai_project_id):
     user_has_invitation_code = False
     is_waiting_for_file = False
     selected_file_key = None
-    custom_gpu_configs = []
-    last_cerebrium_result = None
+    remote_inference_configs = []
+    last_remote_inference_result = None
 
     DEFAULT_DOMAIN_PLACEHOLDER = 'https://pumpkinai.it.com'
     raw_server_domain = (db.get('settings', {}).get('server_domain') or '').rstrip('/')
@@ -343,7 +343,7 @@ def ai_project_view(ai_project_id):
     effective_server_domain = raw_server_domain if raw_server_domain and raw_server_domain != DEFAULT_DOMAIN_PLACEHOLDER else (current_request_domain or raw_server_domain)
 
     space_card_type = ai_project.get('card_type', 'standard')
-    cerebrium_timeout_seconds = ai_project.get('cerebrium_timeout_seconds', 300) or 300
+    remote_inference_timeout_seconds = ai_project.get('remote_inference_timeout_seconds', 300) or 300
 
     announcement = db.get('announcement', {})
 
@@ -354,25 +354,25 @@ def ai_project_view(ai_project_id):
         user_state = db.get("user_states", {}).get(username, {})
         is_waiting_for_file = user_state.get("is_waiting_for_file", False)
         selected_file_key = user_state.get("selected_files", {}).get(ai_project_id)
-        custom_gpu_configs = user_data.get('cerebrium_configs', [])
-        raw_result = user_state.get('cerebrium_results', {}).get(ai_project_id)
+        remote_inference_configs = user_data.get('remote_inference_configs', [])
+        raw_result = user_state.get('remote_inference_results', {}).get(ai_project_id)
         if isinstance(raw_result, dict):
-            last_cerebrium_result = dict(raw_result)
-            if 'status' not in last_cerebrium_result:
-                last_cerebrium_result['status'] = 'completed'
-            if not last_cerebrium_result.get('public_url') and last_cerebrium_result.get('output_key'):
-                regenerated_url = get_public_s3_url(last_cerebrium_result['output_key'])
+            last_remote_inference_result = dict(raw_result)
+            if 'status' not in last_remote_inference_result:
+                last_remote_inference_result['status'] = 'completed'
+            if not last_remote_inference_result.get('public_url') and last_remote_inference_result.get('output_key'):
+                regenerated_url = get_public_s3_url(last_remote_inference_result['output_key'])
                 if regenerated_url:
-                    last_cerebrium_result['public_url'] = regenerated_url
-            if 'saved_at' not in last_cerebrium_result:
-                last_cerebrium_result['saved_at'] = datetime.utcnow().isoformat() + 'Z'
-            if 'saved_at_ms' not in last_cerebrium_result:
-                saved_value = last_cerebrium_result.get('saved_at')
+                    last_remote_inference_result['public_url'] = regenerated_url
+            if 'saved_at' not in last_remote_inference_result:
+                last_remote_inference_result['saved_at'] = datetime.utcnow().isoformat() + 'Z'
+            if 'saved_at_ms' not in last_remote_inference_result:
+                saved_value = last_remote_inference_result.get('saved_at')
                 if saved_value:
                     try:
                         normalized = saved_value.replace('Z', '+00:00')
                         saved_dt = datetime.fromisoformat(normalized)
-                        last_cerebrium_result['saved_at_ms'] = int(saved_dt.timestamp() * 1000)
+                        last_remote_inference_result['saved_at_ms'] = int(saved_dt.timestamp() * 1000)
                     except ValueError:
                         pass
 
@@ -549,9 +549,9 @@ with requests.post(f"{{BASE_URL}}/spaces/run", json=PAYLOAD, headers=headers, st
         space_card_type=space_card_type,
         s3_public_base_url=s3_public_base_url,
         current_username=username,
-        custom_gpu_configs=custom_gpu_configs,
-        last_custom_gpu_result=last_cerebrium_result,
-        custom_gpu_timeout_seconds=cerebrium_timeout_seconds
+        remote_inference_configs=remote_inference_configs,
+        last_remote_inference_result=last_remote_inference_result,
+        remote_inference_timeout_seconds=remote_inference_timeout_seconds
     )
 
 @main_bp.route("/run_inference/<ai_project_id>", methods=["POST"])

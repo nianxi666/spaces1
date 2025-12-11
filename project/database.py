@@ -65,7 +65,6 @@ def get_default_db_structure():
         "chat_history": [],
         "articles": {},
         "invitation_codes": {},
-        "modal_drive_shares": {},
         "announcement": {
             "enabled": False,
             "title": "",
@@ -168,8 +167,15 @@ def init_db():
             db['spaces'][space_id]['force_upload'] = False
         if 'card_type' not in space_data:
             db['spaces'][space_id]['card_type'] = 'standard'
-        if 'cerebrium_timeout_seconds' not in space_data:
-            db['spaces'][space_id]['cerebrium_timeout_seconds'] = 300
+        
+        # Migrate cerebrium to remote_inference card type
+        if space_data.get('card_type') == 'cerebrium':
+            db['spaces'][space_id]['card_type'] = 'remote_inference'
+        
+        # Add remote_inference_timeout_seconds and migrate from cerebrium_timeout_seconds
+        if 'remote_inference_timeout_seconds' not in space_data:
+            db['spaces'][space_id]['remote_inference_timeout_seconds'] = space_data.get('cerebrium_timeout_seconds', 300)
+        
         if space_data.get('card_type') == 'netmind':
             upstream_key = space_data.get('netmind_upstream_model')
             if not upstream_key:
@@ -181,8 +187,13 @@ def init_db():
             user_data['avatar'] = 'default.png'
         if 'last_chat_read_time' not in user_data:
             user_data['last_chat_read_time'] = 0
-        if 'cerebrium_configs' not in user_data:
-            user_data['cerebrium_configs'] = []
+        if 'remote_inference_configs' not in user_data:
+            user_data['remote_inference_configs'] = []
+        # Migrate old cerebrium_configs  if they exist
+        if 'cerebrium_configs' in user_data and not user_data['remote_inference_configs']:
+            user_data['remote_inference_configs'] = user_data.get('cerebrium_configs', [])
+            del user_data['cerebrium_configs']
+
 
     # Initialize articles if they don't exist
     if 'articles' not in db:

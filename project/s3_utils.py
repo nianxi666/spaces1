@@ -32,12 +32,30 @@ def get_s3_client():
         return None
 
     try:
+        from botocore.config import Config
+        import urllib3
+        
+        # Disable SSL warnings (necessary when verify=False)
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        
+        # Configure with SSL verification and retries
+        # For Tebi Cloud, we disable SSL verification due to certificate issues
+        config = Config(
+            signature_version='s3v4',
+            retries={
+                'max_attempts': 3,
+                'mode': 'standard'
+            }
+        )
+        
         s3_client = boto3.client(
             's3',
             endpoint_url=endpoint_url,
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
-            region_name='auto' # Tebi uses 'auto' or 'global'
+            region_name='auto',  # Tebi uses 'auto' or 'global'
+            config=config,
+            verify=False  # Disabled for Tebi Cloud SSL certificate issues
         )
         return s3_client
     except Exception as e:

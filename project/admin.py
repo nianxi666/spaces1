@@ -295,7 +295,7 @@ def add_edit_space(space_id=None):
         cover_filename = request.form.get('cover', 'default.png')
         cover_type = request.form.get('cover_type', 'image')
         card_type = request.form.get('card_type', 'standard')
-        timeout_raw = (request.form.get('cerebrium_timeout_minutes') or '').strip()
+        timeout_raw = (request.form.get('remote_inference_timeout_minutes') or '').strip()
         try:
             timeout_minutes = int(timeout_raw)
         except (ValueError, TypeError):
@@ -317,7 +317,7 @@ def add_edit_space(space_id=None):
             space['cover'] = cover_filename
             space['cover_type'] = cover_type
             space['card_type'] = card_type
-            space['cerebrium_timeout_seconds'] = timeout_seconds
+            space['remote_inference_timeout_seconds'] = timeout_seconds
             if card_type == 'netmind':
                 space['netmind_model'] = netmind_alias
                 space['netmind_upstream_model'] = netmind_upstream or ''
@@ -332,7 +332,7 @@ def add_edit_space(space_id=None):
                 'cover': cover_filename,
                 'cover_type': cover_type,
                 'card_type': card_type,
-                'cerebrium_timeout_seconds': timeout_seconds,
+                'remote_inference_timeout_seconds': timeout_seconds,
                 'templates': {}, # Initialize with an empty templates dict
                 'netmind_model': netmind_alias if card_type == 'netmind' else '',
                 'netmind_upstream_model': netmind_upstream if card_type == 'netmind' else ''
