@@ -183,6 +183,5 @@ def create_app(test_config=None):
     def inject_get_locale():
         return dict(get_locale=get_locale)
 
-    from . import sockets
 
     return app

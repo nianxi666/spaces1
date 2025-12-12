@@ -1,4 +1,4 @@
-from project import create_app, socketio
+from project import create_app
 from project.database import init_db, backup_db
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
