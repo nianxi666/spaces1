@@ -90,6 +90,86 @@ def generate_presigned_url(file_name, content_type=None, expiration=7200):
         print("Credentials not available for S3.")
         return None
 
+def upload_file_to_s3(file_path, object_name, content_type=None):
+    """
+    Upload a file directly to S3 from the server.
+    
+    :param file_path: Local path to the file to upload.
+    :param object_name: S3 object name (key).
+    :param content_type: Optional MIME type of the file.
+    :return: True if successful, False otherwise.
+    """
+    s3_client = get_s3_client()
+    s3_config = get_s3_config()
+
+    if not s3_client or not s3_config:
+        print("S3 client or config not available.")
+        return False
+
+    bucket_name = s3_config.get('S3_BUCKET_NAME')
+    if not bucket_name:
+        print("S3 bucket name not configured.")
+        return False
+
+    try:
+        extra_args = {}
+        if content_type:
+            extra_args['ContentType'] = content_type
+        
+        # Determine content type from extension if not provided
+        if not content_type:
+            import mimetypes
+            guessed_type, _ = mimetypes.guess_type(file_path)
+            if guessed_type:
+                extra_args['ContentType'] = guessed_type
+        
+        s3_client.upload_file(
+            file_path,
+            bucket_name,
+            object_name,
+            ExtraArgs=extra_args if extra_args else None
+        )
+        
+        print(f"Successfully uploaded {file_path} to s3://{bucket_name}/{object_name}")
+        return True
+
+    except ClientError as e:
+        print(f"Failed to upload file to S3: {e}")
+        return False
+    except NoCredentialsError:
+        print("Credentials not available for S3.")
+        return False
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
+        return False
+
+def delete_s3_object(object_key):
+    """
+    Delete an object from the S3 bucket.
+    
+    :param object_key: The key of the object to delete.
+    :return: True if successful, False otherwise.
+    """
+    s3_client = get_s3_client()
+    s3_config = get_s3_config()
+
+    if not s3_client or not s3_config:
+        print("S3 client or config not available.")
+        return False
+
+    bucket_name = s3_config.get('S3_BUCKET_NAME')
+    if not bucket_name:
+        print("S3 bucket name not configured.")
+        return False
+
+    try:
+        s3_client.delete_object(Bucket=bucket_name, Key=object_key)
+        print(f"Successfully deleted s3://{bucket_name}/{object_key}")
+        return True
+    except ClientError as e:
+        print(f"Failed to delete object from S3: {e}")
+        return False
+
 def list_all_files():
     """
     Lists all files in the S3 bucket.
