@@ -38,9 +38,6 @@ S3_ACCESS_KEY_ID = os.environ.get('S3_ACCESS_KEY_ID')
 S3_SECRET_ACCESS_KEY = os.environ.get('S3_SECRET_ACCESS_KEY')
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME')
 
-MODAL_DRIVE_BASE_URL = os.environ.get('MODAL_DRIVE_BASE_URL')
-MODAL_DRIVE_AUTH_TOKEN = os.environ.get('MODAL_DRIVE_AUTH_TOKEN')
-
 if os.path.exists(S3_CONFIG_FILE):
     try:
         with open(S3_CONFIG_FILE, 'r') as f:
@@ -53,19 +50,3 @@ if os.path.exists(S3_CONFIG_FILE):
     except Exception:
         pass
 
-# --- Cloud Terminal Configuration ---
-try:
-    CEREBRIUM_CLOUD_TERMINAL_TIMEOUT = float(os.environ.get('CEREBRIUM_CLOUD_TERMINAL_TIMEOUT', '60'))
-except (TypeError, ValueError):
-    CEREBRIUM_CLOUD_TERMINAL_TIMEOUT = 60.0
-
-CLOUD_TERMINAL_SOURCE_DIR = os.environ.get(
-    'CLOUD_TERMINAL_SOURCE_DIR',
-    os.path.join(os.path.dirname(__file__), 'cloud_terminal_source')
-)
-try:
-    CLOUD_TERMINAL_DEPLOY_TIMEOUT = int(os.environ.get('CLOUD_TERMINAL_DEPLOY_TIMEOUT', '900'))
-except (TypeError, ValueError):
-    CLOUD_TERMINAL_DEPLOY_TIMEOUT = 900
-
-CEREBRIUM_PROJECT_ID = os.environ.get('CEREBRIUM_PROJECT_ID')

@@ -167,6 +167,27 @@
                     <span id="timeout-message" class="timeout-message"></span>
                 </div>
                 {% endif %}
+
+                {% if space_card_type == 'websocket' %}
+                <div id="websocket-form-container">
+                    {% set inputs = ai_project.allowed_input_types or ['text'] %}
+                    {% if 'text' in inputs %}
+                    <div class="form-group">
+                        <label for="ws-prompt" class="form-label">提示词</label>
+                        <textarea id="ws-prompt" name="prompt" rows="3" class="form-control" placeholder="请输入您的提示..."></textarea>
+                    </div>
+                    {% endif %}
+                    {% if 'audio' in inputs or 'image' in inputs %}
+                    <div class="form-group">
+                        <label for="ws-file" class="form-label">上传文件</label>
+                        <input type="file" id="ws-file" name="file" class="form-control">
+                    </div>
+                    {% endif %}
+                    <div class="form-actions">
+                        <button id="ws-submit-button" type="button" class="btn btn-primary btn-large">提交任务</button>
+                    </div>
+                </div>
+                {% endif %}
             </form>
 
             <!-- API Examples Section -->
@@ -548,8 +569,97 @@
 {% if space_card_type == 'cerebrium' %}
 <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1093.0.min.js"></script>
 {% endif %}
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
 <script>
+function initWebSocketFlow() {
+    const aiProjectId = '{{ ai_project.id }}';
+    const submitBtn = document.getElementById('ws-submit-button');
+    const statusDiv = document.getElementById('status');
+    const resultContent = document.getElementById('result-content');
+    const promptInput = document.getElementById('ws-prompt');
+    const fileInput = document.getElementById('ws-file');
+
+    if (!submitBtn) return;
+
+    let userSid = null;
+    const socket = io({transports: ['websocket'], upgrade: false});
+
+    socket.on('connect', () => {
+        console.log('Connected to WebSocket server!');
+        userSid = socket.id;
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Disconnected from WebSocket server.');
+        userSid = null;
+    });
+
+    socket.on('task_status', (data) => {
+        if (data.status === 'queued') {
+            resultContent.innerHTML = `<h4>⌛️ 排队中...</h4><p>您的任务正在排队，当前位置: ${data.position}/${data.total}</p>`;
+        } else if (data.status === 'processing') {
+            resultContent.innerHTML = `<h4>⚙️ 处理中...</h4><p>您的任务已开始处理，请稍候。</p>`;
+        } else if (data.status === 'failed') {
+            resultContent.innerHTML = `<h4>❌ 任务失败</h4><p>${data.error || '未知错误'}</p>`;
+            submitBtn.disabled = false;
+        }
+    });
+
+    socket.on('task_result', (data) => {
+        let resultHtml = '<h4>✅ 任务完成</h4>';
+        if (data.result) {
+            if (data.result.text) {
+                resultHtml += `<p>${data.result.text}</p>`;
+            }
+            if (data.result.audio_url) {
+                resultHtml += `<audio src="${data.result.audio_url}" controls style="width: 100%;"></audio>`;
+            }
+            if (data.result.image_url) {
+                resultHtml += `<img src="${data.result.image_url}" style="max-width: 100%; border-radius: 6px;">`;
+            }
+        } else {
+            resultHtml += '<p>任务已完成，但未返回任何结果。</p>';
+        }
+        resultContent.innerHTML = resultHtml;
+        submitBtn.disabled = false;
+    });
+
+    submitBtn.addEventListener('click', async () => {
+        if (!userSid) {
+            alert('尚未连接到服务器，请稍后再试。');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        resultContent.innerHTML = '<h4>🚀 提交中...</h4>';
+
+        const formData = new FormData();
+        formData.append('user_sid', userSid);
+
+        if (promptInput) {
+            formData.append('prompt', promptInput.value);
+        }
+        if (fileInput && fileInput.files[0]) {
+            formData.append('file', fileInput.files[0]);
+        }
+
+        try {
+            const response = await fetch(`/api/space/${aiProjectId}/submit_task`, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || '提交失败');
+            }
+        } catch (error) {
+            resultContent.innerHTML = `<h4>❌ 提交失败</h4><p>${error.message}</p>`;
+            submitBtn.disabled = false;
+        }
+    });
+}
+
 function initCustomGpuFlow() {
     const isLoggedIn = {{ session.get('logged_in')|tojson }};
     const customGpuConfigs = {{ custom_gpu_configs | tojson | safe }} || [];
@@ -1085,9 +1195,12 @@ function initCustomGpuFlow() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    const isCustomGpuSpace = {{ 'true' if space_card_type == 'cerebrium' else 'false' }};
-    if (isCustomGpuSpace) {
+    const spaceType = '{{ space_card_type }}';
+    if (spaceType === 'cerebrium') {
         initCustomGpuFlow();
+        return;
+    } else if (spaceType === 'websocket') {
+        initWebSocketFlow();
         return;
     }
     // --- Global State & Elements ---

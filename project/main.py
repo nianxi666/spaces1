@@ -266,133 +266,6 @@ def check_in():
 
     return jsonify({'success': True, 'message': '签到成功！'})
 
-
-@main_bp.route('/cloud-terminal')
-def cloud_terminal():
-    # Define candidate endpoints
-    # These are the standard app names we expect.
-    candidate_apps = ['cloud-terminal', 'cloud-terminal-gpu']
-    db = load_db()
-    project_id = current_app.config.get('CEREBRIUM_PROJECT_ID')
-
-    if not project_id:
-        # Fallback: Try to get project_id from settings
-        project_id = db.get('settings', {}).get('cerebrium_project_id')
-
-    # Fallback if project_id is not set: attempt to extract from a known URL structure if available
-    # or rely on what the user might have provided in env vars
-    if not project_id:
-         # If no project ID, we can't construct URLs to probe, so we can't detect anything.
-         # However, the user's example had 'p-d0cdeab4'.
-         pass
-
-    # Construct potential URLs
-    potential_targets = []
-    if project_id:
-        for app_name in candidate_apps:
-            url = f"https://api.aws.us-east-1.cerebrium.ai/v4/{project_id}/{app_name}/run"
-            potential_targets.append({'name': app_name, 'url': url})
-    else:
-        # Fallback: if we have URLs in config (which we shouldn't rely on as per new requirement,
-        # but if project_id is missing, maybe we can try to use them if they exist)
-        # Actually, the requirement is "run environment do not preset".
-        # So if we don't have a project ID, we essentially find nothing.
-        # But let's check if the old config vars are still there, maybe we can extract project_id from them.
-        # (I removed the defaults from config.py but the env vars might still be there)
-        cpu_url = current_app.config.get('CEREBRIUM_CLOUD_TERMINAL_CPU_URL')
-        if cpu_url and '/v4/' in cpu_url:
-            try:
-                parts = cpu_url.split('/v4/')[1].split('/')
-                if parts:
-                    project_id = parts[0]
-                    # Now retry building targets
-                    for app_name in candidate_apps:
-                        url = f"https://api.aws.us-east-1.cerebrium.ai/v4/{project_id}/{app_name}/run"
-                        potential_targets.append({'name': app_name, 'url': url})
-            except Exception:
-                pass
-
-    # Server-side detection
-    terminal_targets = []
-    import requests
-
-    # We use a short timeout to avoid blocking the page load for too long
-    detection_timeout = 1.0
-
-    # If we have a project ID, we probe the standard endpoints
-    if project_id:
-        for app_name in candidate_apps:
-            url = f"https://api.aws.us-east-1.cerebrium.ai/v4/{project_id}/{app_name}/run"
-            try:
-                # Probe the endpoint to see if it exists
-                response = requests.post(url, json={}, timeout=detection_timeout)
-                if response.status_code != 404:
-                    terminal_targets.append({'name': app_name, 'url': url})
-            except requests.RequestException:
-                pass
-    else:
-        # Fallback to what was found in potential_targets if project_id wasn't explicitly set but inferred
-        for target in potential_targets:
-            try:
-                response = requests.post(target['url'], json={}, timeout=detection_timeout)
-                if response.status_code != 404:
-                    terminal_targets.append(target)
-            except requests.RequestException:
-                pass
-
-    # Add user's personal Cerebrium configs if logged in
-    if session.get('logged_in'):
-        username = session.get('username')
-        user = db.get('users', {}).get(username)
-        if user:
-            user_configs = user.get('cerebrium_configs', [])
-            for cfg in user_configs:
-                cfg_name = cfg.get('name', 'Unnamed')
-                terminal_targets.append({
-                    'name': cfg_name,
-                    'description': '用户自配置'
-                })
-
-    quick_commands = [
-        {'label': '列出目录', 'command': 'ls -la'},
-        {'label': '查看环境变量', 'command': 'env | head'}
-    ]
-    hardware_presets = [
-        {
-            'key': 'cpu',
-            'label': 'CPU (2 vCPU)',
-            'description': '经济实惠，适合轻量任务',
-            'default_app_name': 'cloud-terminal'
-        },
-        {
-            'key': 'l40s',
-            'label': 'L40S (24GB)',
-            'description': '低成本 GPU，适合实时部署',
-            'default_app_name': 'cloud-terminal'
-        },
-        {
-            'key': 'h100',
-            'label': 'H100 (80GB)',
-            'description': '最高性能 GPU，适合重度任务',
-            'default_app_name': 'cloud-terminal'
-        }
-    ]
-    # Determine if we have a GPU endpoint detected
-    has_gpu_endpoint = any('gpu' in t['name'] for t in terminal_targets)
-
-    display_targets = [{'name': target['name'], 'description': target.get('description', '自动探测')} for target in terminal_targets]
-
-    terminal_announcement = db.get('terminal_announcement', {})
-
-    return render_template(
-        'cloud_terminal.html',
-        quick_commands=quick_commands,
-        terminal_targets=display_targets,
-        hardware_presets=hardware_presets,
-        has_gpu_endpoint=has_gpu_endpoint,
-        terminal_announcement=terminal_announcement
-    )
-
 @main_bp.route('/change_password', methods=['POST'])
 def change_password():
     if not session.get('logged_in'):
@@ -625,8 +498,6 @@ def ai_project_view(ai_project_id):
     user_has_invitation_code = False
     is_waiting_for_file = False
     selected_file_key = None
-    custom_gpu_configs = []
-    last_cerebrium_result = None
 
     DEFAULT_DOMAIN_PLACEHOLDER = 'https://pumpkinai.it.com'
     raw_server_domain = (db.get('settings', {}).get('server_domain') or '').rstrip('/')
@@ -634,7 +505,6 @@ def ai_project_view(ai_project_id):
     effective_server_domain = raw_server_domain if raw_server_domain and raw_server_domain != DEFAULT_DOMAIN_PLACEHOLDER else (current_request_domain or raw_server_domain)
 
     space_card_type = ai_project.get('card_type', 'standard')
-    cerebrium_timeout_seconds = ai_project.get('cerebrium_timeout_seconds', 300) or 300
 
     announcement = db.get('announcement', {})
 
@@ -645,27 +515,6 @@ def ai_project_view(ai_project_id):
         user_state = db.get("user_states", {}).get(username, {})
         is_waiting_for_file = user_state.get("is_waiting_for_file", False)
         selected_file_key = user_state.get("selected_files", {}).get(ai_project_id)
-        custom_gpu_configs = user_data.get('cerebrium_configs', [])
-        raw_result = user_state.get('cerebrium_results', {}).get(ai_project_id)
-        if isinstance(raw_result, dict):
-            last_cerebrium_result = dict(raw_result)
-            if 'status' not in last_cerebrium_result:
-                last_cerebrium_result['status'] = 'completed'
-            if not last_cerebrium_result.get('public_url') and last_cerebrium_result.get('output_key'):
-                regenerated_url = get_public_s3_url(last_cerebrium_result['output_key'])
-                if regenerated_url:
-                    last_cerebrium_result['public_url'] = regenerated_url
-            if 'saved_at' not in last_cerebrium_result:
-                last_cerebrium_result['saved_at'] = datetime.utcnow().isoformat() + 'Z'
-            if 'saved_at_ms' not in last_cerebrium_result:
-                saved_value = last_cerebrium_result.get('saved_at')
-                if saved_value:
-                    try:
-                        normalized = saved_value.replace('Z', '+00:00')
-                        saved_dt = datetime.fromisoformat(normalized)
-                        last_cerebrium_result['saved_at_ms'] = int(saved_dt.timestamp() * 1000)
-                    except ValueError:
-                        pass
 
     if space_card_type == 'netmind':
         chat_announcement = db.get('chat_announcement', {})
@@ -841,10 +690,7 @@ with requests.post(f"{{BASE_URL}}/spaces/run", json=PAYLOAD, headers=headers, st
         api_examples=api_examples,
         space_card_type=space_card_type,
         s3_public_base_url=s3_public_base_url,
-        current_username=username,
-        custom_gpu_configs=custom_gpu_configs,
-        last_custom_gpu_result=last_cerebrium_result,
-        custom_gpu_timeout_seconds=cerebrium_timeout_seconds
+        current_username=username
     )
 
 @main_bp.route("/run_inference/<ai_project_id>", methods=["POST"])

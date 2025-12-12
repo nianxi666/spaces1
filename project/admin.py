@@ -316,121 +316,6 @@ def manage_users():
     )
 
 
-@admin_bp.route('/users/<username>/custom-gpu')
-def manage_user_custom_gpu(username):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if not user:
-        flash('未找到用户。', 'error')
-        return redirect(url_for('admin.manage_users'))
-
-    if 'cerebrium_configs' not in user:
-        user['cerebrium_configs'] = []
-        save_db(db)
-
-    return render_template('admin_user_cerebrium.html', target_user=username, user=user)
-
-
-@admin_bp.route('/users/<username>/custom-gpu/add', methods=['POST'])
-def add_user_custom_gpu_config(username):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if not user:
-        flash('未找到用户。', 'error')
-        return redirect(url_for('admin.manage_users'))
-
-    name = request.form.get('name', '').strip()
-    api_url = request.form.get('api_url', '').strip()
-    api_token = request.form.get('api_token', '').strip()
-
-    if not all([name, api_url, api_token]):
-        flash('名称、API地址和密钥均不能为空。', 'error')
-        return redirect(url_for('admin.manage_user_custom_gpu', username=username))
-
-    config = {
-        'id': str(uuid.uuid4()),
-        'name': name,
-        'api_url': api_url,
-        'api_token': api_token,
-        'created_at': datetime.utcnow().isoformat()
-    }
-
-    user.setdefault('cerebrium_configs', []).append(config)
-
-    # Auto-send message to group chat
-    if db.get('settings', {}).get('chat_enabled', True):
-        # Construct bilingual message
-        # Use a safe fallback for the admin username, though session should have it
-        admin_username = session.get('username', 'Admin')
-        msg_content = (
-            f"已为用户 @{username} 添加 {name}，其他用户请耐心等待。\n"
-            f"Added {name} for user @{username}, other users please wait patiently."
-        )
-
-        new_message = {
-            'id': str(uuid.uuid4()),
-            'username': admin_username,
-            'content': msg_content,
-            'timestamp': time.time()
-        }
-
-        if 'chat_messages' not in db:
-            db['chat_messages'] = []
-
-        db['chat_messages'].append(new_message)
-
-        # Archiving logic (keep last 100 messages)
-        if len(db['chat_messages']) > 99:
-            if 'chat_history' not in db:
-                db['chat_history'] = []
-            db['chat_history'].append(db['chat_messages'].pop(0))
-
-    save_db(db)
-    flash('已添加新的 GPU 配置。', 'success')
-    return redirect(url_for('admin.manage_user_custom_gpu', username=username))
-
-@admin_bp.route('/users/<username>/custom-gpu/<config_id>/edit', methods=['POST'])
-def edit_user_custom_gpu_config(username, config_id):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if not user:
-        flash('未找到用户。', 'error')
-        return redirect(url_for('admin.manage_users'))
-
-    configs = user.setdefault('cerebrium_configs', [])
-    config = next((c for c in configs if c.get('id') == config_id), None)
-    if not config:
-        flash('未找到配置。', 'error')
-        return redirect(url_for('admin.manage_user_custom_gpu', username=username))
-
-    config['name'] = request.form.get('name', config.get('name', '')).strip()
-    config['api_url'] = request.form.get('api_url', config.get('api_url', '')).strip()
-    config['api_token'] = request.form.get('api_token', config.get('api_token', '')).strip()
-    config['updated_at'] = datetime.utcnow().isoformat()
-
-    save_db(db)
-    flash('配置已更新。', 'success')
-    return redirect(url_for('admin.manage_user_custom_gpu', username=username))
-
-@admin_bp.route('/users/<username>/custom-gpu/<config_id>/delete', methods=['POST'])
-def delete_user_custom_gpu_config(username, config_id):
-    db = load_db()
-    user = db.get('users', {}).get(username)
-    if not user:
-        flash('未找到用户。', 'error')
-        return redirect(url_for('admin.manage_users'))
-
-    configs = user.setdefault('cerebrium_configs', [])
-    new_configs = [c for c in configs if c.get('id') != config_id]
-    if len(new_configs) == len(configs):
-        flash('未找到配置。', 'error')
-        return redirect(url_for('admin.manage_user_custom_gpu', username=username))
-
-    user['cerebrium_configs'] = new_configs
-    save_db(db)
-    flash('配置已删除。', 'success')
-    return redirect(url_for('admin.manage_user_custom_gpu', username=username))
-
 @admin_bp.route('/users/delete/<username>', methods=['POST'])
 def delete_user(username):
     db = load_db()
@@ -470,15 +355,6 @@ def manage_announcement():
             db['chat_announcement'] = chat_data
             flash('聊天界面公告设置已保存！', 'success')
 
-        elif form_type == 'terminal':
-            terminal_data = {
-                'enabled': request.form.get('terminal_enabled') == 'on',
-                'content': request.form.get('terminal_content', ''),
-                'type': request.form.get('terminal_type', 'info')
-            }
-            db['terminal_announcement'] = terminal_data
-            flash('云终端公告设置已保存！', 'success')
-
         save_db(db)
         return redirect(url_for('admin.manage_announcement'))
 
@@ -495,67 +371,9 @@ def manage_announcement():
         'content': '',
         'type': 'info'
     })
-    terminal_announcement = db.get('terminal_announcement', {
-        'enabled': False,
-        'content': '',
-        'type': 'info'
-    })
     return render_template('admin_announcement.html',
                            announcement=announcement,
-                           chat_announcement=chat_announcement,
-                           terminal_announcement=terminal_announcement)
-
-@admin_bp.route('/gpu-pool', methods=['GET'])
-def manage_gpu_pool():
-    db = load_db()
-    # Initialize if missing (handled in load_db actually, but explicitly here for safety)
-    if 'gpu_pool' not in db:
-        db['gpu_pool'] = []
-    return render_template('admin_gpu_pool.html', gpu_pool=db['gpu_pool'])
-
-@admin_bp.route('/gpu-pool/add', methods=['POST'])
-def add_gpu_to_pool():
-    db = load_db()
-    if 'gpu_pool' not in db:
-        db['gpu_pool'] = []
-
-    name = request.form.get('name', '').strip()
-    api_url = request.form.get('api_url', '').strip()
-    api_token = request.form.get('api_token', '').strip()
-
-    if not all([name, api_url, api_token]):
-        flash('所有字段都是必填的。', 'error')
-        return redirect(url_for('admin.manage_gpu_pool'))
-
-    new_gpu = {
-        'id': str(uuid.uuid4()),
-        'name': name,
-        'api_url': api_url,
-        'api_token': api_token,
-        'added_at': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-    }
-
-    db['gpu_pool'].append(new_gpu)
-    save_db(db)
-    flash(f'GPU {name} 已添加到池中。', 'success')
-    return redirect(url_for('admin.manage_gpu_pool'))
-
-@admin_bp.route('/gpu-pool/delete/<pool_id>', methods=['POST'])
-def delete_gpu_from_pool(pool_id):
-    db = load_db()
-    if 'gpu_pool' not in db:
-        return redirect(url_for('admin.manage_gpu_pool'))
-
-    initial_len = len(db['gpu_pool'])
-    db['gpu_pool'] = [gpu for gpu in db['gpu_pool'] if gpu['id'] != pool_id]
-
-    if len(db['gpu_pool']) < initial_len:
-        save_db(db)
-        flash('GPU 已从池中移除。', 'success')
-    else:
-        flash('未找到该 GPU。', 'error')
-
-    return redirect(url_for('admin.manage_gpu_pool'))
+                           chat_announcement=chat_announcement)
 
 @admin_bp.route('/banner', methods=['GET', 'POST'])
 def manage_banner():
@@ -583,54 +401,47 @@ def add_edit_space(space_id=None):
 
     if request.method == 'POST':
         new_id = space_id or str(uuid.uuid4())
+        is_new_space = not space
 
-        # The cover is now a URL from S3, submitted in a hidden field.
-        # The old logic for file upload is no longer needed.
         cover_filename = request.form.get('cover', 'default.png')
         cover_type = request.form.get('cover_type', 'image')
-        card_type = request.form.get('card_type', 'standard')
-        timeout_raw = (request.form.get('cerebrium_timeout_minutes') or '').strip()
-        try:
-            timeout_minutes = int(timeout_raw)
-        except (ValueError, TypeError):
-            timeout_minutes = None
-        if not timeout_minutes or timeout_minutes <= 0:
-            timeout_minutes = 5
-        timeout_seconds = timeout_minutes * 60
+        card_type = request.form.get('card_type', 'websocket')
 
-        netmind_alias = request.form.get('netmind_model', '').strip()
-        netmind_upstream = request.form.get('netmind_upstream_model', '').strip()
-        if card_type == 'netmind' and not netmind_upstream:
-            netmind_upstream = netmind_alias
-        if not netmind_settings.get('enable_alias_mapping'):
-            netmind_upstream = netmind_alias
+        # --- Base data ---
+        data = {
+            'id': new_id,
+            'name': request.form['name'],
+            'description': request.form.get('description', ''),
+            'cover': cover_filename,
+            'cover_type': cover_type,
+            'card_type': card_type
+        }
 
-        if space: # Editing an existing space
-            space['name'] = request.form['name']
-            space['description'] = request.form.get('description', '')
-            space['cover'] = cover_filename
-            space['cover_type'] = cover_type
-            space['card_type'] = card_type
-            space['cerebrium_timeout_seconds'] = timeout_seconds
-            if card_type == 'netmind':
-                space['netmind_model'] = netmind_alias
-                space['netmind_upstream_model'] = netmind_upstream or ''
+        # --- Type-specific data ---
+        if card_type == 'netmind':
+            netmind_alias = request.form.get('netmind_model', '').strip()
+            netmind_upstream = request.form.get('netmind_upstream_model', netmind_alias).strip()
+            if not netmind_settings.get('enable_alias_mapping'):
+                netmind_upstream = netmind_alias
+            data['netmind_model'] = netmind_alias
+            data['netmind_upstream_model'] = netmind_upstream
+
+        elif card_type == 'websocket':
+            # Generate auth token only if it's a new space or if it doesn't have one
+            if is_new_space or not (space and space.get('auth_token')):
+                 data['auth_token'] = str(uuid.uuid4())
             else:
-                space.pop('netmind_model', None)
-                space.pop('netmind_upstream_model', None)
-        else: # Creating a new space
-            db['spaces'][new_id] = {
-                'id': new_id,
-                'name': request.form['name'],
-                'description': request.form.get('description', ''),
-                'cover': cover_filename,
-                'cover_type': cover_type,
-                'card_type': card_type,
-                'cerebrium_timeout_seconds': timeout_seconds,
-                'templates': {}, # Initialize with an empty templates dict
-                'netmind_model': netmind_alias if card_type == 'netmind' else '',
-                'netmind_upstream_model': netmind_upstream if card_type == 'netmind' else ''
-            }
+                 data['auth_token'] = space.get('auth_token') # Preserve existing token
+
+            data['allowed_input_types'] = request.form.getlist('allowed_input_types')
+            data['allowed_output_types'] = request.form.getlist('allowed_output_types')
+
+        if is_new_space:
+            data['templates'] = {} # Legacy but good to have
+            db['spaces'][new_id] = data
+        else:
+            space.update(data)
+
         sync_netmind_aliases(db)
         save_db(db)
         flash(f"Space '{request.form['name']}' 已保存。", 'success')
@@ -638,6 +449,18 @@ def add_edit_space(space_id=None):
 
     settings = db.get('settings', {})
     return render_template('add_edit_space.html', space=space, settings=settings, netmind_settings=netmind_settings)
+
+@admin_bp.route('/space/<space_id>/regenerate_token', methods=['POST'])
+def regenerate_token(space_id):
+    db = load_db()
+    space = db['spaces'].get(space_id)
+    if space and space.get('card_type') == 'websocket':
+        space['auth_token'] = str(uuid.uuid4())
+        save_db(db)
+        flash('新的认证令牌已生成。', 'success')
+    else:
+        flash('未找到Space或类型不正确。', 'error')
+    return redirect(url_for('admin.add_edit_space', space_id=space_id))
 
 @admin_bp.route('/space/<space_id>/set_cover', methods=['POST'])
 def set_space_cover(space_id):
@@ -904,28 +727,6 @@ def manage_s3_settings():
         flash(f'读取 S3 配置文件时出错: {e}', 'warning')
 
     return render_template('admin_s3_settings.html', s3_config=s3_config)
-
-
-@admin_bp.route('/modal_drive_settings', methods=['GET', 'POST'])
-def manage_modal_drive_settings():
-    """
-    Manage Modal Drive proxy credentials.
-    """
-    db = load_db()
-    settings = db.setdefault('settings', {})
-
-    if request.method == 'POST':
-        settings['modal_drive_base_url'] = request.form.get('modal_drive_base_url', '').strip()
-        settings['modal_drive_auth_token'] = request.form.get('modal_drive_auth_token', '').strip()
-        save_db(db)
-        flash('无限容量网盘设置已保存。', 'success')
-        return redirect(url_for('admin.manage_modal_drive_settings'))
-
-    modal_settings = {
-        'modal_drive_base_url': settings.get('modal_drive_base_url', ''),
-        'modal_drive_auth_token': settings.get('modal_drive_auth_token', '')
-    }
-    return render_template('admin_modal_drive.html', settings=modal_settings)
 
 
 @admin_bp.route('/invitation_codes', methods=['GET', 'POST'])
