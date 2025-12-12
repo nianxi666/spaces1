@@ -605,6 +605,88 @@ def run_inference(ai_project_id):
     if not ai_project:
         return jsonify({'error': 'AI Project 未找到'}), 404
 
+    # Special handling for remote_inference type
+    space_card_type = ai_project.get('card_type', 'standard')
+    if space_card_type == 'remote_inference':
+        from .remote_api_client import call_remote_api
+        import tempfile
+        from werkzeug.utils import secure_filename
+        
+        # Get custom API URL
+        custom_api_url = ai_project.get('custom_api_url', '').strip()
+        if not custom_api_url:
+            return jsonify({'error': '此Space未配置自定义API地址'}), 400
+        
+        # Collect uploaded files
+        files_dict = {}
+        temp_files = []
+        
+        try:
+            # Handle prompt
+            prompt_text = request.form.get('prompt', '')
+            params_dict = {}
+            if prompt_text:
+                params_dict['prompt'] = prompt_text
+                params_dict['text'] = prompt_text  # Some APIs use 'text'
+            
+            # Handle image upload
+            if 'image_input' in request.files:
+                image_file = request.files['image_input']
+                if image_file.filename:
+                    # Save to temp file
+                    temp_path = os.path.join(tempfile.gettempdir(), secure_filename(image_file.filename))
+                    image_file.save(temp_path)
+                    files_dict['image'] = temp_path
+                    temp_files.append(temp_path)
+            
+            # Handle audio upload
+            if 'audio_input' in request.files:
+                audio_file = request.files['audio_input']
+                if audio_file.filename:
+                    temp_path = os.path.join(tempfile.gettempdir(), secure_filename(audio_file.filename))
+                    audio_file.save(temp_path)
+                    files_dict['audio'] = temp_path
+                    files_dict['prompt_audio'] = temp_path  # For TTS APIs
+                    temp_files.append(temp_path)
+            
+            # Handle generic file upload
+            if 'file_input' in request.files:
+                file = request.files['file_input']
+                if file.filename:
+                    temp_path = os.path.join(tempfile.gettempdir(), secure_filename(file.filename))
+                    file.save(temp_path)
+                    files_dict['file'] = temp_path
+                    temp_files.append(temp_path)
+            
+            # Call remote API
+            timeout = ai_project.get('remote_inference_timeout_seconds', 300)
+            result = call_remote_api(
+                api_url=custom_api_url,
+                files_dict=files_dict,
+                params_dict=params_dict,
+                timeout=timeout
+            )
+            
+            if result['success']:
+                return jsonify({
+                    'success': True,
+                    'message': 'API调用成功',
+                    'data': result.get('data', {})
+                })
+            else:
+                return jsonify({
+                    'error': result.get('error', 'API调用失败')
+                }), 500
+                
+        finally:
+            # Clean up temp files
+            for temp_file in temp_files:
+                try:
+                    if os.path.exists(temp_file):
+                        os.remove(temp_file)
+                except:
+                    pass
+
     template_id = request.form.get('template_id')
     if not template_id:
         return jsonify({'error': '请选择一个模板'}), 400
