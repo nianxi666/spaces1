@@ -1,0 +1,195 @@
+{% extends "layout.html" %}
+{% block title %}{{ ai_project.name }} - WebSocket 推理{% endblock %}
+{% block content %}
+<div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+    {% if announcement.enabled and announcement.show_on_projects %}
+    <div style="margin-bottom: 20px; padding: 15px; background-color: 
+        {% if announcement.type == 'warning' %}#fff3cd
+        {% elif announcement.type == 'error' %}#f8d7da
+        {% elif announcement.type == 'success' %}#d4edda
+        {% else %}#d1ecf1{% endif %};
+        border: 1px solid 
+        {% if announcement.type == 'warning' %}#ffeaa7
+        {% elif announcement.type == 'error' %}#f5c6cb
+        {% elif announcement.type == 'success' %}#c3e6cb
+        {% else %}#bee5eb{% endif %};
+        border-radius: 4px; color: #333;">
+        <strong>📢 {{ announcement.title }}</strong><br>
+        {{ announcement.content }}
+    </div>
+    {% endif %}
+
+    <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 30px;">
+        <h1 style="margin-top: 0; color: #333;">{{ ai_project.name }}</h1>
+        <p style="color: #666; font-size: 1.1em;">{{ ai_project.description }}</p>
+
+        <div style="background: #f0f8ff; padding: 15px; border-radius: 6px; border-left: 4px solid #0066cc; margin: 20px 0;">
+            <strong style="color: #0066cc;">📡 连接状态</strong><br>
+            {% if is_connected %}
+                <span style="color: green; font-weight: bold;">✓ 已连接</span>
+                <p style="margin: 10px 0 0 0; color: #666;">队列中有 <strong>{{ queue_size }}</strong> 个等待中的请求</p>
+            {% else %}
+                <span style="color: red; font-weight: bold;">✗ 未连接</span>
+                <p style="margin: 10px 0 0 0; color: #666;">远程应用未连接。请在远程电脑上运行：<br>
+                <code style="background: #e0e0e0; padding: 8px; display: inline-block; border-radius: 4px; margin-top: 5px;">python app.py --host {{ server_domain }} --spaces {{ ai_project.name }}</code></p>
+            {% endif %}
+        </div>
+
+        {% if is_connected and current_username %}
+        <div style="margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 6px; border: 1px solid #ddd;">
+            <h3 style="margin-top: 0; color: #333;">发送推理请求</h3>
+            
+            <form id="inference-form" style="display: flex; flex-direction: column; gap: 15px;">
+                {% if ai_project.websockets_config.enable_prompt %}
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">提示词</label>
+                    <textarea name="prompt" id="prompt-input" rows="4" placeholder="输入你的提示词..." 
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: Arial, sans-serif;"></textarea>
+                </div>
+                {% endif %}
+
+                {% if ai_project.websockets_config.enable_audio %}
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">音频文件</label>
+                    <input type="file" name="audio_file" id="audio-input" accept="audio/*" 
+                        style="padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <small style="color: #666;">支持格式: MP3, WAV, OGG 等</small>
+                </div>
+                {% endif %}
+
+                {% if ai_project.websockets_config.enable_video %}
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">视频文件</label>
+                    <input type="file" name="video_file" id="video-input" accept="video/*" 
+                        style="padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <small style="color: #666;">支持格式: MP4, WebM, MOV 等</small>
+                </div>
+                {% endif %}
+
+                {% if ai_project.websockets_config.enable_file_upload %}
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">其他文件</label>
+                    <input type="file" name="other_file" id="file-input" 
+                        style="padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                {% endif %}
+
+                <button type="submit" style="background: #007bff; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; font-weight: bold;">
+                    发送请求
+                </button>
+            </form>
+
+            <div id="request-status" style="margin-top: 20px; display: none; padding: 15px; background: #e3f2fd; border-radius: 4px; border-left: 4px solid #1976d2;">
+                <strong style="color: #1976d2;">处理中...</strong>
+                <p style="margin: 10px 0 0 0; color: #555;" id="status-message">正在发送请求到远程应用...</p>
+                <div id="progress-bar" style="margin-top: 10px; height: 4px; background: #ccc; border-radius: 2px; overflow: hidden;">
+                    <div style="height: 100%; background: #1976d2; width: 30%; animation: progress 2s infinite;"></div>
+                </div>
+            </div>
+
+            <div id="request-result" style="margin-top: 20px; display: none; padding: 15px; background: #f1f8e9; border-radius: 4px; border-left: 4px solid #689f38;">
+                <strong style="color: #689f38;">✓ 请求完成</strong>
+                <pre id="result-content" style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; margin-top: 10px; max-height: 300px;"></pre>
+            </div>
+
+            <div id="request-error" style="margin-top: 20px; display: none; padding: 15px; background: #ffebee; border-radius: 4px; border-left: 4px solid #d32f2f;">
+                <strong style="color: #d32f2f;">✗ 错误</strong>
+                <p id="error-message" style="margin: 10px 0 0 0; color: #555;"></p>
+            </div>
+        </div>
+        {% elif is_connected and not current_username %}
+        <div style="margin-top: 30px; padding: 20px; background: #fff3cd; border-radius: 6px; border: 1px solid #ffeaa7; text-align: center;">
+            <p style="margin: 0;">请<a href="{{ url_for('auth.login') }}" style="color: #0066cc; text-decoration: none;"><strong>登录</strong></a>以发送推理请求</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    @keyframes progress {
+        0% { width: 0%; }
+        50% { width: 100%; }
+        100% { width: 100%; }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('inference-form');
+    if (!form) return;
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const statusDiv = document.getElementById('request-status');
+        const resultDiv = document.getElementById('request-result');
+        const errorDiv = document.getElementById('request-error');
+        const statusMsg = document.getElementById('status-message');
+
+        statusDiv.style.display = 'block';
+        resultDiv.style.display = 'none';
+        errorDiv.style.display = 'none';
+        statusMsg.textContent = '正在发送请求到远程应用...';
+
+        try {
+            const response = await fetch('/websockets/submit/{{ ai_project.id }}', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || '请求失败');
+            }
+
+            const requestId = data.request_id;
+            statusMsg.textContent = `请求已提交 (ID: ${requestId})，正在等待远程应用处理...`;
+
+            // Poll for result
+            let attempts = 0;
+            const maxAttempts = 120; // 2 minutes with 1 second interval
+            
+            const pollResult = setInterval(async () => {
+                attempts++;
+                try {
+                    const statusResponse = await fetch(`/websockets/status?request_id=${requestId}`);
+                    const statusData = await statusResponse.json();
+
+                    if (statusData.status === 'completed') {
+                        clearInterval(pollResult);
+                        statusDiv.style.display = 'none';
+                        resultDiv.style.display = 'block';
+                        document.getElementById('result-content').textContent = JSON.stringify(statusData.result, null, 2);
+                    } else if (statusData.status === 'failed') {
+                        clearInterval(pollResult);
+                        statusDiv.style.display = 'none';
+                        errorDiv.style.display = 'block';
+                        document.getElementById('error-message').textContent = statusData.result?.error || '请求处理失败';
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(pollResult);
+                        statusDiv.style.display = 'none';
+                        errorDiv.style.display = 'block';
+                        document.getElementById('error-message').textContent = '请求超时（2分钟）';
+                    }
+                } catch (err) {
+                    if (attempts >= maxAttempts) {
+                        clearInterval(pollResult);
+                        statusDiv.style.display = 'none';
+                        errorDiv.style.display = 'block';
+                        document.getElementById('error-message').textContent = '无法检查请求状态';
+                    }
+                }
+            }, 1000);
+
+        } catch (error) {
+            statusDiv.style.display = 'none';
+            errorDiv.style.display = 'block';
+            document.getElementById('error-message').textContent = error.message;
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

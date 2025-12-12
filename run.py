@@ -21,6 +21,12 @@ scheduler.start()
 # Shut down the scheduler when exiting the app
 atexit.register(lambda: scheduler.shutdown())
 
+# Get the socketio instance if it was created
+socketio = getattr(app, 'socketio', None)
+
 if __name__ == '__main__':
     # Setting debug=False is important for production to avoid running the scheduler twice
-    app.run(host='0.0.0.0', port=5001, debug=False)
+    if socketio:
+        socketio.run(app, host='0.0.0.0', port=5001, debug=False)
+    else:
+        app.run(host='0.0.0.0', port=5001, debug=False)

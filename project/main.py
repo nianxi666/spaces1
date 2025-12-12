@@ -677,6 +677,20 @@ def ai_project_view(ai_project_id):
             announcement=announcement,
             chat_announcement=chat_announcement
         )
+    
+    if space_card_type == 'websockets':
+        from .websocket_manager import ws_manager
+        is_connected = ws_manager.is_space_connected(ai_project_id)
+        queue_size = ws_manager.get_queue_size(ai_project_id) if is_connected else 0
+        return render_template(
+            'space_websockets.html',
+            ai_project=ai_project,
+            is_connected=is_connected,
+            queue_size=queue_size,
+            announcement=announcement,
+            current_username=username,
+            server_domain=effective_server_domain
+        )
 
     s3_public_base_url = None
     s3_config = get_s3_config()
@@ -1282,3 +1296,74 @@ def faq():
     db = load_db()
     settings = db.get('settings', {})
     return render_template('faq.html', settings=settings)
+
+@main_bp.route('/websockets/submit/<ai_project_id>', methods=['POST'])
+def submit_websockets_request(ai_project_id):
+    """Submit an inference request to a WebSocket-connected space"""
+    if not session.get('logged_in'):
+        return jsonify({'error': '未登录'}), 401
+
+    db = load_db()
+    ai_project = db["spaces"].get(ai_project_id)
+    if not ai_project or ai_project.get('card_type') != 'websockets':
+        return jsonify({'error': 'Space 未找到或类型不正确'}), 404
+
+    from .websocket_manager import ws_manager
+    from .websocket_handler import send_inference_request
+    
+    if not ws_manager.is_space_connected(ai_project_id):
+        return jsonify({'error': '远程应用未连接'}), 503
+
+    username = session.get('username')
+    request_id = str(uuid.uuid4())
+
+    payload = {
+        'prompt': request.form.get('prompt', ''),
+        'timestamp': datetime.utcnow().isoformat()
+    }
+
+    if request.files.get('audio_file'):
+        # TODO: Handle audio file upload
+        pass
+
+    if request.files.get('video_file'):
+        # TODO: Handle video file upload
+        pass
+
+    if request.files.get('other_file'):
+        # TODO: Handle other file upload
+        pass
+
+    success, result = ws_manager.queue_inference_request(ai_project_id, request_id, username, payload)
+    if not success:
+        return jsonify({'error': result}), 500
+
+    # Send the request to the connected remote app
+    request_data = {
+        'request_id': request_id,
+        'username': username,
+        'payload': payload
+    }
+    send_inference_request(ai_project_id, request_data)
+
+    return jsonify({'success': True, 'request_id': request_id})
+
+@main_bp.route('/websockets/status', methods=['GET'])
+def get_websockets_request_status():
+    """Get the status of a WebSocket inference request"""
+    request_id = request.args.get('request_id')
+    if not request_id:
+        return jsonify({'error': 'Missing request_id'}), 400
+
+    from .websocket_manager import ws_manager
+    request_data = ws_manager.get_request_status(request_id)
+    if not request_data:
+        return jsonify({'error': 'Request not found'}), 404
+
+    return jsonify({
+        'request_id': request_id,
+        'status': request_data.get('status'),
+        'result': request_data.get('result'),
+        'created_at': request_data.get('created_at'),
+        'updated_at': request_data.get('updated_at')
+    })

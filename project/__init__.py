@@ -1,10 +1,11 @@
-﻿import os
+import os
 import json
 import logging
 from logging.handlers import RotatingFileHandler
 from flask import Flask, request, session
 from flask_babel import Babel
 from datetime import datetime
+from flask_socketio import SocketIO
 
 def format_datetime(value, format='%Y-%m-%d %H:%M'):
     if value:
@@ -177,5 +178,9 @@ def create_app(test_config=None):
     @app.context_processor
     def inject_get_locale():
         return dict(get_locale=get_locale)
+
+    # Initialize WebSocket support
+    from .websocket_handler import init_websocket
+    app.socketio = init_websocket(app)
 
     return app
