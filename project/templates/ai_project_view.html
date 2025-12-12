@@ -1,13 +1,14 @@
 {% extends "layout.html" %}
 
 {% block meta_description %}
-<meta name="description" content="在南瓜AI上运行和探索 &quot;{{ ai_project.name }}&quot;。{{ (ai_project.description or '强大的AI工具，等待您的探索') | truncate(100) }}">
+<meta name="description"
+    content="在南瓜AI上运行和探索 &quot;{{ ai_project.name }}&quot;。{{ (ai_project.description or '强大的AI工具，等待您的探索') | truncate(100) }}">
 {% endblock %}
 
 {% block hreflang_tags %}
-  {% for link in hreflang_links %}
-    <link rel="alternate" hreflang="{{ link.lang }}" href="{{ link.url }}">
-  {% endfor %}
+{% for link in hreflang_links %}
+<link rel="alternate" hreflang="{{ link.lang }}" href="{{ link.url }}">
+{% endfor %}
 {% endblock %}
 
 {% block title %}{{ ai_project.name }} - 南瓜AI{% endblock %}
@@ -15,16 +16,19 @@
 <div class="ai-project-page">
     <div class="project-content">
         <div class="main-panel card">
-    {% if ai_project.cover %}
-    <div class="project-cover" style="margin-bottom: 20px;">
-        {% set cover_url = ai_project.cover if ai_project.cover.startswith('http') else to_s3_url(ai_project.cover) %}
-        {% if ai_project.cover_type == 'video' %}
-            <video src="{{ cover_url }}" autoplay muted loop playsinline style="width: 100%; border-radius: 8px 8px 0 0;"></video>
-        {% else %}
-            <img src="{{ cover_url }}" alt="{{ ai_project.name }} Cover" style="width: 100%; border-radius: 8px 8px 0 0; object-fit: cover; max-height: 400px;">
-        {% endif %}
-    </div>
-    {% endif %}
+            {% if ai_project.cover %}
+            <div class="project-cover" style="margin-bottom: 20px;">
+                {% set cover_url = ai_project.cover if ai_project.cover.startswith('http') else
+                to_s3_url(ai_project.cover) %}
+                {% if ai_project.cover_type == 'video' %}
+                <video src="{{ cover_url }}" autoplay muted loop playsinline
+                    style="width: 100%; border-radius: 8px 8px 0 0;"></video>
+                {% else %}
+                <img src="{{ cover_url }}" alt="{{ ai_project.name }} Cover"
+                    style="width: 100%; border-radius: 8px 8px 0 0; object-fit: cover; max-height: 400px;">
+                {% endif %}
+            </div>
+            {% endif %}
             <div class="panel-header">
                 <div class="project-details">
                     <h1 class="project-title">{{ ai_project.name }}</h1>
@@ -33,26 +37,36 @@
             </div>
 
 
-            <div id="invitation-nag-message" style="display: none; background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; border-radius: 5px; margin: 0 20px 15px;">
-                部分高级GPU已被锁定。 <a href="{{ url_for('main.profile') }}" style="font-weight: bold; color: #856404;">绑定邀请码</a> 来解锁所有功能。
+            <div id="invitation-nag-message"
+                style="display: none; background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; border-radius: 5px; margin: 0 20px 15px;">
+                部分高级GPU已被锁定。 <a href="{{ url_for('main.profile') }}"
+                    style="font-weight: bold; color: #856404;">绑定邀请码</a> 来解锁所有功能。
             </div>
-            <div id="error-message" style="display: none; color: red; margin-bottom: 10px; padding: 10px; border: 1px solid red; border-radius: 5px; background-color: #fdd;"></div>
+            <div id="error-message"
+                style="display: none; color: red; margin-bottom: 10px; padding: 10px; border: 1px solid red; border-radius: 5px; background-color: #fdd;">
+            </div>
             <form id="inference-form" class="inference-form">
                 {% if space_card_type == 'cerebrium' %}
                 {% if not session.logged_in %}
-                <div class="alert" style="padding: 12px; border-radius: 6px; background: #fff4e5; border: 1px solid #ffe0b2; color: #a65b00; margin-bottom: 20px;">
-                    该卡片需要登录后才能使用，请先 <a href="{{ url_for('auth.login') }}">登录</a> 或 <a href="{{ url_for('auth.register') }}">注册</a>。
+                <div class="alert"
+                    style="padding: 12px; border-radius: 6px; background: #fff4e5; border: 1px solid #ffe0b2; color: #a65b00; margin-bottom: 20px;">
+                    该卡片需要登录后才能使用，请先 <a href="{{ url_for('auth.login') }}">登录</a> 或 <a
+                        href="{{ url_for('auth.register') }}">注册</a>。
                 </div>
                 {% endif %}
                 {% if session.logged_in and not custom_gpu_configs %}
-                <div class="alert" style="padding: 12px; border-radius: 6px; background: #ffe8e8; border: 1px solid #ffb3b3; color: #c62828; margin-bottom: 20px;">
+                <div class="alert"
+                    style="padding: 12px; border-radius: 6px; background: #ffe8e8; border: 1px solid #ffb3b3; color: #c62828; margin-bottom: 20px;">
                     你还没有被分配可用的 GPU。请联系管理员在用户管理中为你添加请求地址与密钥。
                 </div>
                 {% endif %}
 
                 <div class="form-group">
                     <label for="custom-gpu-select" class="form-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                        </svg>
                         请选择一个GPU
                     </label>
                     <select id="custom-gpu-select" {% if not custom_gpu_configs %}disabled{% endif %}>
@@ -90,7 +104,8 @@
                         <label><input type="radio" name="audio-source" value="url"> 使用外部链接</label>
                     </div>
                     <div id="audio-pan-section" class="picker-section">
-                        <button type="button" id="select-audio-btn" class="btn btn-secondary">选择音频文件 (.wav / .mp3)</button>
+                        <button type="button" id="select-audio-btn" class="btn btn-secondary">选择音频文件 (.wav /
+                            .mp3)</button>
                         <div id="audio-file-display" class="file-name">未选择文件</div>
                     </div>
                     <div id="audio-url-section" class="picker-section hidden">
@@ -105,7 +120,11 @@
 
                 <div class="form-actions">
                     <button id="custom-gpu-submit-button" type="button" class="btn btn-primary btn-large">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
                         开始处理
                     </button>
                 </div>
@@ -113,28 +132,38 @@
                 {% if space_card_type != 'cerebrium' %}
                 <div class="form-group" id="prompt-group">
                     <label for="prompt" class="form-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
                         创意描述
                     </label>
-                    <textarea id="prompt" name="prompt"
-                              placeholder="描述您想要创建的内容..."
-                              rows="4"
-                              required></textarea>
+                    <textarea id="prompt" name="prompt" placeholder="描述您想要创建的内容..." rows="4" required></textarea>
                 </div>
 
                 <div class="form-group">
                     <label for="template-select" class="form-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                        </svg>
                         请选择一个GPU
                     </label>
-                    <select id="template-select" name="template_id" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    <select id="template-select" name="template_id" class="form-control"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
                         <!-- Options will be populated by JavaScript -->
                     </select>
                 </div>
 
                 <div id="parameters-container" class="parameters-section" style="display: none;">
                     <h3 class="section-title">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                            </path>
+                        </svg>
                         参数设置
                     </h3>
                     <div id="parameters-grid" class="parameters-grid">
@@ -144,7 +173,12 @@
 
                 <div id="file-upload-container" class="form-group" style="display: none;">
                     <label for="input_file" class="form-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48">
+                            </path>
+                        </svg>
                         <span id="file-upload-label">上传文件</span>
                     </label>
                     <div class="file-upload-area">
@@ -155,12 +189,17 @@
                 </div>
 
                 <div class="form-actions">
-                    <button id="submit-button" type="submit" class="btn btn-primary btn-large" {% if is_waiting_for_file %}disabled{% endif %}>
+                    <button id="submit-button" type="submit" class="btn btn-primary btn-large" {% if is_waiting_for_file
+                        %}disabled{% endif %}>
                         {% if is_waiting_for_file %}
                         <span class="loading"></span>
                         处理中...
                         {% else %}
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
                         开始生成
                         {% endif %}
                     </button>
@@ -173,7 +212,12 @@
             {% if api_examples and space_card_type != 'cerebrium' %}
             <div class="api-examples-section">
                 <h3 class="section-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-code"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="feather feather-code">
+                        <polyline points="16 18 22 12 16 6"></polyline>
+                        <polyline points="8 6 2 12 8 18"></polyline>
+                    </svg>
                     API 使用示例
                 </h3>
                 {% for example in api_examples %}
@@ -181,15 +225,22 @@
                     <h4>{{ example.name }}</h4>
                     <div class="api-tabs">
                         <button class="api-tab-button" data-tab-target="#curl-{{ example.id }}">cURL</button>
-                        <button class="api-tab-button" data-tab-target="#python-async-{{ example.id }}">Python (Async)</button>
-                        <button class="api-tab-button" data-tab-target="#python-stream-{{ example.id }}">Python (Stream)</button>
+                        <button class="api-tab-button" data-tab-target="#python-async-{{ example.id }}">Python
+                            (Async)</button>
+                        <button class="api-tab-button" data-tab-target="#python-stream-{{ example.id }}">Python
+                            (Stream)</button>
                     </div>
 
                     <div id="curl-{{ example.id }}" class="api-tab-content">
                         <div class="code-block-container">
                             <pre><code id="code-curl-{{ example.id }}">{{ example.curl }}</code></pre>
                             <button class="copy-button" data-clipboard-target="#code-curl-{{ example.id }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
                                 复制
                             </button>
                         </div>
@@ -198,7 +249,12 @@
                         <div class="code-block-container">
                             <pre><code id="code-python-async-{{ example.id }}">{{ example.python_async }}</code></pre>
                             <button class="copy-button" data-clipboard-target="#code-python-async-{{ example.id }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
                                 复制
                             </button>
                         </div>
@@ -207,7 +263,12 @@
                         <div class="code-block-container">
                             <pre><code id="code-python-stream-{{ example.id }}">{{ example.python_stream }}</code></pre>
                             <button class="copy-button" data-clipboard-target="#code-python-stream-{{ example.id }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
                                 复制
                             </button>
                         </div>
@@ -222,27 +283,40 @@
         <div class="side-panel">
             <div class="card mb-3">
                 <a href="{{ url_for('main.chat') }}" class="btn btn-secondary btn-block">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
                     进入聊天室
                 </a>
             </div>
             <div class="result-card card">
                 <h3 class="card-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="6"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                    </svg>
                     生成结果
                 </h3>
                 <div id="status" class="result-status">
                     <div id="result-content" class="result-content">
                         {% if space_card_type == 'cerebrium' and last_custom_gpu_result %}
                         {% set result_status = last_custom_gpu_result.status or 'completed' %}
-                        {% set recent_name = last_custom_gpu_result.filename or (last_custom_gpu_result.output_key and last_custom_gpu_result.output_key.split('/')[-1]) or '输出视频.mp4' %}
-                        <div class="result-preview {% if result_status != 'completed' %}result-preview--pending{% endif %}">
+                        {% set recent_name = last_custom_gpu_result.filename or (last_custom_gpu_result.output_key and
+                        last_custom_gpu_result.output_key.split('/')[-1]) or '输出视频.mp4' %}
+                        <div
+                            class="result-preview {% if result_status != 'completed' %}result-preview--pending{% endif %}">
                             <div class="result-meta"><strong>输出文件：</strong>{{ recent_name }}</div>
                             {% if result_status == 'completed' and last_custom_gpu_result.public_url %}
-                            <video src="{{ last_custom_gpu_result.public_url }}" controls playsinline style="width:100%; border-radius:8px; background:#000"></video>
-                            <p class="result-hint">若视频没有立即播放，可稍后在 <a href="{{ url_for('results.my_results') }}">我的作品</a> 中查看。</p>
+                            <video src="{{ last_custom_gpu_result.public_url }}" controls playsinline
+                                style="width:100%; border-radius:8px; background:#000"></video>
+                            <p class="result-hint">若视频没有立即播放，可稍后在 <a href="{{ url_for('results.my_results') }}">我的作品</a>
+                                中查看。</p>
                             {% elif result_status == 'pending' %}
-                            <p class="result-hint processing">任务执行中，完成后最新结果会自动出现在此处，或前往 <a href="{{ url_for('results.my_results') }}">我的作品</a> 查看 ({{ recent_name }})。</p>
+                            <p class="result-hint processing">任务执行中，完成后最新结果会自动出现在此处，或前往 <a
+                                    href="{{ url_for('results.my_results') }}">我的作品</a> 查看 ({{ recent_name }})。</p>
                             {% elif result_status == 'timeout' %}
                             <p class="result-hint timeout">上一次任务已超时 ({{ recent_name }})，请检查 GPU 服务后重新开始。</p>
                             {% else %}
@@ -259,7 +333,12 @@
             {% if session.logged_in %}
             <div class="logs-card card">
                 <h3 class="card-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="8" y1="12" x2="16" y2="12"></line><line x1="12" y1="8" x2="12" y2="16"></line></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="8" y1="12" x2="16" y2="12"></line>
+                        <line x1="12" y1="8" x2="12" y2="16"></line>
+                    </svg>
                     执行日志
                 </h3>
                 {% if space_card_type == 'cerebrium' %}
@@ -272,7 +351,10 @@
 
             <div class="status-card card">
                 <h3 class="card-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                    </svg>
                     状态信息
                 </h3>
                 <div class="status-item">
@@ -310,239 +392,425 @@
 
 
 <style>
-/* Modal Styles */
-.modal {
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+    /* Modal Styles */
+    .modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 
-.modal-content {
-    background-color: #fefefe;
-    margin: auto;
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%;
-    max-width: 900px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-    display: flex;
-    flex-direction: column;
-    max-height: 90vh;
-}
+    .modal-content {
+        background-color: #fefefe;
+        margin: auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        max-width: 900px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        max-height: 90vh;
+    }
 
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 10px;
-    margin-bottom: 20px;
-}
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
 
-.modal-header h2 {
-    margin: 0;
-    font-size: 24px;
-}
+    .modal-header h2 {
+        margin: 0;
+        font-size: 24px;
+    }
 
-.close-button {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-    cursor: pointer;
-}
+    .close-button {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
 
-.close-button:hover,
-.close-button:focus {
-    color: black;
-    text-decoration: none;
-}
+    .close-button:hover,
+    .close-button:focus {
+        color: black;
+        text-decoration: none;
+    }
 
-.modal-body {
-    overflow-y: auto;
-}
+    .modal-body {
+        overflow-y: auto;
+    }
 
-.file-list-container {
-    /* Styles for the file list, borrowing from my_results.html */
-}
+    .file-list-container {
+        /* Styles for the file list, borrowing from my_results.html */
+    }
 
-.ai-project-page { max-width: 1200px; margin: 0 auto; padding: 20px; }
-.project-content { display: grid; grid-template-columns: 1fr 400px; gap: 30px; }
-.main-panel { background: var(--system-background); border: 1px solid var(--separator-color); border-radius: 8px; }
-.panel-header { padding: 20px; border-bottom: 1px solid var(--separator-color); }
-.panel-header h2 { font-size: 20px; font-weight: 600; color: var(--primary-text); margin: 0; }
-.panel-header p { color: var(--secondary-text); margin: 4px 0 0 0; }
-.inference-form { padding: 20px; }
-.form-group { margin-bottom: 20px; }
-.form-label { font-weight: 600; color: var(--primary-text); margin-bottom: 8px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-.form-group textarea, .form-group input[type="text"] {
-    width: 100%; padding: 10px; border: 1px solid var(--separator-color); border-radius: 6px;
-    background: var(--system-background-secondary); font-size: 14px; box-sizing: border-box;
-}
-.form-group textarea:focus, .form-group input[type="text"]:focus { outline: none; border-color: var(--secondary-text); }
-.parameters-section { margin: 20px 0; padding: 20px; background: var(--system-background-secondary); border-radius: 8px; }
-.section-title { font-size: 16px; font-weight: 600; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;}
-.file-upload-area { border: 2px dashed var(--separator-color); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; }
-.file-upload-area:hover { border-color: var(--secondary-text); }
-.form-actions { text-align: center; margin-top: 20px; }
-.side-panel { display: flex; flex-direction: column; gap: 20px; }
-.result-card, .logs-card, .status-card { background: var(--system-background); border: 1px solid var(--separator-color); border-radius: 8px; padding: 20px; }
-.card-title { font-size: 16px; font-weight: 600; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;}
-.result-status, .logs-content { background: var(--system-background-secondary); border-radius: 6px; padding: 16px; min-height: 100px; }
-.logs-content { font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; }
-.status-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--separator-color); font-size: 14px; }
-.status-item:last-child { border-bottom: none; }
-.status-label { color: var(--secondary-text); }
-.status-value.ready { color: #28a745; }
-.status-value.processing { color: #fd7e14; }
-.result-preview video { width: 100%; border-radius: 8px; background: #000; margin-top: 8px; }
-.result-meta { font-size: 14px; color: var(--primary-text); }
-.result-hint { font-size: 12px; color: #666; margin-top: 8px; }
-.result-hint.processing { color: #3c78ff; }
-.result-hint.timeout { color: #c62828; }
-.result-preview--pending {
-    border: 1px dashed var(--separator-color);
-    border-radius: 8px;
-    padding: 12px;
-    background: rgba(60, 120, 255, 0.05);
-}
+    .ai-project-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
 
-@media (max-width: 1024px) {
-    .project-content { grid-template-columns: 1fr; gap: 20px; }
-    .side-panel { order: -1; }
-}
+    .project-content {
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        gap: 30px;
+    }
 
-/* API Examples Styles */
-.api-examples-section {
-    padding: 20px;
-    margin-top: 20px;
-    background: var(--system-background-secondary);
-    border-radius: 8px;
-}
-.api-example {
-    margin-bottom: 20px;
-}
-.api-example:last-child {
-    margin-bottom: 0;
-}
-.api-example h4 {
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 10px;
-}
-.code-block-container {
-    position: relative;
-}
-.code-block-container pre {
-    background-color: #0d1117; /* Dark background for code */
-    color: #c9d1d9; /* Light text for contrast */
-    padding: 16px;
-    border-radius: 6px;
-    overflow-x: auto;
-    font-family: 'SF Mono', 'Consolas', 'Menlo', monospace;
-    font-size: 14px;
-}
-.copy-button {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: #21262d;
-    color: #c9d1d9;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    padding: 5px 10px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12px;
-    opacity: 0.8;
-    transition: opacity 0.2s ease-in-out;
-}
-.copy-button:hover {
-    background-color: #30363d;
-    opacity: 1;
-}
+    .main-panel {
+        background: var(--system-background);
+        border: 1px solid var(--separator-color);
+        border-radius: 8px;
+    }
 
-/* API Tabs Styles */
-.api-tabs {
-    display: flex;
-    border-bottom: 1px solid var(--separator-color);
-    margin-bottom: 15px;
-}
-.api-tab-button {
-    padding: 10px 15px;
-    cursor: pointer;
-    border: none;
-    background-color: transparent;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--secondary-text);
-    position: relative;
-    border-bottom: 2px solid transparent;
-    transition: all 0.3s ease;
-}
-.api-tab-button.active {
-    color: var(--primary-text);
-    border-bottom-color: var(--primary-text);
-}
-.api-tab-content {
-    display: none;
-}
-.api-tab-content.active {
-    display: block;
-}
-.mode-selector {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 8px;
-    flex-wrap: wrap;
-}
-.mode-selector label {
-    font-weight: 500;
-    color: var(--secondary-text);
-}
-.picker-section {
-    border: 1px dashed var(--separator-color);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 10px;
-}
-.file-name {
-    margin-top: 8px;
-    font-style: italic;
-    color: #555;
-    word-break: break-all;
-}
-.hidden { display: none; }
-.warning {
-    color: #c62828;
-    background: #ffeaea;
-    border: 1px solid #ffbdbd;
-    border-radius: 6px;
-    padding: 10px;
-    margin-top: 10px;
-}
+    .panel-header {
+        padding: 20px;
+        border-bottom: 1px solid var(--separator-color);
+    }
 
-.field-error {
-    border-color: #ff6b6b !important;
-    box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.15);
-}
+    .panel-header h2 {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--primary-text);
+        margin: 0;
+    }
 
-.btn[disabled], .btn.disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    pointer-events: none;
-}
+    .panel-header p {
+        color: var(--secondary-text);
+        margin: 4px 0 0 0;
+    }
+
+    .inference-form {
+        padding: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--primary-text);
+        margin-bottom: 8px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-group textarea,
+    .form-group input[type="text"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--separator-color);
+        border-radius: 6px;
+        background: var(--system-background-secondary);
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+
+    .form-group textarea:focus,
+    .form-group input[type="text"]:focus {
+        outline: none;
+        border-color: var(--secondary-text);
+    }
+
+    .parameters-section {
+        margin: 20px 0;
+        padding: 20px;
+        background: var(--system-background-secondary);
+        border-radius: 8px;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 16px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .file-upload-area {
+        border: 2px dashed var(--separator-color);
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+    }
+
+    .file-upload-area:hover {
+        border-color: var(--secondary-text);
+    }
+
+    .form-actions {
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    .side-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .result-card,
+    .logs-card,
+    .status-card {
+        background: var(--system-background);
+        border: 1px solid var(--separator-color);
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .card-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 16px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .result-status,
+    .logs-content {
+        background: var(--system-background-secondary);
+        border-radius: 6px;
+        padding: 16px;
+        min-height: 100px;
+    }
+
+    .logs-content {
+        font-family: monospace;
+        font-size: 12px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .status-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--separator-color);
+        font-size: 14px;
+    }
+
+    .status-item:last-child {
+        border-bottom: none;
+    }
+
+    .status-label {
+        color: var(--secondary-text);
+    }
+
+    .status-value.ready {
+        color: #28a745;
+    }
+
+    .status-value.processing {
+        color: #fd7e14;
+    }
+
+    .result-preview video {
+        width: 100%;
+        border-radius: 8px;
+        background: #000;
+        margin-top: 8px;
+    }
+
+    .result-meta {
+        font-size: 14px;
+        color: var(--primary-text);
+    }
+
+    .result-hint {
+        font-size: 12px;
+        color: #666;
+        margin-top: 8px;
+    }
+
+    .result-hint.processing {
+        color: #3c78ff;
+    }
+
+    .result-hint.timeout {
+        color: #c62828;
+    }
+
+    .result-preview--pending {
+        border: 1px dashed var(--separator-color);
+        border-radius: 8px;
+        padding: 12px;
+        background: rgba(60, 120, 255, 0.05);
+    }
+
+    @media (max-width: 1024px) {
+        .project-content {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .side-panel {
+            order: -1;
+        }
+    }
+
+    /* API Examples Styles */
+    .api-examples-section {
+        padding: 20px;
+        margin-top: 20px;
+        background: var(--system-background-secondary);
+        border-radius: 8px;
+    }
+
+    .api-example {
+        margin-bottom: 20px;
+    }
+
+    .api-example:last-child {
+        margin-bottom: 0;
+    }
+
+    .api-example h4 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    .code-block-container {
+        position: relative;
+    }
+
+    .code-block-container pre {
+        background-color: #0d1117;
+        /* Dark background for code */
+        color: #c9d1d9;
+        /* Light text for contrast */
+        padding: 16px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: 'SF Mono', 'Consolas', 'Menlo', monospace;
+        font-size: 14px;
+    }
+
+    .copy-button {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: #21262d;
+        color: #c9d1d9;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 5px 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        opacity: 0.8;
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .copy-button:hover {
+        background-color: #30363d;
+        opacity: 1;
+    }
+
+    /* API Tabs Styles */
+    .api-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--separator-color);
+        margin-bottom: 15px;
+    }
+
+    .api-tab-button {
+        padding: 10px 15px;
+        cursor: pointer;
+        border: none;
+        background-color: transparent;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--secondary-text);
+        position: relative;
+        border-bottom: 2px solid transparent;
+        transition: all 0.3s ease;
+    }
+
+    .api-tab-button.active {
+        color: var(--primary-text);
+        border-bottom-color: var(--primary-text);
+    }
+
+    .api-tab-content {
+        display: none;
+    }
+
+    .api-tab-content.active {
+        display: block;
+    }
+
+    .mode-selector {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+    }
+
+    .mode-selector label {
+        font-weight: 500;
+        color: var(--secondary-text);
+    }
+
+    .picker-section {
+        border: 1px dashed var(--separator-color);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 10px;
+    }
+
+    .file-name {
+        margin-top: 8px;
+        font-style: italic;
+        color: #555;
+        word-break: break-all;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    .warning {
+        color: #c62828;
+        background: #ffeaea;
+        border: 1px solid #ffbdbd;
+        border-radius: 6px;
+        padding: 10px;
+        margin-top: 10px;
+    }
+
+    .field-error {
+        border-color: #ff6b6b !important;
+        box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.15);
+    }
+
+    .btn[disabled],
+    .btn.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
 </style>
 
 {% if space_card_type == 'cerebrium' %}
@@ -550,12 +818,13 @@
 {% endif %}
 
 <script>
-function initCustomGpuFlow() {
-    const isLoggedIn = {{ session.get('logged_in')|tojson }};
-    const customGpuConfigs = {{ custom_gpu_configs | tojson | safe }} || [];
-    const lastResult = {{ last_custom_gpu_result | tojson | safe }};
+    function initCustomGpuFlow() {
+        const isLoggedIn = {{ (session.get('logged_in') or false)| tojson
+    }};
+    const customGpuConfigs = {{ (remote_inference_configs or[])| tojson | safe }};
+    const lastResult = {{ (last_remote_inference_result or none)| tojson | safe }};
     const aiProjectId = '{{ ai_project.id }}';
-    const timeoutConfig = {{ custom_gpu_timeout_seconds | default(300) | tojson }};
+    const timeoutConfig = {{ (remote_inference_timeout_seconds or 300)| tojson }};
     const parsedTimeout = Number(timeoutConfig);
     const customGpuTimeoutSeconds = parsedTimeout > 0 ? parsedTimeout : 300;
     const customGpuTimeoutMs = customGpuTimeoutSeconds * 1000;
@@ -599,7 +868,7 @@ function initCustomGpuFlow() {
     let activeFileSelection = null;
     let cachedS3Context = null;
     let s3Client = null;
-    let publicBaseUrl = {{ s3_public_base_url|tojson }};
+    let publicBaseUrl = {{ s3_public_base_url| tojson }};
     let pendingTimeoutTimer = null;
     let pendingJobKey = null;
     let pendingJobName = null;
@@ -1084,8 +1353,9 @@ function initCustomGpuFlow() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const isCustomGpuSpace = {{ 'true' if space_card_type == 'cerebrium' else 'false' }};
+    document.addEventListener('DOMContentLoaded', function () {
+        const isCustomGpuSpace = {{ 'true' if space_card_type == 'cerebrium' else 'false'
+    }};
     if (isCustomGpuSpace) {
         initCustomGpuFlow();
         return;
@@ -1329,87 +1599,88 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 0);
         }
 
-        templateSelect.addEventListener('change', function() {
+        templateSelect.addEventListener('change', function () {
             const selectedId = this.value;
-            const isLoggedIn = {{ session.get('logged_in')|tojson }};
+            const isLoggedIn = {{ session.get('logged_in') | tojson
+        }};
 
-            if (selectedId) {
-                const template = templates[selectedId];
-                const templateName = template.name.toLowerCase();
+    if (selectedId) {
+        const template = templates[selectedId];
+        const templateName = template.name.toLowerCase();
 
-                // Check for GPU template and user login status
-                if (templateName.includes('gpu') && !isLoggedIn) {
-                    alert('选择高级GPU需要登录。您可以点击页面右上角的按钮进行登录或注册。');
-                    this.value = ''; // Reset selection
-                    return; // Stop further processing
-                }
+        // Check for GPU template and user login status
+        if (templateName.includes('gpu') && !isLoggedIn) {
+            alert('选择高级GPU需要登录。您可以点击页面右上角的按钮进行登录或注册。');
+            this.value = ''; // Reset selection
+            return; // Stop further processing
+        }
 
-                localStorage.setItem(`selected_template_${aiProjectId}`, selectedId);
-                const fileUploadContainer = document.getElementById('file-upload-container');
-                const fileUploadLabel = document.getElementById('file-upload-label');
-                const promptGroup = document.getElementById('prompt-group');
-                const promptTextarea = document.getElementById('prompt');
+        localStorage.setItem(`selected_template_${aiProjectId}`, selectedId);
+        const fileUploadContainer = document.getElementById('file-upload-container');
+        const fileUploadLabel = document.getElementById('file-upload-label');
+        const promptGroup = document.getElementById('prompt-group');
+        const promptTextarea = document.getElementById('prompt');
 
-                renderParameters(selectedId);
+        renderParameters(selectedId);
 
-                if (template) {
-                    // Handle prompt display
-                    if (template.disable_prompt) {
-                        promptGroup.style.display = 'none';
-                        promptTextarea.required = false;
-                    } else {
-                        promptGroup.style.display = 'block';
-                        promptTextarea.required = true;
-                    }
-
-                    // Handle file upload display and label
-                    if (template.force_upload || template.enable_lora_upload) {
-                        fileUploadContainer.style.display = 'block';
-                    } else {
-                        fileUploadContainer.style.display = 'none';
-                    }
-
-                    if (template.enable_lora_upload) {
-                        fileUploadLabel.textContent = '上传文件 (支持 LoRA, 最多2个)';
-                    } else {
-                        fileUploadLabel.textContent = template.force_upload ? '上传文件 (必须)' : '上传文件';
-                    }
-
-                    // Handle file types for selection
-                    // This is a placeholder for where you would adjust the file input's `accept` attribute
-                    // if you were using a direct <input type="file">.
-                    // Since we use a modal, the filtering happens when listing files.
-                    // For now, we just note that .glb should be allowed.
-                    const fileInput = document.querySelector('input[type="file"]'); // Hypothetical input
-                    if (fileInput) {
-                        let acceptTypes = 'image/*,video/*';
-                        if (template.force_upload) {
-                             acceptTypes += ',.glb';
-                        }
-                         fileInput.accept = acceptTypes;
-                    }
-
-                } else {
-                    promptGroup.style.display = 'block';
-                    promptTextarea.required = true;
-                    fileUploadContainer.style.display = 'none';
-                }
-
+        if (template) {
+            // Handle prompt display
+            if (template.disable_prompt) {
+                promptGroup.style.display = 'none';
+                promptTextarea.required = false;
             } else {
-                paramsContainer.style.display = 'none';
-                paramsGrid.innerHTML = '';
-                fileUploadContainer.style.display = 'none';
-                document.getElementById('prompt-group').style.display = 'block';
-                document.getElementById('prompt').required = true;
+                promptGroup.style.display = 'block';
+                promptTextarea.required = true;
             }
+
+            // Handle file upload display and label
+            if (template.force_upload || template.enable_lora_upload) {
+                fileUploadContainer.style.display = 'block';
+            } else {
+                fileUploadContainer.style.display = 'none';
+            }
+
+            if (template.enable_lora_upload) {
+                fileUploadLabel.textContent = '上传文件 (支持 LoRA, 最多2个)';
+            } else {
+                fileUploadLabel.textContent = template.force_upload ? '上传文件 (必须)' : '上传文件';
+            }
+
+            // Handle file types for selection
+            // This is a placeholder for where you would adjust the file input's `accept` attribute
+            // if you were using a direct <input type="file">.
+            // Since we use a modal, the filtering happens when listing files.
+            // For now, we just note that .glb should be allowed.
+            const fileInput = document.querySelector('input[type="file"]'); // Hypothetical input
+            if (fileInput) {
+                let acceptTypes = 'image/*,video/*';
+                if (template.force_upload) {
+                    acceptTypes += ',.glb';
+                }
+                fileInput.accept = acceptTypes;
+            }
+
+        } else {
+            promptGroup.style.display = 'block';
+            promptTextarea.required = true;
+            fileUploadContainer.style.display = 'none';
+        }
+
+    } else {
+        paramsContainer.style.display = 'none';
+        paramsGrid.innerHTML = '';
+        fileUploadContainer.style.display = 'none';
+        document.getElementById('prompt-group').style.display = 'block';
+        document.getElementById('prompt').required = true;
+    }
         });
 
-        const savedTemplateId = localStorage.getItem(`selected_template_${aiProjectId}`);
-        const savedOption = templateSelect.querySelector(`option[value="${savedTemplateId}"]`);
-        if (savedTemplateId && savedOption && !savedOption.disabled) {
-            templateSelect.value = savedTemplateId;
-            templateSelect.dispatchEvent(new Event('change'));
-        }
+    const savedTemplateId = localStorage.getItem(`selected_template_${aiProjectId}`);
+    const savedOption = templateSelect.querySelector(`option[value="${savedTemplateId}"]`);
+    if (savedTemplateId && savedOption && !savedOption.disabled) {
+        templateSelect.value = savedTemplateId;
+        templateSelect.dispatchEvent(new Event('change'));
+    }
     }
 
 
@@ -1438,65 +1709,66 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    document.getElementById('inference-form').addEventListener('submit', async function(e) {
+    document.getElementById('inference-form').addEventListener('submit', async function (e) {
         e.preventDefault();
 
-        const isLoggedIn = {{ session.get('logged_in')|tojson }};
-        if (!isLoggedIn) {
-            alert('您需要登录才能运行此工具。请点击页面右上角的按钮进行登录或注册。');
-            return;
-        }
+        const isLoggedIn = {{ session.get('logged_in') | tojson
+    }};
+    if (!isLoggedIn) {
+        alert('您需要登录才能运行此工具。请点击页面右上角的按钮进行登录或注册。');
+        return;
+    }
 
-        if (!templateSelect.value) {
-            alert('请先选择一个GPU。');
-            return;
-        }
-        document.getElementById('error-message').style.display = 'none';
-        setButtonState(true, '<span class="loading"></span>正在启动...');
-        timeoutMessage.style.display = 'none';
+    if (!templateSelect.value) {
+        alert('请先选择一个GPU。');
+        return;
+    }
+    document.getElementById('error-message').style.display = 'none';
+    setButtonState(true, '<span class="loading"></span>正在启动...');
+    timeoutMessage.style.display = 'none';
 
-        const statusDiv = document.getElementById('status');
-        const logsDiv = document.getElementById('logs');
-        const resultDiv = document.getElementById('result-content');
+    const statusDiv = document.getElementById('status');
+    const logsDiv = document.getElementById('logs');
+    const resultDiv = document.getElementById('result-content');
 
-        statusDiv.className = 'result-status';
-        resultDiv.innerHTML = '准备提交任务...';
-        logsDiv.innerHTML = '';
+    statusDiv.className = 'result-status';
+    resultDiv.innerHTML = '准备提交任务...';
+    logsDiv.innerHTML = '';
 
-        // --- Proceed with inference form submission ---
-        const formData = new FormData(this);
+    // --- Proceed with inference form submission ---
+    const formData = new FormData(this);
 
-        resultDiv.innerHTML = '正在启动任务...';
-        logsDiv.innerHTML = '正在启动...';
+    resultDiv.innerHTML = '正在启动任务...';
+    logsDiv.innerHTML = '正在启动...';
 
-        if (logPollInterval) clearInterval(logPollInterval);
-        if (inferenceStatusPollInterval) clearInterval(inferenceStatusPollInterval);
+    if (logPollInterval) clearInterval(logPollInterval);
+    if (inferenceStatusPollInterval) clearInterval(inferenceStatusPollInterval);
 
-        try {
-            const response = await fetch('{{ url_for("main.run_inference", ai_project_id=ai_project.id) }}', {
-                method: 'POST',
-                body: formData
-            });
-            const result = await response.json();
-            if (response.ok) {
-                currentTaskId = result.task_id;
-                resultDiv.innerHTML = '任务已启动，正在执行...';
-                setButtonState(true, '<span class="loading"></span>正在生成...');
-                logPollInterval = setInterval(checkLogStatus, 2000);
-                inferenceStatusPollInterval = setInterval(checkInferenceStatus, 3000);
-            } else {
-                const errorDiv = document.getElementById('error-message');
-                errorDiv.innerText = result.error || 'An unknown error occurred.';
-                errorDiv.style.display = 'block';
-                resultDiv.innerHTML = '错误: ' + (result.error || '未知错误');
-                statusDiv.className = 'result-status failed';
-                setButtonState(false);
-            }
-        } catch (error) {
-            resultDiv.innerHTML = '请求失败: ' + error.message;
+    try {
+        const response = await fetch('{{ url_for("main.run_inference", ai_project_id=ai_project.id) }}', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (response.ok) {
+            currentTaskId = result.task_id;
+            resultDiv.innerHTML = '任务已启动，正在执行...';
+            setButtonState(true, '<span class="loading"></span>正在生成...');
+            logPollInterval = setInterval(checkLogStatus, 2000);
+            inferenceStatusPollInterval = setInterval(checkInferenceStatus, 3000);
+        } else {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.innerText = result.error || 'An unknown error occurred.';
+            errorDiv.style.display = 'block';
+            resultDiv.innerHTML = '错误: ' + (result.error || '未知错误');
             statusDiv.className = 'result-status failed';
             setButtonState(false);
         }
+    } catch (error) {
+        resultDiv.innerHTML = '请求失败: ' + error.message;
+        statusDiv.className = 'result-status failed';
+        setButtonState(false);
+    }
     });
 
     async function checkLogStatus() {
@@ -1581,19 +1853,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Save prompt to localStorage
-    promptInput.addEventListener('input', function() {
+    promptInput.addEventListener('input', function () {
         localStorage.setItem(`prompt_${aiProjectId}`, this.value);
     });
 
     // Save/Load dynamic params using event delegation
-    paramsGrid.addEventListener('input', function(e) {
+    paramsGrid.addEventListener('input', function (e) {
         if (e.target.name) {
             const key = `param_${aiProjectId}_${templateSelect.value}_${e.target.name}`;
             localStorage.setItem(key, e.target.value);
         }
     });
 
-    templateSelect.addEventListener('change', function() {
+    templateSelect.addEventListener('change', function () {
         const selectedId = this.value;
         if (selectedId) {
             // After rendering, try to load saved values
@@ -1618,23 +1890,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Clipboard.js Initialization ---
     var clipboard = new ClipboardJS('.copy-button');
 
-    clipboard.on('success', function(e) {
+    clipboard.on('success', function (e) {
         const originalText = e.trigger.innerHTML;
         e.trigger.innerHTML = '已复制!';
-        setTimeout(function() {
+        setTimeout(function () {
             e.trigger.innerHTML = originalText;
         }, 2000);
         e.clearSelection();
     });
 
-    clipboard.on('error', function(e) {
+    clipboard.on('error', function (e) {
         console.error('Action:', e.action);
         console.error('Trigger:', e.trigger);
         alert('复制失败，请手动复制。');
     });
 
     // --- API Tabs Logic ---
-    document.querySelectorAll('.api-example').forEach(function(exampleContainer) {
+    document.querySelectorAll('.api-example').forEach(function (exampleContainer) {
         const tabButtons = exampleContainer.querySelectorAll('.api-tab-button');
         const tabContents = exampleContainer.querySelectorAll('.api-tab-content');
 
@@ -1644,8 +1916,8 @@ document.addEventListener('DOMContentLoaded', function() {
             tabContents[0].classList.add('active');
         }
 
-        tabButtons.forEach(function(button) {
-            button.addEventListener('click', function() {
+        tabButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
                 // Deactivate all tabs within this container
                 tabButtons.forEach(btn => btn.classList.remove('active'));
                 tabContents.forEach(content => content.classList.remove('active'));

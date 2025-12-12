@@ -539,19 +539,19 @@ with requests.post(f"{{BASE_URL}}/spaces/run", json=PAYLOAD, headers=headers, st
         "ai_project_view.html",
         ai_project=ai_project,
         param_form_html=param_form_html,
-        api_key=api_key,
-        is_waiting_for_file=is_waiting_for_file,
-        announcement=announcement,
-        user_has_invitation_code=user_has_invitation_code,
+        api_key=api_key or "",
+        is_waiting_for_file=is_waiting_for_file or False,
+        announcement=announcement or {},
+        user_has_invitation_code=user_has_invitation_code or False,
         selected_file_key=selected_file_key,
-        hreflang_links=hreflang_links,
-        api_examples=api_examples,
-        space_card_type=space_card_type,
+        hreflang_links=hreflang_links or [],
+        api_examples=api_examples or [],
+        space_card_type=space_card_type or 'standard',
         s3_public_base_url=s3_public_base_url,
-        current_username=username,
-        remote_inference_configs=remote_inference_configs,
+        current_username=username or "",
+        remote_inference_configs=remote_inference_configs or [],
         last_remote_inference_result=last_remote_inference_result,
-        remote_inference_timeout_seconds=remote_inference_timeout_seconds
+        remote_inference_timeout_seconds=remote_inference_timeout_seconds or 300
     )
 
 @main_bp.route("/run_inference/<ai_project_id>", methods=["POST"])
