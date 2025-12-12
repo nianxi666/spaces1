@@ -91,6 +91,12 @@ def create_app(test_config=None):
     from . import webhook_kofi
     app.register_blueprint(webhook_kofi.payment_bp)
 
+    # Register WebSocket blueprint and initialize SocketIO
+    from .websocket_server import ws_bp, init_socketio
+    app.register_blueprint(ws_bp)
+    socketio = init_socketio(app)
+    app.socketio = socketio  # Store reference for run.py
+
     # Register custom Jinja2 filters
     app.jinja_env.filters['format_datetime'] = format_datetime
 

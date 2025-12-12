@@ -678,6 +678,22 @@ def ai_project_view(ai_project_id):
             chat_announcement=chat_announcement
         )
 
+    # WebSocket Space Type
+    if space_card_type == 'websocket':
+        from .websocket_server import is_space_online, get_queue_length
+        space_name = ai_project.get('name', '')
+        is_online = is_space_online(space_name)
+        queue_length = get_queue_length(space_name)
+        return render_template(
+            'space_websocket.html',
+            ai_project=ai_project,
+            is_online=is_online,
+            queue_length=queue_length,
+            announcement=announcement,
+            username=username,
+            server_domain=effective_server_domain
+        )
+
     s3_public_base_url = None
     s3_config = get_s3_config()
     if s3_config:

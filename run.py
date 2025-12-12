@@ -22,5 +22,7 @@ scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
 if __name__ == '__main__':
-    # Setting debug=False is important for production to avoid running the scheduler twice
-    app.run(host='0.0.0.0', port=5001, debug=False)
+    # Use SocketIO's run method for WebSocket support
+    socketio = app.socketio
+    socketio.run(app, host='0.0.0.0', port=5001, debug=False)
+
