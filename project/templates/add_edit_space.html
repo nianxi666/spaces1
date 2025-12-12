@@ -148,13 +148,16 @@
             style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">保存
             Space</button>
 
-        <script>
-            // Ensure checkbox values are submitted even when parent div is hidden
-            document.getElementById('space-form').addEventListener('submit', function (e) {
-                // Remove any existing hidden inputs for checkboxes
-                const existingHidden = this.querySelectorAll('input[name$="_hidden"]');
-                existingHidden.forEach(h => h.remove());
+    </form>
+</div>
 
+<!-- Cover Image Scripts -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Ensure checkbox values are submitted even when parent div is hidden
+        const spaceForm = document.getElementById('space-form');
+        if (spaceForm) {
+            spaceForm.addEventListener('submit', function (e) {
                 // Get all checkboxes for remote_inference settings
                 const checkboxes = [
                     'enable_prompt',
@@ -178,11 +181,9 @@
                     }
                 });
             });
-        </script>
-    </form>
-</div>
-
-<!-- Cover Image Scripts -->
+        }
+    });
+</script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const coverFileInput = document.getElementById('cover_file_input');
