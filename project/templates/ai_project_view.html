@@ -868,7 +868,7 @@
     let activeFileSelection = null;
     let cachedS3Context = null;
     let s3Client = null;
-    let publicBaseUrl = {{ s3_public_base_url| tojson }};
+    let publicBaseUrl = {{ (s3_public_base_url or none)| tojson }};
     let pendingTimeoutTimer = null;
     let pendingJobKey = null;
     let pendingJobName = null;
@@ -1601,7 +1601,8 @@
 
         templateSelect.addEventListener('change', function () {
             const selectedId = this.value;
-            const isLoggedIn = {{ session.get('logged_in') | tojson
+            const isLoggedIn = {{ (session.get('logged_in') or false) | tojson
+    }};
         }};
 
     if (selectedId) {
@@ -1712,7 +1713,7 @@
     document.getElementById('inference-form').addEventListener('submit', async function (e) {
         e.preventDefault();
 
-        const isLoggedIn = {{ session.get('logged_in') | tojson
+        const isLoggedIn = {{ (session.get('logged_in') or false) | tojson }};
     }};
     if (!isLoggedIn) {
         alert('您需要登录才能运行此工具。请点击页面右上角的按钮进行登录或注册。');
