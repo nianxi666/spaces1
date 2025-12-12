@@ -39,173 +39,79 @@
 
             <div id="invitation-nag-message"
                 style="display: none; background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; border-radius: 5px; margin: 0 20px 15px;">
-                部分高级GPU已被锁定。 <a href="{{ url_for('main.profile') }}"
-                    style="font-weight: bold; color: #856404;">绑定邀请码</a> 来解锁所有功能。
-            </div>
-            <div id="error-message"
-                style="display: none; color: red; margin-bottom: 10px; padding: 10px; border: 1px solid red; border-radius: 5px; background-color: #fdd;">
-            </div>
-            <form id="inference-form" class="inference-form">
-                {% if space_card_type == 'cerebrium' %}
-                {% if not session.logged_in %}
-                <div class="alert"
-                    style="padding: 12px; border-radius: 6px; background: #fff4e5; border: 1px solid #ffe0b2; color: #a65b00; margin-bottom: 20px;">
-                    该卡片需要登录后才能使用，请先 <a href="{{ url_for('auth.login') }}">登录</a> 或 <a
-                        href="{{ url_for('auth.register') }}">注册</a>。
-                </div>
-                {% endif %}
-                {% if session.logged_in and not custom_gpu_configs %}
-                <div class="alert"
-                    style="padding: 12px; border-radius: 6px; background: #ffe8e8; border: 1px solid #ffb3b3; color: #c62828; margin-bottom: 20px;">
-                    你还没有被分配可用的 GPU。请联系管理员在用户管理中为你添加请求地址与密钥。
-                </div>
-                {% endif %}
-
-                <div class="form-group">
-                    <label for="custom-gpu-select" class="form-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                        </svg>
-                        请选择一个GPU
-                    </label>
-                    <select id="custom-gpu-select" {% if not custom_gpu_configs %}disabled{% endif %}>
-                        {% if custom_gpu_configs %}
-                        <option value="">-- 请选择一个GPU --</option>
-                        {% for config in custom_gpu_configs %}
-                        <option value="{{ config.id }}">{{ config.name }}</option>
-                        {% endfor %}
-                        {% else %}
-                        <option value="">暂无可用GPU，请联系管理员</option>
-                        {% endif %}
-                    </select>
-                    <small style="color: #666; display:block; margin-top:4px;">管理员可以为你分配多个请求地址与密钥，此处以 GPU 名称展示。</small>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">视频输入</label>
-                    <div class="mode-selector">
-                        <label><input type="radio" name="video-source" value="pan" checked> 从网盘选择</label>
-                        <label><input type="radio" name="video-source" value="url"> 使用外部链接</label>
-                    </div>
-                    <div id="video-pan-section" class="picker-section">
-                        <button type="button" id="select-video-btn" class="btn btn-secondary">选择一个视频文件 (.mp4)</button>
-                        <div id="video-file-display" class="file-name">未选择文件</div>
-                    </div>
-                    <div id="video-url-section" class="picker-section hidden">
-                        <input type="text" id="video-url-input" placeholder="https://example.com/video.mp4">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">音频输入</label>
-                    <div class="mode-selector">
-                        <label><input type="radio" name="audio-source" value="pan" checked> 从网盘选择</label>
-                        <label><input type="radio" name="audio-source" value="url"> 使用外部链接</label>
-                    </div>
-                    <div id="audio-pan-section" class="picker-section">
-                        <button type="button" id="select-audio-btn" class="btn btn-secondary">选择音频文件 (.wav /
-                            .mp3)</button>
-                        <div id="audio-file-display" class="file-name">未选择文件</div>
-                    </div>
-                    <div id="audio-url-section" class="picker-section hidden">
-                        <input type="text" id="audio-url-input" placeholder="https://example.com/audio.wav">
-                    </div>
-                </div>
-
-                <input type="hidden" id="video-file-key">
-                <input type="hidden" id="audio-file-key">
-
-                <div id="custom-gpu-error" class="warning" style="display: none;"></div>
-
-                <div class="form-actions">
-                    <button id="custom-gpu-submit-button" type="button" class="btn btn-primary btn-large">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                            <polyline points="12 5 19 12 12 19"></polyline>
-                        </svg>
-                        开始处理
-                    </button>
-                </div>
-                {% endif %}
-                {% if space_card_type != 'cerebrium' %}
-                <div class="form-group" id="prompt-group">
-                    <label for="prompt" class="form-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                        创意描述
+                部分高级GPU已被锁定。 <a href="{{ url_for('main.profile') }}" <path
+                    d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    创意描述
                     </label>
                     <textarea id="prompt" name="prompt" placeholder="描述您想要创建的内容..." rows="4" required></textarea>
-                </div>
+            </div>
 
-                <div class="form-group">
-                    <label for="template-select" class="form-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                        </svg>
-                        请选择一个GPU
-                    </label>
-                    <select id="template-select" name="template_id" class="form-control"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                        <!-- Options will be populated by JavaScript -->
-                    </select>
-                </div>
+            <div class="form-group">
+                <label for="template-select" class="form-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                    </svg>
+                    请选择一个GPU
+                </label>
+                <select id="template-select" name="template_id" class="form-control"
+                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    <!-- Options will be populated by JavaScript -->
+                </select>
+            </div>
 
-                <div id="parameters-container" class="parameters-section" style="display: none;">
-                    <h3 class="section-title">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <path
-                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-                            </path>
-                        </svg>
-                        参数设置
-                    </h3>
-                    <div id="parameters-grid" class="parameters-grid">
-                        <!-- Parameters for the selected template will be rendered here -->
-                    </div>
+            <div id="parameters-container" class="parameters-section" style="display: none;">
+                <h3 class="section-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                        </path>
+                    </svg>
+                    参数设置
+                </h3>
+                <div id="parameters-grid" class="parameters-grid">
+                    <!-- Parameters for the selected template will be rendered here -->
                 </div>
+            </div>
 
-                <div id="file-upload-container" class="form-group" style="display: none;">
-                    <label for="input_file" class="form-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path
-                                d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48">
-                            </path>
-                        </svg>
-                        <span id="file-upload-label">上传文件</span>
-                    </label>
-                    <div class="file-upload-area">
-                        <button type="button" id="select-file-btn" class="btn btn-secondary">从文件库选择</button>
-                        <div id="selected-file-display" style="margin-top: 10px; font-weight: bold;"></div>
-                    </div>
-                    <input type="hidden" name="s3_object_keys" id="s3_object_keys">
+            <div id="file-upload-container" class="form-group" style="display: none;">
+                <label for="input_file" class="form-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48">
+                        </path>
+                    </svg>
+                    <span id="file-upload-label">上传文件</span>
+                </label>
+                <div class="file-upload-area">
+                    <button type="button" id="select-file-btn" class="btn btn-secondary">从文件库选择</button>
+                    <div id="selected-file-display" style="margin-top: 10px; font-weight: bold;"></div>
                 </div>
+                <input type="hidden" name="s3_object_keys" id="s3_object_keys">
+            </div>
 
-                <div class="form-actions">
-                    <button id="submit-button" type="submit" class="btn btn-primary btn-large" {% if is_waiting_for_file
-                        %}disabled{% endif %}>
-                        {% if is_waiting_for_file %}
-                        <span class="loading"></span>
-                        处理中...
-                        {% else %}
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                            <polyline points="12 5 19 12 12 19"></polyline>
-                        </svg>
-                        开始生成
-                        {% endif %}
-                    </button>
-                    <span id="timeout-message" class="timeout-message"></span>
-                </div>
-                {% endif %}
+            <div class="form-actions">
+                <button id="submit-button" type="submit" class="btn btn-primary btn-large" {% if is_waiting_for_file
+                    %}disabled{% endif %}>
+                    {% if is_waiting_for_file %}
+                    <span class="loading"></span>
+                    处理中...
+                    {% else %}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                    开始生成
+                    {% endif %}
+                </button>
+                <span id="timeout-message" class="timeout-message"></span>
+            </div>
+            {% endif %}
             </form>
 
             <!-- API Examples Section -->
