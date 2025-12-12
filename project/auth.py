@@ -58,7 +58,7 @@ def register():
             'created_at': datetime.utcnow().isoformat(),
             'deletion_requested': False,
             'avatar': 'default.png',
-            'cerebrium_configs': []
+            'remote_inference_configs': []
         }
 
         # 自动创建用户目录
@@ -182,7 +182,7 @@ def github_callback():
             'created_at': datetime.utcnow().isoformat(),
             'deletion_requested': False,
             'avatar': github_avatar if github_avatar else 'default.png',
-            'cerebrium_configs': []
+            'remote_inference_configs': []
         }
 
         # 自动创建用户目录

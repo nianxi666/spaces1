@@ -914,7 +914,7 @@ def get_my_custom_gpu_configs():
     if not user:
         return jsonify({'success': False, 'error': 'User not found'}), 404
 
-    configs = user.get('cerebrium_configs', [])
+    configs = user.get('remote_inference_configs', [])
     return jsonify({'success': True, 'configs': configs})
 
 @api_bp.route('/gpu/s3-context', methods=['GET'])
@@ -928,7 +928,7 @@ def get_custom_gpu_s3_context():
     if not user:
         return jsonify({'success': False, 'error': 'User not found'}), 404
 
-    if not user.get('cerebrium_configs'):
+    if not user.get('remote_inference_configs'):
         return jsonify({'success': False, 'error': 'No GPU assigned'}), 403
 
     s3_config = get_s3_config()
@@ -1008,7 +1008,7 @@ def admin_list_custom_gpu_configs(username):
     if not user:
         return jsonify({'success': False, 'error': 'User not found'}), 404
 
-    return jsonify({'success': True, 'configs': user.get('cerebrium_configs', [])})
+    return jsonify({'success': True, 'configs': user.get('remote_inference_configs', [])})
 
 @api_bp.route('/admin/users/<username>/custom-gpu-configs', methods=['POST'])
 def admin_add_custom_gpu_config(username):
@@ -1034,7 +1034,7 @@ def admin_add_custom_gpu_config(username):
         'api_token': api_token,
         'created_at': datetime.utcnow().isoformat()
     }
-    user.setdefault('cerebrium_configs', []).append(config)
+    user.setdefault('remote_inference_configs', []).append(config)
     save_db(db)
 
     return jsonify({'success': True, 'config': config})
@@ -1049,7 +1049,7 @@ def admin_update_custom_gpu_config(username, config_id):
     if not user:
         return jsonify({'success': False, 'error': 'User not found'}), 404
 
-    configs = user.setdefault('cerebrium_configs', [])
+    configs = user.setdefault('remote_inference_configs', [])
     config = next((c for c in configs if c.get('id') == config_id), None)
     if not config:
         return jsonify({'success': False, 'error': 'Config not found'}), 404
@@ -1074,12 +1074,12 @@ def admin_delete_custom_gpu_config(username, config_id):
     if not user:
         return jsonify({'success': False, 'error': 'User not found'}), 404
 
-    configs = user.setdefault('cerebrium_configs', [])
+    configs = user.setdefault('remote_inference_configs', [])
     new_configs = [c for c in configs if c.get('id') != config_id]
     if len(new_configs) == len(configs):
         return jsonify({'success': False, 'error': 'Config not found'}), 404
 
-    user['cerebrium_configs'] = new_configs
+    user['remote_inference_configs'] = new_configs
     save_db(db)
     return jsonify({'success': True})
 
