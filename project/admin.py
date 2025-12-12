@@ -326,6 +326,12 @@ def add_edit_space(space_id=None):
             
             # Save remote_inference input options
             if card_type == 'remote_inference':
+                # Debug: print what we receive
+                print(f"DEBUG: enable_prompt = {request.form.get('enable_prompt')}")
+                print(f"DEBUG: enable_image_input = {request.form.get('enable_image_input')}")
+                print(f"DEBUG: enable_audio_input = {request.form.get('enable_audio_input')}")
+                print(f"DEBUG: enable_file_input = {request.form.get('enable_file_input')}")
+                
                 space['custom_api_url'] = request.form.get('custom_api_url', '').strip()
                 space['enable_prompt'] = request.form.get('enable_prompt') == 'true'
                 space['enable_image_input'] = request.form.get('enable_image_input') == 'true'

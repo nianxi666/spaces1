@@ -68,30 +68,51 @@
                 style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
             <small style="color: #666;">留空则使用默认API。填写后将调用此自定义API地址。</small>
 
-            <label style="display: block; margin-top: 15px; margin-bottom: 10px; font-weight: bold;">启用输入选项</label>
+
+            <label style="display: block; margin-top: 15px; margin-bottom: 10px; font-weight: bold;">启用输入选项
+                (强制生效)</label>
             <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 5px;">
-                <label style="display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" name="enable_prompt" value="true" {% if not space or
-                        space.get('enable_prompt', True) %}checked{% endif %}>
-                    <span>提示词</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" name="enable_image_input" value="true" {% if space and
-                        space.get('enable_image_input', False) %}checked{% endif %}>
-                    <span>图片上传</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" name="enable_audio_input" value="true" {% if space and
-                        space.get('enable_audio_input', False) %}checked{% endif %}>
-                    <span>音频上传</span>
-                </label>
-                <label style="display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" name="enable_file_input" value="true" {% if space and
-                        space.get('enable_file_input', False) %}checked{% endif %}>
-                    <span>文件上传</span>
-                </label>
+                <div style="display: flex; flex-direction: column; width: 120px;">
+                    <label style="font-size: 12px; color: #666; margin-bottom: 4px;">提示词</label>
+                    <select name="enable_prompt" style="padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="true" {% if not space or space.get('enable_prompt', True) %}selected{% endif %}>
+                            启用</option>
+                        <option value="false" {% if space and not space.get('enable_prompt', True) %}selected{% endif
+                            %}>禁用</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; flex-direction: column; width: 120px;">
+                    <label style="font-size: 12px; color: #666; margin-bottom: 4px;">图片上传</label>
+                    <select name="enable_image_input" style="padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="true" {% if space and space.get('enable_image_input', False) %}selected{% endif
+                            %}>启用</option>
+                        <option value="false" {% if not space or not space.get('enable_image_input', False) %}selected{%
+                            endif %}>禁用</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; flex-direction: column; width: 120px;">
+                    <label style="font-size: 12px; color: #666; margin-bottom: 4px;">音频上传</label>
+                    <select name="enable_audio_input" style="padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="true" {% if space and space.get('enable_audio_input', False) %}selected{% endif
+                            %}>启用</option>
+                        <option value="false" {% if not space or not space.get('enable_audio_input', False) %}selected{%
+                            endif %}>禁用</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; flex-direction: column; width: 120px;">
+                    <label style="font-size: 12px; color: #666; margin-bottom: 4px;">文件上传</label>
+                    <select name="enable_file_input" style="padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="true" {% if space and space.get('enable_file_input', False) %}selected{% endif
+                            %}>启用</option>
+                        <option value="false" {% if not space or not space.get('enable_file_input', False) %}selected{%
+                            endif %}>禁用</option>
+                    </select>
+                </div>
             </div>
-            <small style="color: #666;">选择此Space允许用户上传的输入类型。至少需要勾选一项。</small>
+            <small style="color: #666;">使用下拉菜单强制覆盖配置。请选择"启用"或"禁用"。</small>
         </div>
         <div style="margin-bottom: 15px;">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">封面图片</label>
@@ -144,44 +165,38 @@
         </div>
         {% endif %}
 
+        <br>
         <button type="submit"
-            style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">保存
-            Space</button>
+            style="background: #dc3545; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            🚨 强制保存配置 (Force Save)
+        </button>
 
     </form>
 </div>
 
 <!-- Cover Image Scripts -->
 <script>
+    // Sync visible checkboxes to hidden inputs (for remote_inference settings)
     document.addEventListener('DOMContentLoaded', function () {
-        // Ensure checkbox values are submitted even when parent div is hidden
-        const spaceForm = document.getElementById('space-form');
-        if (spaceForm) {
-            spaceForm.addEventListener('submit', function (e) {
-                // Get all checkboxes for remote_inference settings
-                const checkboxes = [
-                    'enable_prompt',
-                    'enable_image_input',
-                    'enable_audio_input',
-                    'enable_file_input'
-                ];
+        const checkboxPairs = [
+            { cb: 'cb_enable_prompt', hidden: 'hidden_enable_prompt' },
+            { cb: 'cb_enable_image_input', hidden: 'hidden_enable_image_input' },
+            { cb: 'cb_enable_audio_input', hidden: 'hidden_enable_audio_input' },
+            { cb: 'cb_enable_file_input', hidden: 'hidden_enable_file_input' }
+        ];
 
-                checkboxes.forEach(name => {
-                    const checkbox = this.querySelector(`input[name="${name}"]`);
-                    if (checkbox) {
-                        // Create hidden input with the checkbox value
-                        const hidden = document.createElement('input');
-                        hidden.type = 'hidden';
-                        hidden.name = name;
-                        hidden.value = checkbox.checked ? 'true' : 'false';
-                        this.appendChild(hidden);
+        checkboxPairs.forEach(pair => {
+            const checkbox = document.getElementById(pair.cb);
+            const hidden = document.getElementById(pair.hidden);
 
-                        // Disable the original checkbox so it doesn't submit
-                        checkbox.disabled = true;
-                    }
+            if (checkbox && hidden) {
+                // Update hidden input when checkbox changes
+                checkbox.addEventListener('change', function () {
+                    hidden.value = this.checked ? 'true' : 'false';
+                    console.log(`Updated ${pair.hidden} = ${hidden.value}`);
                 });
-            });
-        }
+            }
+        });
     });
 </script>
 <script>
