@@ -42,8 +42,14 @@
                 <div class="form-group" id="cerebrium-audio-group">
                     <label class="form-label">音频输入 (Audio)</label>
                     <div class="mode-selector">
+                        <label><input type="radio" name="audio-source" value="upload"> 本地上传</label>
                         <label><input type="radio" name="audio-source" value="pan" checked> 从网盘选择</label>
                         <label><input type="radio" name="audio-source" value="url"> 使用外部链接</label>
+                    </div>
+                    <div id="audio-upload-section" class="picker-section hidden">
+                        <input type="file" id="audio-upload-input" accept="audio/*">
+                        <div id="audio-upload-status" class="file-name" style="margin-top: 5px;"></div>
+                        <audio id="audio-upload-preview" controls style="display: none; width: 100%; margin-top: 5px;"></audio>
                     </div>
                     <div id="audio-pan-section" class="picker-section">
                         <button type="button" id="select-audio-btn" class="btn btn-secondary">选择音频文件 (.wav / .mp3)</button>
@@ -553,6 +559,14 @@ function initCustomGpuFlow() {
     const videoUrlSection = document.getElementById('video-url-section');
     const audioPanSection = document.getElementById('audio-pan-section');
     const audioUrlSection = document.getElementById('audio-url-section');
+
+    // New Upload Elements
+    const audioUploadSection = document.getElementById('audio-upload-section');
+    const audioUploadInput = document.getElementById('audio-upload-input');
+    const audioUploadStatus = document.getElementById('audio-upload-status');
+    const audioUploadPreview = document.getElementById('audio-upload-preview');
+    let uploadedAudioS3Url = null;
+
     const promptInput = document.getElementById('cerebrium-prompt'); // New prompt input
 
     const modal = document.getElementById('file-browser-modal');
@@ -641,6 +655,10 @@ function initCustomGpuFlow() {
         const modeInput = document.querySelector(`input[name="${kind}-source"]:checked`);
         if (!modeInput) return false;
         const mode = modeInput.value;
+        if (mode === 'upload') {
+            if (kind === 'audio') return audioUploadInput && audioUploadInput.files.length > 0;
+            return false;
+        }
         if (mode === 'pan') {
             const keyInput = kind === 'video' ? videoKeyInput : audioKeyInput;
             return keyInput && keyInput.value.length > 0;
@@ -676,9 +694,14 @@ function initCustomGpuFlow() {
     function bindSourceToggle(radios, panSection, urlSection) {
         radios.forEach(radio => {
             radio.addEventListener('change', () => {
-                const usePan = document.querySelector(`input[name="${radio.name}"]:checked`).value === 'pan';
-                panSection.classList.toggle('hidden', !usePan);
-                urlSection.classList.toggle('hidden', usePan);
+                const val = document.querySelector(`input[name="${radio.name}"]:checked`).value;
+                if (panSection) panSection.classList.toggle('hidden', val !== 'pan');
+                if (urlSection) urlSection.classList.toggle('hidden', val !== 'url');
+
+                // Specific handling for audio upload section
+                if (radio.name === 'audio-source' && audioUploadSection) {
+                    audioUploadSection.classList.toggle('hidden', val !== 'upload');
+                }
                 updateButtonState();
             });
         });
@@ -948,6 +971,48 @@ function initCustomGpuFlow() {
     bindFilePicker(selectVideoBtn, videoKeyInput, videoDisplay);
     bindFilePicker(selectAudioBtn, audioKeyInput, audioDisplay);
 
+    // --- Streaming Upload Logic ---
+    if (audioUploadInput) {
+        audioUploadInput.addEventListener('change', async () => {
+            const file = audioUploadInput.files[0];
+            if (!file) return;
+
+            // 1. Immediate Preview
+            const blobUrl = URL.createObjectURL(file);
+            audioUploadPreview.src = blobUrl;
+            audioUploadPreview.style.display = 'block';
+            audioUploadStatus.textContent = '正在上传到云端...';
+            audioUploadStatus.style.color = '#333';
+            uploadedAudioS3Url = null; // Reset
+            updateButtonState();
+
+            // 2. Stream Upload
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const resp = await fetch('/api/upload/stream', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    uploadedAudioS3Url = data.url;
+                    audioUploadStatus.textContent = '✅ 已上传到云端';
+                    audioUploadStatus.style.color = 'green';
+                } else {
+                    audioUploadStatus.textContent = '❌ 上传失败: ' + (data.error || '未知错误');
+                    audioUploadStatus.style.color = 'red';
+                }
+            } catch (e) {
+                console.error(e);
+                audioUploadStatus.textContent = '❌ 网络错误';
+                audioUploadStatus.style.color = 'red';
+            }
+            updateButtonState();
+        });
+    }
+
     function resolveMediaUrl(kind) {
         // Fix: Ensure we don't check undefined variables.
         // For remote_inference, we assume the inputs present in the DOM are the ones enabled.
@@ -958,10 +1023,17 @@ function initCustomGpuFlow() {
 
         const mode = document.querySelector(`input[name="${kind}-source"]:checked`);
         if (!mode) {
-            // If no radio is checked, maybe the group is hidden/disabled?
-            // For remote inference, if the section exists, a radio should be checked.
             return null;
         }
+
+        if (mode.value === 'upload') {
+            if (kind === 'audio') {
+                if (!audioUploadInput.files[0]) throw new Error('请选择一个文件');
+                if (!uploadedAudioS3Url) throw new Error('文件尚未上传完成，请稍候');
+                return uploadedAudioS3Url;
+            }
+        }
+
         if (mode.value === 'pan') {
             const key = kind === 'video' ? videoKeyInput.value : audioKeyInput.value;
             if (!key) {
@@ -1052,13 +1124,21 @@ function initCustomGpuFlow() {
 
                 setStatus('2. Preparing Inputs...');
                 // Get Audio Input (File/Blob)
-                const audioBlobUrl = resolveMediaUrl('audio');
-                if (!audioBlobUrl) throw new Error("Audio input is missing.");
+                let audioBlob;
+                const modeInput = document.querySelector('input[name="audio-source"]:checked');
+                if (modeInput && modeInput.value === 'upload') {
+                    if (!audioUploadInput.files[0]) throw new Error("Audio input is missing.");
+                    if (!uploadedAudioS3Url) throw new Error("请等待音频文件上传完成。");
+                    audioBlob = audioUploadInput.files[0];
+                } else {
+                    const audioBlobUrl = resolveMediaUrl('audio');
+                    if (!audioBlobUrl) throw new Error("Audio input is missing.");
 
-                // Fetch the blob from the URL (which might be an S3 presigned URL or local)
-                const audioResp = await fetch(audioBlobUrl);
-                if (!audioResp.ok) throw new Error("Failed to fetch audio file for upload.");
-                const audioBlob = await audioResp.blob();
+                    // Fetch the blob from the URL (which might be an S3 presigned URL or local)
+                    const audioResp = await fetch(audioBlobUrl);
+                    if (!audioResp.ok) throw new Error("Failed to fetch audio file for upload.");
+                    audioBlob = await audioResp.blob();
+                }
 
                 // Get Text Inputs
                 const textToSynthesize = promptInput ? promptInput.value : "Hello World"; // Default if missing

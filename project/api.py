@@ -1076,6 +1076,76 @@ def rename_s3_object_route():
     else:
         return jsonify({'success': False, 'error': 'Failed to rename file on S3.'}), 500
 
+@api_bp.route('/upload/stream', methods=['POST'])
+def api_upload_stream():
+    """
+    Streams an uploaded file directly to S3 without saving to local disk.
+    Requires login.
+    Returns the public S3 URL.
+    """
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Authentication required'}), 401
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    username = session['username']
+
+    # Generate S3 key
+    safe_filename = secure_filename(file.filename)
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    unique_filename = f"{uuid.uuid4().hex[:8]}_{timestamp}_{safe_filename}"
+    s3_key = f"{username}/{unique_filename}"
+
+    # Get S3 client
+    s3_config = get_s3_config()
+    if not s3_config:
+        return jsonify({'error': 'S3 not configured'}), 500
+
+    try:
+        import boto3
+        from botocore.client import Config
+
+        endpoint = s3_config['S3_ENDPOINT_URL']
+        if endpoint.startswith('https://'):
+            endpoint = endpoint.replace('https://', 'http://', 1)
+
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=endpoint,
+            aws_access_key_id=s3_config['S3_ACCESS_KEY_ID'],
+            aws_secret_access_key=s3_config['S3_SECRET_ACCESS_KEY'],
+            config=Config(signature_version='s3v4'),
+            region_name='auto',
+            verify=False
+        )
+
+        # Uploadfileobj automatically manages multipart uploads for large files
+        # file.stream is a file-like object
+        s3_client.upload_fileobj(
+            file,
+            s3_config['S3_BUCKET_NAME'],
+            s3_key,
+            ExtraArgs={'ContentType': file.content_type}
+        )
+
+        public_url = get_public_s3_url(s3_key)
+
+        return jsonify({
+            'success': True,
+            'key': s3_key,
+            'url': public_url,
+            'filename': safe_filename
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"S3 Streaming Upload Failed: {e}")
+        return jsonify({'error': f"Upload failed: {str(e)}"}), 500
+
 def _require_admin_session():
     if not session.get('logged_in') or not session.get('is_admin'):
         return False
