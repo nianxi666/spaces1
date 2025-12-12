@@ -35,18 +35,18 @@ from .netmind_config import (
     get_rate_limit_config
 )
 from .gpu_allocator import try_allocate_gpu_from_pool
-from .sockets import connected_workers
 from . import socketio
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
-# --- WebSocket Task Queues ---
-# A simple in-memory queue for each space.
-# In a production environment, you would use a more robust system like Redis or RabbitMQ.
+# ==============================================================================
+# In-memory data structures for WebSocket task queue
+# ==============================================================================
+# task_queues: {'space_id': deque([...])}
 task_queues = {}
+# task_locks: {'space_id': threading.Lock()}
 task_locks = {}
-# space_name -> {'status': 'idle'|'busy', 'current_task': {}}
-worker_status = {}
+# ==============================================================================
 
 HARDWARE_PROFILES = {
     'cpu': {
@@ -259,6 +259,80 @@ def get_s3_view_url():
         return jsonify({'success': False, 'error': 'Could not generate view URL'}), 500
 
 
+def build_cerebrium_toml(app_name, preset):
+    """
+    Generate a cerebrium.toml string based on the selected hardware preset.
+    """
+    docker_line = ""
+    if preset.get('docker_image'):
+        docker_line = f'\ndocker_base_image_url = "{preset["docker_image"]}"'
+
+    compute_line = ""
+    if preset.get("compute"):
+        compute_line = f'compute = "{preset.get("compute")}"'
+
+    toml = [
+        "[cerebrium.deployment]",
+        f'name = "{app_name}"',
+        'python_version = "3.12"',
+        'disable_auth = true',
+        'include = ["./*"]',
+        'exclude = [".git", "__pycache__", ".DS_Store"]',
+        docker_line,
+        "",
+        "[cerebrium.hardware]",
+        f'cpu = {preset.get("cpu", 2.0)}',
+        f'memory = {preset.get("memory", 16.0)}',
+        compute_line,
+        'provider = "aws"',
+        'region = "us-east-1"',
+        "",
+        "[cerebrium.scaling]",
+        "min_replicas = 0",
+        "max_replicas = 2",
+        "cooldown = 30",
+        "replica_concurrency = 1",
+    ]
+    return "\n".join(line for line in toml if line is not None)
+
+
+def ensure_cerebrium_cli_available():
+    """
+    Ensure the cerebrium CLI is available on the VPS.
+    """
+    if shutil.which('cerebrium'):
+        return True, None
+    try:
+        proc = subprocess.run(
+            ['pip', 'install', '-q', '--upgrade', 'cerebrium'],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+        if proc.returncode == 0 and shutil.which('cerebrium'):
+            return True, None
+        return False, proc.stderr or proc.stdout
+    except Exception as exc:
+        return False, str(exc)
+
+
+def decode_project_id(token_value):
+    """
+    Extract projectId from the JWT payload if present.
+    """
+    try:
+        parts = token_value.split('.')
+        if len(parts) < 2:
+            return None
+        payload_b64 = parts[1]
+        pad = '=' * (-len(payload_b64) % 4)
+        payload_data = base64.urlsafe_b64decode(payload_b64 + pad)
+        payload_json = json.loads(payload_data.decode('utf-8'))
+        return payload_json.get('projectId')
+    except Exception:
+        return None
+
+
 IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
 VIDEO_EXTENSIONS = {'mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v', 'mpg', 'mpeg'}
 
@@ -367,6 +441,106 @@ def save_selected_file():
     return jsonify({'success': True, 'message': 'Selection saved.'})
 
 
+@api_bp.route('/gpu/save-result', methods=['POST'])
+def save_custom_gpu_result():
+    """
+    Persist the latest GPU card result so it can be restored after refresh.
+    """
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    data = request.get_json(silent=True) or {}
+    ai_project_id = data.get('ai_project_id')
+    output_key = data.get('output_key')
+    filename = data.get('filename')
+    status = data.get('status', 'completed')
+    public_url_override = data.get('public_url')
+
+    if not all([ai_project_id, output_key, filename]):
+        return jsonify({'success': False, 'error': 'Missing ai_project_id, output_key or filename'}), 400
+
+    if status not in ('pending', 'completed', 'timeout'):
+        status = 'completed'
+
+    username = session['username']
+    if not output_key.startswith(f"{username}/"):
+        return jsonify({'success': False, 'error': 'Output key does not belong to current user'}), 400
+
+    db = load_db()
+    user_states = db.setdefault('user_states', {})
+    state = user_states.setdefault(username, {})
+    results_map = state.setdefault('cerebrium_results', {})
+
+    public_url = public_url_override or get_public_s3_url(output_key)
+    now = datetime.utcnow()
+    result_payload = {
+        'output_key': output_key,
+        'filename': filename,
+        'public_url': public_url,
+        'status': status,
+        'saved_at': now.isoformat(timespec='milliseconds') + 'Z',
+        'saved_at_ms': int(now.timestamp() * 1000)
+    }
+    results_map[ai_project_id] = result_payload
+    save_db(db)
+
+    return jsonify({'success': True, 'result': result_payload})
+
+@api_bp.route('/gpu/configs', methods=['GET'])
+def get_my_custom_gpu_configs():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    username = session['username']
+    db = load_db()
+    user = db.get('users', {}).get(username)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    configs = user.get('cerebrium_configs', [])
+    return jsonify({'success': True, 'configs': configs})
+
+@api_bp.route('/gpu/s3-context', methods=['GET'])
+def get_custom_gpu_s3_context():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    username = session['username']
+    db = load_db()
+    user = db.get('users', {}).get(username)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    if not user.get('cerebrium_configs'):
+        return jsonify({'success': False, 'error': 'No GPU assigned'}), 403
+
+    s3_config = get_s3_config()
+    if not s3_config:
+        return jsonify({'success': False, 'error': 'S3 未配置'}), 500
+
+    endpoint = s3_config.get('S3_ENDPOINT_URL')
+    bucket = s3_config.get('S3_BUCKET_NAME')
+    access_key = s3_config.get('S3_ACCESS_KEY_ID')
+    secret_key = s3_config.get('S3_SECRET_ACCESS_KEY')
+
+    if not all([endpoint, bucket, access_key, secret_key]):
+        return jsonify({'success': False, 'error': 'S3 配置不完整'}), 500
+
+    public_base_url = f"{endpoint.rstrip('/')}/{bucket}"
+
+    return jsonify({
+        'success': True,
+        'context': {
+            'endpoint_url': endpoint,
+            'bucket_name': bucket,
+            'access_key_id': access_key,
+            'secret_access_key': secret_key,
+            'region': 'auto',
+            'public_base_url': public_base_url,
+            'username_prefix': username
+        }
+    })
+
 @api_bp.route('/rename-s3-object', methods=['POST'])
 def rename_s3_object_route():
     if not session.get('logged_in'):
@@ -407,6 +581,90 @@ def _get_user_for_admin(username):
     db = load_db()
     user = db.get('users', {}).get(username)
     return db, user
+
+@api_bp.route('/admin/users/<username>/custom-gpu-configs', methods=['GET'])
+def admin_list_custom_gpu_configs(username):
+    if not _require_admin_session():
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    db, user = _get_user_for_admin(username)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    return jsonify({'success': True, 'configs': user.get('cerebrium_configs', [])})
+
+@api_bp.route('/admin/users/<username>/custom-gpu-configs', methods=['POST'])
+def admin_add_custom_gpu_config(username):
+    if not _require_admin_session():
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    api_url = (data.get('api_url') or '').strip()
+    api_token = (data.get('api_token') or '').strip()
+
+    if not all([name, api_url, api_token]):
+        return jsonify({'success': False, 'error': 'Missing name, api_url or api_token'}), 400
+
+    db, user = _get_user_for_admin(username)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    config = {
+        'id': str(uuid.uuid4()),
+        'name': name,
+        'api_url': api_url,
+        'api_token': api_token,
+        'created_at': datetime.utcnow().isoformat()
+    }
+    user.setdefault('cerebrium_configs', []).append(config)
+    save_db(db)
+
+    return jsonify({'success': True, 'config': config})
+
+@api_bp.route('/admin/users/<username>/custom-gpu-configs/<config_id>', methods=['PUT'])
+def admin_update_custom_gpu_config(username, config_id):
+    if not _require_admin_session():
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    data = request.get_json() or {}
+    db, user = _get_user_for_admin(username)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    configs = user.setdefault('cerebrium_configs', [])
+    config = next((c for c in configs if c.get('id') == config_id), None)
+    if not config:
+        return jsonify({'success': False, 'error': 'Config not found'}), 404
+
+    if 'name' in data:
+        config['name'] = data['name'].strip()
+    if 'api_url' in data:
+        config['api_url'] = data['api_url'].strip()
+    if 'api_token' in data:
+        config['api_token'] = data['api_token'].strip()
+    config['updated_at'] = datetime.utcnow().isoformat()
+
+    save_db(db)
+    return jsonify({'success': True, 'config': config})
+
+@api_bp.route('/admin/users/<username>/custom-gpu-configs/<config_id>', methods=['DELETE'])
+def admin_delete_custom_gpu_config(username, config_id):
+    if not _require_admin_session():
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    db, user = _get_user_for_admin(username)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    configs = user.setdefault('cerebrium_configs', [])
+    new_configs = [c for c in configs if c.get('id') != config_id]
+    if len(new_configs) == len(configs):
+        return jsonify({'success': False, 'error': 'Config not found'}), 404
+
+    user['cerebrium_configs'] = new_configs
+    save_db(db)
+    return jsonify({'success': True})
 
 @api_bp.route('/admin/backup', methods=['POST'])
 def admin_backup():
@@ -788,6 +1046,82 @@ def get_user_status():
         'membership_expiry': user.get('membership_expiry')
     })
 
+@api_bp.route('/space/<space_id>/submit_task', methods=['POST'])
+def submit_task(space_id):
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': 'Authentication required'}), 401
+
+    username = session['username']
+    db = load_db()
+    space = db.get('spaces', {}).get(space_id)
+
+    if not space or space.get('card_type') != 'websocket':
+        return jsonify({'success': False, 'error': 'Invalid WebSocket Space'}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'Request body must be JSON'}), 400
+
+    inputs = data.get('inputs', {})
+    if not isinstance(inputs, dict) or not inputs:
+        return jsonify({'success': False, 'error': '`inputs` dictionary is required'}), 400
+
+    allowed_inputs = space.get('allowed_input_types', [])
+    valid_inputs = {k: v for k, v in inputs.items() if k in allowed_inputs and v}
+
+    if not valid_inputs:
+        return jsonify({'success': False, 'error': 'No valid inputs provided for this task.'}), 400
+
+    # Handle file uploads via presigned URLs
+    file_inputs = data.get('file_inputs', {})
+    if isinstance(file_inputs, dict):
+        for key, file_info in file_inputs.items():
+            if key in allowed_inputs and isinstance(file_info, dict) and 'filename' in file_info:
+                # Generate a unique filename and get a presigned URL for it
+                s3_key = f"{username}/uploads/{uuid.uuid4()}_{secure_filename(file_info['filename'])}"
+                presigned_url_info = generate_presigned_url(s3_key, content_type=file_info.get('filetype'))
+
+                if presigned_url_info:
+                    # The backend will return this to the client, which will then perform the upload
+                    # The final URL will be sent back in a separate step. This is a simplified flow.
+                    # For now, we'll assume the client uploads and then sends the final URL back
+                    # in the main `inputs` payload. This is a placeholder for a more robust flow.
+                    pass # Placeholder for a more complete implementation
+
+    task_id = str(uuid.uuid4())
+    task_payload = {
+        'task_id': task_id,
+        'user_id': session.get('user_id'), # Assuming user_id is in session
+        'username': username,
+        'space_id': space_id,
+        'payload': valid_inputs,
+        'status': 'queued',
+        'submitted_at': time.time()
+    }
+
+    # Initialize queue and lock for the space if they don't exist
+    if space_id not in task_queues:
+        task_queues[space_id] = deque()
+    if space_id not in task_locks:
+        task_locks[space_id] = threading.Lock()
+
+    with task_locks[space_id]:
+        task_queues[space_id].append(task_payload)
+        queue_position = len(task_queues[space_id])
+
+    # Notify the user's room about the queue status
+    socketio.emit('task_update', {
+        'task_id': task_id,
+        'status': 'queued',
+        'position': queue_position
+    }, room=f"task_{task_id}")
+
+    # Attempt to dispatch the task immediately
+    from .sockets import try_dispatch_task
+    try_dispatch_task(space_id)
+
+    return jsonify({'success': True, 'task_id': task_id, 'status': 'queued', 'position': queue_position}), 202
+
 
 # No prefix needed since it's under api_bp which has url_prefix='/api'
 # So the route is /api/v1/chat/completions
@@ -912,135 +1246,3 @@ def netmind_chat_completions():
         if hasattr(e, 'status_code') and e.status_code:
             return jsonify({'error': str(e)}), e.status_code
         return jsonify({'error': str(e)}), 500
-
-@api_bp.route('/space/<space_id>/submit_task', methods=['POST'])
-def submit_task(space_id):
-    if not session.get('logged_in'):
-        return jsonify({'success': False, 'error': '请先登录'}), 401
-
-    username = session['username']
-    db = load_db()
-    space = db.get('spaces', {}).get(space_id)
-
-    if not space:
-        return jsonify({'success': False, 'error': 'Space not found'}), 404
-
-    if space.get('card_type') != 'websocket':
-        return jsonify({'success': False, 'error': 'This space does not support WebSocket tasks'}), 400
-
-    # --- Prepare Task Data ---
-    task_id = str(uuid.uuid4())
-    inputs = {}
-
-    # Process text inputs
-    if 'text' in space.get('allowed_input_types', []):
-        prompt = request.form.get('prompt')
-        if prompt:
-            inputs['text'] = prompt
-
-    # Process file uploads (streaming to S3)
-    if 'file' in request.files:
-        file = request.files['file']
-        if file.filename:
-            # Construct a unique filename in S3
-            safe_filename = secure_filename(file.filename)
-            s3_key = f"{username}/uploads/{uuid.uuid4().hex[:8]}_{safe_filename}"
-
-            # Since we're streaming, we need to get the S3 client
-            # This logic might need to be more robust depending on your s3_utils setup
-            try:
-                from .s3_utils import s3_client, get_s3_config
-                config = get_s3_config()
-                bucket_name = config.get('S3_BUCKET_NAME')
-                if not bucket_name:
-                    raise ValueError("S3 bucket name not configured.")
-
-                s3 = s3_client()
-                s3.upload_fileobj(
-                    file.stream,
-                    bucket_name,
-                    s3_key,
-                    ExtraArgs={'ContentType': file.content_type}
-                )
-
-                file_url = get_public_s3_url(s3_key)
-                if not file_url:
-                     return jsonify({'success': False, 'error': 'File uploaded, but could not get public URL'}), 500
-
-                # Determine input type based on file extension
-                ext = os.path.splitext(safe_filename)[1].lower()
-                if ext in ['.wav', '.mp3', '.ogg']:
-                    inputs['audio_url'] = file_url
-                elif ext in ['.png', '.jpg', '.jpeg', '.webp']:
-                    inputs['image_url'] = file_url
-                else:
-                    inputs['file_url'] = file_url # Generic file
-
-            except Exception as e:
-                current_app.logger.error(f"S3 streaming upload failed: {e}")
-                return jsonify({'success': False, 'error': f'File upload failed: {e}'}), 500
-
-    if not inputs:
-        return jsonify({'success': False, 'error': 'No valid inputs provided for this task.'}), 400
-
-    # --- Add to Queue ---
-    space_name = space['name']
-    task = {
-        'task_id': task_id,
-        'user_sid': request.form.get('user_sid'), # Client needs to send its Socket.IO SID
-        'username': username,
-        'inputs': inputs
-    }
-
-    lock = task_locks.setdefault(space_name, threading.Lock())
-    with lock:
-        queue = task_queues.setdefault(space_name, deque())
-        queue.append(task)
-
-    # Announce new task to user via their SID
-    if task['user_sid']:
-        queue_position = len(queue)
-        socketio.emit('task_status', {
-            'status': 'queued',
-            'position': queue_position,
-            'total': queue_position
-        }, room=task['user_sid'])
-
-    # Try to dispatch the task immediately
-    try_dispatch_task(space_name)
-
-    return jsonify({'success': True, 'task_id': task_id, 'status': 'queued'})
-
-def try_dispatch_task(space_name):
-    lock = task_locks.get(space_name)
-    if not lock:
-        return
-
-    with lock:
-        queue = task_queues.get(space_name, deque())
-        worker_sid = connected_workers.get(space_name)
-
-        status = worker_status.get(space_name, {})
-        is_busy = status.get('status') == 'busy'
-
-        if not queue or not worker_sid or is_busy:
-            return
-
-        task = queue.popleft()
-        worker_status[space_name] = {'status': 'busy', 'current_task': task}
-
-        # Emit 'new_task' to the specific worker
-        socketio.emit('new_task', task, room=worker_sid, namespace='/workers')
-
-        # Notify the user that their task is now processing
-        if task.get('user_sid'):
-            socketio.emit('task_status', {'status': 'processing'}, room=task.get('user_sid'))
-
-        # Notify other users in the queue about their updated position
-        for i, queued_task in enumerate(queue):
-            if queued_task.get('user_sid'):
-                socketio.emit('task_status', {
-                    'status': 'queued',
-                    'position': i + 1,
-                    'total': len(queue)
-                }, room=queued_task.get('user_sid'))

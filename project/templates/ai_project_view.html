@@ -582,78 +582,110 @@ function initWebSocketFlow() {
 
     if (!submitBtn) return;
 
-    let userSid = null;
-    const socket = io({transports: ['websocket'], upgrade: false});
+    const socket = io({ autoConnect: false });
 
     socket.on('connect', () => {
-        console.log('Connected to WebSocket server!');
-        userSid = socket.id;
+        console.log('WebSocket connected.');
+    });
+
+    socket.on('task_update', (data) => {
+        console.log('Task update received:', data);
+        let statusHtml = `<h4>任务状态: ${data.status}</h4>`;
+
+        if (data.position) {
+            statusHtml += `<p>队列位置: ${data.position}</p>`;
+        }
+
+        if (data.status === 'completed') {
+            let resultHtml = '<h3>结果:</h3>';
+            if (data.result && typeof data.result.output === 'string') {
+                resultHtml += `<p>${data.result.output}</p>`;
+            } else {
+                resultHtml += `<pre>${JSON.stringify(data.result, null, 2)}</pre>`;
+            }
+            resultContent.innerHTML = resultHtml;
+            submitBtn.disabled = false;
+            socket.disconnect();
+        } else if (data.status === 'failed') {
+            statusHtml += `<p class="error">错误: ${data.error || '任务失败'}</p>`;
+            resultContent.innerHTML = statusHtml;
+            submitBtn.disabled = false;
+            socket.disconnect();
+        } else {
+            resultContent.innerHTML = statusHtml;
+        }
     });
 
     socket.on('disconnect', () => {
-        console.log('Disconnected from WebSocket server.');
-        userSid = null;
-    });
-
-    socket.on('task_status', (data) => {
-        if (data.status === 'queued') {
-            resultContent.innerHTML = `<h4>⌛️ 排队中...</h4><p>您的任务正在排队，当前位置: ${data.position}/${data.total}</p>`;
-        } else if (data.status === 'processing') {
-            resultContent.innerHTML = `<h4>⚙️ 处理中...</h4><p>您的任务已开始处理，请稍候。</p>`;
-        } else if (data.status === 'failed') {
-            resultContent.innerHTML = `<h4>❌ 任务失败</h4><p>${data.error || '未知错误'}</p>`;
-            submitBtn.disabled = false;
-        }
-    });
-
-    socket.on('task_result', (data) => {
-        let resultHtml = '<h4>✅ 任务完成</h4>';
-        if (data.result) {
-            if (data.result.text) {
-                resultHtml += `<p>${data.result.text}</p>`;
-            }
-            if (data.result.audio_url) {
-                resultHtml += `<audio src="${data.result.audio_url}" controls style="width: 100%;"></audio>`;
-            }
-            if (data.result.image_url) {
-                resultHtml += `<img src="${data.result.image_url}" style="max-width: 100%; border-radius: 6px;">`;
-            }
-        } else {
-            resultHtml += '<p>任务已完成，但未返回任何结果。</p>';
-        }
-        resultContent.innerHTML = resultHtml;
-        submitBtn.disabled = false;
+        console.log('WebSocket disconnected.');
     });
 
     submitBtn.addEventListener('click', async () => {
-        if (!userSid) {
-            alert('尚未连接到服务器，请稍后再试。');
+        const textInput = promptInput ? promptInput.value.trim() : null;
+
+        if (!textInput) {
+            alert('请输入提示');
             return;
         }
 
         submitBtn.disabled = true;
         resultContent.innerHTML = '<h4>🚀 提交中...</h4>';
 
-        const formData = new FormData();
-        formData.append('user_sid', userSid);
+        const payload = {
+            inputs: {
+                text: textInput,
+            }
+        };
 
-        if (promptInput) {
-            formData.append('prompt', promptInput.value);
-        }
         if (fileInput && fileInput.files[0]) {
-            formData.append('file', fileInput.files[0]);
+            const file = fileInput.files[0];
+            const presigned_url_response = await fetch(`{{ url_for('api.generate_upload_url') }}?fileName=${file.name}&contentType=${file.type}`);
+            const presigned_data = await presigned_url_response.json();
+
+            if (!presigned_data.success) {
+                throw new Error(presigned_data.error || '无法获取上传URL');
+            }
+
+            await fetch(presigned_data.presigned_url, {
+                method: 'PUT',
+                body: file,
+                headers: {
+                    'Content-Type': file.type,
+                }
+            });
+
+            payload.inputs.image = presigned_data.final_url;
         }
+
 
         try {
             const response = await fetch(`/api/space/${aiProjectId}/submit_task`, {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
             });
-            const result = await response.json();
+
             if (!response.ok) {
-                throw new Error(result.error || '提交失败');
+                 const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
+
+            const data = await response.json();
+            const taskId = data.task_id;
+
+            resultContent.innerHTML = `<h4>任务已提交 (ID: ${taskId})</h4><p>当前状态: ${data.status}, 队列位置: ${data.position}</p>`;
+
+            // Connect and join room for this task
+            socket.connect();
+            socket.on('connect', () => {
+                socket.emit('join_task_room', { task_id: taskId });
+            });
+
+
         } catch (error) {
+            console.error('Error submitting task:', error);
             resultContent.innerHTML = `<h4>❌ 提交失败</h4><p>${error.message}</p>`;
             submitBtn.disabled = false;
         }
