@@ -82,8 +82,7 @@ def call_remote_api(
             'success': False,
             'error': f'Unexpected error: {str(e)}'
         }
-                    except:
-                        pass
+
 
 
 def smart_call_remote_api(
