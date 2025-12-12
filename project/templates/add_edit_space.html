@@ -18,10 +18,10 @@
         </div>
         <div style="margin-bottom: 15px;">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">Space 卡片类型</label>
-            {% set card_type = space.card_type if space else 'standard' %}
+            {% set card_type = space.card_type if space else 'remote_inference' %}
             <select name="card_type"
                 style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                <option value="standard" {% if card_type=='standard' %}selected{% endif %}>标准命令型</option>
+
                 <option value="remote_inference" {% if card_type=='remote_inference' %}selected{% endif %}>远程推理型 (Remote
                     Inference)</option>
                 <option value="netmind" {% if card_type=='netmind' %}selected{% endif %}>模型代理聊天型</option>

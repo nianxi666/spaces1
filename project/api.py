@@ -886,7 +886,7 @@ def save_custom_gpu_result():
     db = load_db()
     user_states = db.setdefault('user_states', {})
     state = user_states.setdefault(username, {})
-    results_map = state.setdefault('cerebrium_results', {})
+    results_map = state.setdefault('remote_inference_results', {})
 
     public_url = public_url_override or get_public_s3_url(output_key)
     now = datetime.utcnow()
