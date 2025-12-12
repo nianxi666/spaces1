@@ -82,15 +82,56 @@ def call_remote_api(
             'success': False,
             'error': f'Unexpected error: {str(e)}'
         }
-    finally:
-        # Ensure all files are closed
-        if files:
-            for f in files.values():
-                if hasattr(f, 'close'):
-                    try:
-                        f.close()
                     except:
                         pass
+
+
+def smart_call_remote_api(
+    api_url: str,
+    files_dict: Optional[Dict[str, str]] = None,
+    params_dict: Optional[Dict[str, Any]] = None,
+    timeout: int = 300
+) -> Dict[str, Any]:
+    """
+    Call remote API with intelligent endpoint detection.
+    Retries with /run/predict (Gradio 4+) and /api/predict (Gradio 3) if base URL fails.
+    """
+    
+    # List of URLs to try
+    urls_to_try = [api_url]
+    
+    # If URL is a base URL (no specific path), prioritize common Gradio paths
+    clean_url = api_url.rstrip('/')
+    if clean_url == api_url or api_url.endswith('/'):
+        # Usually users paste the base URL e.g. http://host:21564/
+        # We should try specific endpoints if the raw one fails
+        urls_to_try.append(f"{clean_url}/run/predict") # Gradio 4.x
+        urls_to_try.append(f"{clean_url}/api/predict") # Gradio 3.x
+        
+    last_result = {'success': False, 'error': 'Unknown error'}
+    
+    for try_url in urls_to_try:
+        print(f"DEBUG: Trying Remote API: {try_url}")
+        result = call_remote_api(try_url, files_dict, params_dict, timeout)
+        
+        if result['success']:
+            return result
+            
+        # If failed with 404 or 405, continue to next candidate
+        # If it's a connection error or 500, probably no point trying other paths on same host
+        error_msg = result.get('error', '')
+        status_code = result.get('status_code')
+        
+        if status_code in [404, 405] or '404' in error_msg or '405' in error_msg:
+             print(f"DEBUG: {try_url} failed with {status_code}, trying next...")
+             last_result = result
+             continue
+        else:
+            # Fatal error (e.g. connection refused), stop trying
+            return result
+            
+    return last_result
+
 
 
 def call_gradio_api(

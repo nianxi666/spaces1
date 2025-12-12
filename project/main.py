@@ -608,7 +608,7 @@ def run_inference(ai_project_id):
     # Special handling for remote_inference type
     space_card_type = ai_project.get('card_type', 'standard')
     if space_card_type == 'remote_inference':
-        from .remote_api_client import call_remote_api
+        from .remote_api_client import smart_call_remote_api, download_result_file
         import tempfile
         from werkzeug.utils import secure_filename
         
@@ -627,12 +627,12 @@ def run_inference(ai_project_id):
             params_dict = {}
             if prompt_text:
                 params_dict['prompt'] = prompt_text
-                params_dict['text'] = prompt_text  # Some APIs use 'text'
+                params_dict['text'] = prompt_text
             
             # Handle image upload
             if 'image_input' in request.files:
                 image_file = request.files['image_input']
-                if image_file.filename:
+                if image_file and image_file.filename:
                     # Save to temp file
                     temp_path = os.path.join(tempfile.gettempdir(), secure_filename(image_file.filename))
                     image_file.save(temp_path)
@@ -642,7 +642,16 @@ def run_inference(ai_project_id):
             # Handle audio upload
             if 'audio_input' in request.files:
                 audio_file = request.files['audio_input']
-                if audio_file.filename:
+                if audio_file and audio_file.filename:
+                    temp_path = os.path.join(tempfile.gettempdir(), secure_filename(audio_file.filename))
+                    audio_file.save(temp_path)
+                    files_dict['audio'] = temp_path
+                    temp_files.append(temp_path)
+
+            # Handle audio upload
+            if 'audio_input' in request.files:
+                audio_file = request.files['audio_input']
+                if audio_file and audio_file.filename:
                     temp_path = os.path.join(tempfile.gettempdir(), secure_filename(audio_file.filename))
                     audio_file.save(temp_path)
                     files_dict['audio'] = temp_path
@@ -652,26 +661,38 @@ def run_inference(ai_project_id):
             # Handle generic file upload
             if 'file_input' in request.files:
                 file = request.files['file_input']
-                if file.filename:
+                if file and file.filename:
                     temp_path = os.path.join(tempfile.gettempdir(), secure_filename(file.filename))
                     file.save(temp_path)
                     files_dict['file'] = temp_path
                     temp_files.append(temp_path)
-            
-            # Call remote API
-            timeout = ai_project.get('remote_inference_timeout_seconds', 300)
-            result = call_remote_api(
+
+            # Call Remote API with smart retry
+            result = smart_call_remote_api(
                 api_url=custom_api_url,
-                files_dict=files_dict,
+                files_dict=files_dict if files_dict else None,
                 params_dict=params_dict,
-                timeout=timeout
+                timeout=ai_project.get('remote_inference_timeout_seconds', 300)
             )
             
             if result['success']:
+                # If result looks like a URL (file download) or list of files
+                result_data = result.get('data')
+                
+                # Simple logic: if result data contains URLs, try to download them
+                # This is basic; can be improved based on specific API formats
+                processed_data = result_data
+                
+                # If Gradio returns a list of result files
+                if isinstance(result_data, list) and len(result_data) > 0:
+                    # Check if items are URLs
+                    pass # TODO: Implement complex parsing if needed
+                    
                 return jsonify({
                     'success': True,
                     'message': 'API调用成功',
-                    'data': result.get('data', {})
+                    'data': processed_data,
+                    'api_debug_info': result.get('api_url_used', '') # Optional debug info
                 })
             else:
                 return jsonify({
