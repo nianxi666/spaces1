@@ -61,3 +61,17 @@ def download_s3_file(object_key):
     else:
         flash('无法生成下载链接。', 'error')
         return redirect(url_for('results.my_results'))
+
+
+@results_bp.route('/modal_drive')
+def modal_drive():
+    """Modal Drive page - infinite capacity cloud storage"""
+    return render_template('modal_drive.html')
+
+
+@results_bp.route('/modal_drive_download')
+def modal_drive_download():
+    """Placeholder for modal drive download - actual logic in API"""
+    flash('请使用网盘界面下载文件。', 'info')
+    return redirect(url_for('results.modal_drive'))
+
