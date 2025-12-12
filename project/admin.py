@@ -295,6 +295,11 @@ def add_edit_space(space_id=None):
         cover_filename = request.form.get('cover', 'default.png')
         cover_type = request.form.get('cover_type', 'image')
         card_type = request.form.get('card_type', 'standard')
+        
+        # Reject deprecated card types
+        if card_type in ['cerebrium', 'standard']:
+            flash(f'Card type "{card_type}" is deprecated. Please use "remote_inference" or "netmind" instead.', 'error')
+            return redirect(url_for('admin.manage_ai_projects'))
         timeout_raw = (request.form.get('remote_inference_timeout_minutes') or '').strip()
         try:
             timeout_minutes = int(timeout_raw)

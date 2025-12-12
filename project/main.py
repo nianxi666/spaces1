@@ -345,6 +345,12 @@ def ai_project_view(ai_project_id):
     space_card_type = ai_project.get('card_type', 'standard')
     remote_inference_timeout_seconds = ai_project.get('remote_inference_timeout_seconds', 300) or 300
 
+    # Block deprecated card types
+    if space_card_type in ['cerebrium', 'standard']:
+        return render_template('error.html', 
+                             error_title='Space Type Deprecated',
+                             error_message=f'This space uses a deprecated card type "{space_card_type}". Please contact the administrator to update it to "remote_inference" or "netmind".'), 403
+
     announcement = db.get('announcement', {})
 
     if username:
