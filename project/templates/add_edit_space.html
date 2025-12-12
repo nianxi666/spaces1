@@ -5,7 +5,7 @@
 {% set alias_enabled = netmind_settings.enable_alias_mapping if netmind_settings else False %}
 <h2 style="color: #333; margin-bottom: 30px;">{{ '编辑' if space else '添加' }} Space</h2>
 <div style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-    <form method="post">
+    <form method="post" id="space-form">
         <div style="margin-bottom: 15px;">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">名称</label>
             <input type="text" name="name" value="{{ space.name if space else '' }}" required
@@ -147,6 +147,38 @@
         <button type="submit"
             style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">保存
             Space</button>
+
+        <script>
+            // Ensure checkbox values are submitted even when parent div is hidden
+            document.getElementById('space-form').addEventListener('submit', function (e) {
+                // Remove any existing hidden inputs for checkboxes
+                const existingHidden = this.querySelectorAll('input[name$="_hidden"]');
+                existingHidden.forEach(h => h.remove());
+
+                // Get all checkboxes for remote_inference settings
+                const checkboxes = [
+                    'enable_prompt',
+                    'enable_image_input',
+                    'enable_audio_input',
+                    'enable_file_input'
+                ];
+
+                checkboxes.forEach(name => {
+                    const checkbox = this.querySelector(`input[name="${name}"]`);
+                    if (checkbox) {
+                        // Create hidden input with the checkbox value
+                        const hidden = document.createElement('input');
+                        hidden.type = 'hidden';
+                        hidden.name = name;
+                        hidden.value = checkbox.checked ? 'true' : 'false';
+                        this.appendChild(hidden);
+
+                        // Disable the original checkbox so it doesn't submit
+                        checkbox.disabled = true;
+                    }
+                });
+            });
+        </script>
     </form>
 </div>
 
