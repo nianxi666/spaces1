@@ -629,41 +629,66 @@ def run_inference(ai_project_id):
                 params_dict['prompt'] = prompt_text
                 params_dict['text'] = prompt_text
             
-            # Handle image upload
-            if 'image_input' in request.files:
+            import requests as req_lib # avoid conflict with flask request
+            
+            def save_url_to_temp(url, prefix):
+                try:
+                    resp = req_lib.get(url, stream=True, timeout=30)
+                    resp.raise_for_status()
+                    suffix = os.path.splitext(url.split('?')[0])[1] or '.bin'
+                    tmp = tempfile.NamedTemporaryFile(delete=False, prefix=prefix, suffix=suffix)
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        tmp.write(chunk)
+                    tmp.close()
+                    return tmp.name
+                except Exception as e:
+                    print(f"Failed to download {url}: {e}")
+                    return None
+
+            # Handle image (Upload OR URL)
+            image_url = request.form.get('image_url', '').strip()
+            if image_url:
+                temp_path = save_url_to_temp(image_url, 'img_')
+                if temp_path:
+                    files_dict['image'] = temp_path
+                    temp_files.append(temp_path)
+            elif 'image_input' in request.files:
                 image_file = request.files['image_input']
                 if image_file and image_file.filename:
-                    # Save to temp file
                     temp_path = os.path.join(tempfile.gettempdir(), secure_filename(image_file.filename))
                     image_file.save(temp_path)
                     files_dict['image'] = temp_path
                     temp_files.append(temp_path)
             
-            # Handle audio upload
-            if 'audio_input' in request.files:
+            # Handle audio (Upload OR URL)
+            audio_url = request.form.get('audio_url', '').strip()
+            if audio_url:
+                temp_path = save_url_to_temp(audio_url, 'aud_')
+                if temp_path:
+                    files_dict['audio'] = temp_path
+                    files_dict['prompt_audio'] = temp_path
+                    temp_files.append(temp_path)
+            elif 'audio_input' in request.files:
                 audio_file = request.files['audio_input']
                 if audio_file and audio_file.filename:
                     temp_path = os.path.join(tempfile.gettempdir(), secure_filename(audio_file.filename))
                     audio_file.save(temp_path)
                     files_dict['audio'] = temp_path
+                    files_dict['prompt_audio'] = temp_path
                     temp_files.append(temp_path)
 
-            # Handle audio upload
-            if 'audio_input' in request.files:
-                audio_file = request.files['audio_input']
-                if audio_file and audio_file.filename:
-                    temp_path = os.path.join(tempfile.gettempdir(), secure_filename(audio_file.filename))
-                    audio_file.save(temp_path)
-                    files_dict['audio'] = temp_path
-                    files_dict['prompt_audio'] = temp_path  # For TTS APIs
+            # Handle generic file (Upload OR URL)
+            file_url = request.form.get('file_url', '').strip()
+            if file_url:
+                temp_path = save_url_to_temp(file_url, 'file_')
+                if temp_path:
+                    files_dict['file'] = temp_path
                     temp_files.append(temp_path)
-            
-            # Handle generic file upload
-            if 'file_input' in request.files:
-                file = request.files['file_input']
-                if file and file.filename:
-                    temp_path = os.path.join(tempfile.gettempdir(), secure_filename(file.filename))
-                    file.save(temp_path)
+            elif 'file_input' in request.files:
+                file_obj = request.files['file_input']
+                if file_obj and file_obj.filename:
+                    temp_path = os.path.join(tempfile.gettempdir(), secure_filename(file_obj.filename))
+                    file_obj.save(temp_path)
                     files_dict['file'] = temp_path
                     temp_files.append(temp_path)
 
