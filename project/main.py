@@ -382,6 +382,21 @@ def ai_project_view(ai_project_id):
                     except ValueError:
                         pass
 
+
+    # Route remote_inference to new simplified template
+    if space_card_type == 'remote_inference':
+        return render_template(
+            'space_remote_api.html',
+            ai_project=ai_project,
+            api_key=api_key,
+            announcement=announcement,
+            enable_prompt=ai_project.get('enable_prompt', True),
+            enable_image_input=ai_project.get('enable_image_input', False),
+            enable_audio_input=ai_project.get('enable_audio_input', False),
+            enable_file_input=ai_project.get('enable_file_input', False),
+            custom_api_url=ai_project.get('custom_api_url', '')
+        )
+
     if space_card_type == 'netmind':
         return render_template(
             'space_netmind_chat.html',

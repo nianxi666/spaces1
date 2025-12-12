@@ -1,0 +1,144 @@
+{% extends "layout.html" %}
+{% block title %}{{ ai_project.name }} - 南瓜AI{% endblock %}
+{% block content %}
+
+<div class="container" style="max-width: 1200px; margin: 40px auto; padding: 0 20px;">
+    <div class="project-header" style="text-align: center; margin-bottom: 40px;">
+        <h1 style="font-size: 2.5rem; margin-bottom: 15px;">{{ ai_project.name }}</h1>
+        <p style="color: #666; font-size: 1.1rem;">{{ ai_project.description or '远程API推理服务' }}</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('main.run_inference', ai_project_id=ai_project.id) }}"
+        enctype="multipart/form-data"
+        style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 20px rgba(0,0,0,0.08);">
+
+        {% if enable_prompt %}
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label for="prompt" style="display: block; font-weight: 600; margin-bottom: 10px; font-size: 1.05rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                提示词
+            </label>
+            <textarea id="prompt" name="prompt" rows="4" required placeholder="描述您想要生成的内容..."
+                style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem; font-family: inherit; resize: vertical;"></textarea>
+        </div>
+        {% endif %}
+
+        {% if enable_image_input %}
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label for="image_input" style="display: block; font-weight: 600; margin-bottom: 10px; font-size: 1.05rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                上传图片
+            </label>
+            <input type="file" id="image_input" name="image_input" accept="image/*"
+                style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+        </div>
+        {% endif %}
+
+        {% if enable_audio_input %}
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label for="audio_input" style="display: block; font-weight: 600; margin-bottom: 10px; font-size: 1.05rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                    <path d="M9 18V5l12-2v13"></path>
+                    <circle cx="6" cy="18" r="3"></circle>
+                    <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+                上传音频
+            </label>
+            <input type="file" id="audio_input" name="audio_input" accept="audio/*"
+                style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+        </div>
+        {% endif %}
+
+        {% if enable_file_input %}
+        <div class="form-group" style="margin-bottom: 25px;">
+            <label for="file_input" style="display: block; font-weight: 600; margin-bottom: 10px; font-size: 1.05rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                    <polyline points="13 2 13 9 20 9"></polyline>
+                </svg>
+                上传文件
+            </label>
+            <input type="file" id="file_input" name="file_input"
+                style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+        </div>
+        {% endif %}
+
+        <div class="form-actions" style="margin-top: 30px; text-align: center;">
+            <button type="submit" class="btn btn-primary"
+                style="padding: 14px 40px; font-size: 1.1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 8px; color: white; cursor: pointer; transition: transform 0.2s;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+                开始生成
+            </button>
+        </div>
+    </form>
+
+    <!-- Results Section -->
+    <div id="results-container"
+        style="margin-top: 40px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 20px rgba(0,0,0,0.08); display: none;">
+        <h3 style="margin-bottom: 20px; font-size: 1.5rem;">生成结果</h3>
+        <div id="result-content" style="padding: 20px; background: #f8f9fa; border-radius: 8px; min-height: 100px;">
+            <p style="color: #666; text-align: center;">等待生成结果...</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+</style>
+
+<script>
+    document.querySelector('form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const resultsContainer = document.getElementById('results-container');
+        const resultContent = document.getElementById('result-content');
+
+        // Show loading
+        resultsContainer.style.display = 'block';
+        resultContent.innerHTML = '<p style="color: #667eea; text-align: center;">⏳ 正在处理...</p>';
+
+        try {
+            const response = await fetch(this.action, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                resultContent.innerHTML = `<p style="color: #dc3545; text-align: center;">❌ 错误: ${data.error}</p>`;
+            } else {
+                resultContent.innerHTML = `<p style="color: #28a745; text-align: center;">✅ 任务已提交！任务ID: ${data.task_id || 'N/A'}</p>`;
+            }
+        } catch (error) {
+            resultContent.innerHTML = `<p style="color: #dc3545; text-align: center;">❌ 请求失败: ${error.message}</p>`;
+        }
+    });
+</script>
+
+{% endblock %}
