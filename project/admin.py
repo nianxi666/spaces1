@@ -323,6 +323,15 @@ def add_edit_space(space_id=None):
             space['cover_type'] = cover_type
             space['card_type'] = card_type
             space['remote_inference_timeout_seconds'] = timeout_seconds
+            
+            # Save remote_inference input options
+            if card_type == 'remote_inference':
+                space['custom_api_url'] = request.form.get('custom_api_url', '').strip()
+                space['enable_prompt'] = request.form.get('enable_prompt') == 'true'
+                space['enable_image_input'] = request.form.get('enable_image_input') == 'true'
+                space['enable_audio_input'] = request.form.get('enable_audio_input') == 'true'
+                space['enable_file_input'] = request.form.get('enable_file_input') == 'true'
+            
             if card_type == 'netmind':
                 space['netmind_model'] = netmind_alias
                 space['netmind_upstream_model'] = netmind_upstream or ''
@@ -340,7 +349,13 @@ def add_edit_space(space_id=None):
                 'remote_inference_timeout_seconds': timeout_seconds,
                 'templates': {}, # Initialize with an empty templates dict
                 'netmind_model': netmind_alias if card_type == 'netmind' else '',
-                'netmind_upstream_model': netmind_upstream if card_type == 'netmind' else ''
+                'netmind_upstream_model': netmind_upstream if card_type == 'netmind' else '',
+                # Remote inference input options
+                'custom_api_url': request.form.get('custom_api_url', '').strip() if card_type == 'remote_inference' else '',
+                'enable_prompt': request.form.get('enable_prompt') == 'true' if card_type == 'remote_inference' else True,
+                'enable_image_input': request.form.get('enable_image_input') == 'true' if card_type == 'remote_inference' else False,
+                'enable_audio_input': request.form.get('enable_audio_input') == 'true' if card_type == 'remote_inference' else False,
+                'enable_file_input': request.form.get('enable_file_input') == 'true' if card_type == 'remote_inference' else False
             }
         sync_netmind_aliases(db)
         save_db(db)

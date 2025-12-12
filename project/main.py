@@ -557,7 +557,13 @@ with requests.post(f"{{BASE_URL}}/spaces/run", json=PAYLOAD, headers=headers, st
         current_username=username or "",
         remote_inference_configs=remote_inference_configs or [],
         last_remote_inference_result=last_remote_inference_result,
-        remote_inference_timeout_seconds=remote_inference_timeout_seconds or 300
+        remote_inference_timeout_seconds=remote_inference_timeout_seconds or 300,
+        # Input configuration for remote_inference
+        custom_api_url=ai_project.get('custom_api_url', ''),
+        enable_prompt=ai_project.get('enable_prompt', True),
+        enable_image_input=ai_project.get('enable_image_input', False),
+        enable_audio_input=ai_project.get('enable_audio_input', False),
+        enable_file_input=ai_project.get('enable_file_input', False)
     )
 
 @main_bp.route("/run_inference/<ai_project_id>", methods=["POST"])
