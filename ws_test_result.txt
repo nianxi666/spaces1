@@ -1,0 +1,40 @@
+
+WebSocket Upload Test Suite
+==================================================
+Time: 2025-12-12 18:28:59
+
+
+==================================================
+ WebSocket Upload Test
+==================================================
+
+Creating test file (262144 bytes)...
+Test file created: C:\Users\Administrator\Documents\spaces1\ws_test_file.bin
+
+Waiting for server to start...
+[Server] Starting on http://localhost:5003
+ * Serving Flask app 'test_ws_upload'
+ * Debug mode: off
+[Server] Client connected
+[Client] Connected: {'message': 'Connected successfully'}
+
+[Test] Connected to server
+[Client] Uploading ws_test_file.bin (262144 bytes)
+[Server] Started upload 78196b32-a756-44ac-8a61-e6a5846eb8a4: ws_test_file.bin (262144 bytes)
+[Client] Server ready: {'status': 'ready', 'upload_id': '78196b32-a756-44ac-8a61-e6a5846eb8a4'}
+[Client] Chunk acknowledged: 25%
+[Client] Chunk acknowledged: 50%
+[Client] Chunk acknowledged: 75%
+[Client] Chunk acknowledged: 100%
+[Server] Upload complete: C:\Users\Administrator\Documents\spaces1\ws_test_output\78196b32-a756-44ac-8a61-e6a5846eb8a4_ws_test_file.bin
+[Server] File size: 262144 bytes
+
+[Client] Upload complete: {'status': 'success', 'public_url': 'http://localhost:5003/files/78196b32-a756-44ac-8a61-e6a5846eb8a4_ws_test_file.bin', 's3_object_name': 'test_user/ws_test_file.bin'}
+[Client] Success! URL: http://localhost:5003/files/78196b32-a756-44ac-8a61-e6a5846eb8a4_ws_test_file.bin
+
+[PASS] Upload test passed!
+[Server] Client disconnected
+
+==================================================
+
+Done!

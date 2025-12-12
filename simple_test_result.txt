@@ -1,0 +1,66 @@
+
+==================================================
+ Inference File Transfer Test Suite
+==================================================
+Mock Server: http://localhost:5002
+Time: 2025-12-12 17:42:10
+
+=== Test 1: Check Mock Server ===
+[OK] Server running: Mock Remote Inference Server
+     Status: running
+
+=== Test 2: Basic Inference ===
+Sending request...
+  Prompt: test image at 174212
+  Output: output/simple_test_1765532532.png
+[OK] Task created: 608041dc-f3fc-4041-81fb-d364d9080d98
+Waiting for completion...
+[OK] Task completed in 2 seconds
+     Output file: C:\Users\Administrator\Documents\spaces1\mock_output\output/simple_test_1765532532.png
+
+=== Test 3: S3 Upload Test ===
+[SKIP] Cannot import S3 utils: No module named 'flask_socketio'
+
+=== Test 4: Streaming Inference ===
+Sending streaming request...
+Receiving stream output:
+  > [Mock Server] Task ID: 2dec34b3-d47d-45c1-9e01-9fcbe05f089c
+  > [Mock Server] Command: python generate.py --prompt 'streaming test'
+  > [Mock Server] Starting inference...
+  > [Mock Server] Extracted prompt: streaming test
+  > [Mock Server] Processing step 1/5...
+  > [Mock Server] Processing step 2/5...
+  > [Mock Server] Processing step 3/5...
+  > [Mock Server] Processing step 4/5...
+  > [Mock Server] Processing step 5/5...
+  > [Mock Server] Generating mock image...
+  > [Mock Server] Output saved to: C:\Users\Administrator\Documents\spaces1\mock_out
+  > [Mock Server] ? Task completed!
+[OK] Received 12 lines from stream
+
+=== Test 5: File Download ===
+Found 12 files in output directory:
+  - e2e_test_1765531609.png: 56897 bytes
+  - e2e_test_1765531672.png: 56432 bytes
+  - s3_test.png: 51295 bytes
+  - simple_test_1765532176.png: 51896 bytes
+  - simple_test_1765532532.png: 51625 bytes
+  ... and 7 more files
+
+Trying to download: e2e_test_1765531609.png
+  URL: http://localhost:5002/output/output/e2e_test_1765531609.png
+[OK] Downloaded successfully (56897 bytes)
+
+==================================================
+ Test Results Summary
+==================================================
+  mock_server: [PASS]
+  basic_inference: [PASS]
+  s3_upload: [PASS]
+  streaming: [PASS]
+  file_download: [PASS]
+
+[SUCCESS] All tests passed!
+
+End time: 2025-12-12 17:42:28
+==================================================

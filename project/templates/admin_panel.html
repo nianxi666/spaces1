@@ -17,6 +17,9 @@
             <a href="{{ url_for('admin.manage_keys') }}" class="btn" title="API密钥管理">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 10.5L21 4m-7 7l-2.5-2.5M21 4l-7 7m0 0L2 22M4 12l6-6m-3 9l-3 3"></path></svg>
             </a>
+            <a href="{{ url_for('admin.manage_orders') }}" class="btn" title="充值订单" style="background: linear-gradient(135deg, #4CAF50, #81C784); color: white;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            </a>
             <a href="{{ url_for('admin.manage_pro_settings') }}" class="btn" title="Pro 会员设置" style="background: linear-gradient(135deg, #FFD700, #FFA500); color: white;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
             </a>
@@ -48,6 +51,13 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 <span>聊天功能: <span id="chatStatusText">Checking...</span></span>
             </button>
+            <button id="openAdsModalBtn" class="btn" style="background: linear-gradient(135deg, #FF6B6B, #FFD93D); color: white;" title="配置全站广告">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
+                <span>广告设置</span>
+            </button>
+            <a href="{{ url_for('admin.manage_gpu_pool') }}" class="btn" title="云GPU池管理" style="background: linear-gradient(135deg, #1E88E5, #42A5F5); color: white;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+            </a>
             <a href="{{ url_for('admin.add_edit_space') }}" class="btn btn-primary" title="添加AI项目">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </a>
@@ -127,6 +137,75 @@
         {% endif %}
     </div>
     {% endif %}
+
+    <!-- Ads Config Modal -->
+    <div id="adsConfigModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" id="adsModalBackdrop"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                    <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-orange-100 sm:mx-0 sm:h-10 sm:w-10">
+                                <svg class="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                                <h3 class="text-base font-semibold leading-6 text-gray-900" id="modal-title">广告设置</h3>
+                                <div class="mt-4 space-y-4">
+                                    <!-- Master Switch -->
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                        <div>
+                                            <label for="adsEnabledToggle" class="font-medium text-gray-900">全站广告总开关</label>
+                                            <p class="text-xs text-gray-500">关闭后，所有广告将隐藏</p>
+                                        </div>
+                                        <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                                            <input type="checkbox" name="adsEnabledToggle" id="adsEnabledToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                            <label for="adsEnabledToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                                        </div>
+                                    </div>
+
+                                    <div class="border-t border-gray-100 my-2"></div>
+
+                                    <!-- Adsterra Switch -->
+                                    <div class="flex items-center justify-between px-2">
+                                        <div>
+                                            <label for="adsterraEnabledToggle" class="text-sm font-medium text-gray-700">Adsterra (Banner/Native)</label>
+                                            <p class="text-xs text-gray-500">横幅、原生广告、Pop-under</p>
+                                        </div>
+                                        <input type="checkbox" id="adsterraEnabledToggle" class="w-5 h-5 text-orange-600 rounded focus:ring-orange-500">
+                                    </div>
+
+                                    <!-- Monetag Switch -->
+                                    <div class="flex items-center justify-between px-2">
+                                        <div>
+                                            <label for="monetagEnabledToggle" class="text-sm font-medium text-gray-700">Monetag (Vignette/Scripts)</label>
+                                            <p class="text-xs text-gray-500">全屏插页、自动广告脚本</p>
+                                        </div>
+                                        <input type="checkbox" id="monetagEnabledToggle" class="w-5 h-5 text-orange-600 rounded focus:ring-orange-500">
+                                    </div>
+
+                                    <!-- RichAds Switch -->
+                                    <div class="flex items-center justify-between px-2">
+                                        <div>
+                                            <label for="richadsEnabledToggle" class="text-sm font-medium text-gray-700">RichAds (Push/Native)</label>
+                                            <p class="text-xs text-gray-500">推送通知、原生广告</p>
+                                        </div>
+                                        <input type="checkbox" id="richadsEnabledToggle" class="w-5 h-5 text-orange-600 rounded focus:ring-orange-500">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                        <button type="button" id="saveAdsConfigBtn" class="inline-flex w-full justify-center rounded-md bg-orange-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-500 sm:ml-3 sm:w-auto">保存更改</button>
+                        <button type="button" id="closeAdsModalBtn" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">取消</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- AI Projects Table -->
     <div class="projects-section">
@@ -570,6 +649,26 @@
     height: 40px; /* Give a fixed height to prevent layout shifts */
 }
 
+/* Custom Toggle Switch CSS for Modal */
+.toggle-checkbox:checked {
+    right: 0;
+    border-color: #EA580C; /* orange-600 */
+}
+.toggle-checkbox:checked + .toggle-label {
+    background-color: #EA580C; /* orange-600 */
+}
+.toggle-checkbox {
+    right: 50%;
+    transition: all 0.3s;
+    top: 0;
+    z-index: 1;
+}
+.toggle-label {
+    width: 100%;
+    height: 100%;
+    transition: background-color 0.3s;
+}
+
 
 @media (max-width: 768px) {
     .page-header {
@@ -759,6 +858,85 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             console.error('切换聊天状态失败:', error);
             alert('操作失败，请查看控制台日志。');
+        }
+    });
+
+    // Ads Modal Functionality
+    const openAdsModalBtn = document.getElementById('openAdsModalBtn');
+    const closeAdsModalBtn = document.getElementById('closeAdsModalBtn');
+    const saveAdsConfigBtn = document.getElementById('saveAdsConfigBtn');
+    const adsConfigModal = document.getElementById('adsConfigModal');
+    const adsModalBackdrop = document.getElementById('adsModalBackdrop');
+
+    // Toggles inside modal
+    const adsEnabledToggle = document.getElementById('adsEnabledToggle');
+    const adsterraEnabledToggle = document.getElementById('adsterraEnabledToggle');
+    const monetagEnabledToggle = document.getElementById('monetagEnabledToggle');
+    const richadsEnabledToggle = document.getElementById('richadsEnabledToggle');
+
+    // Initial State from Server
+    const adsState = {
+        enabled: {{ 'true' if settings.get('ads_enabled', True) else 'false' }},
+        adsterra: {{ 'true' if settings.get('adsterra_enabled', True) else 'false' }},
+        monetag: {{ 'true' if settings.get('monetag_enabled', True) else 'false' }},
+        richads: {{ 'true' if settings.get('richads_enabled', True) else 'false' }}
+    };
+
+    function openModal() {
+        adsEnabledToggle.checked = adsState.enabled;
+        adsterraEnabledToggle.checked = adsState.adsterra;
+        monetagEnabledToggle.checked = adsState.monetag;
+        richadsEnabledToggle.checked = adsState.richads;
+        adsConfigModal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+        adsConfigModal.classList.add('hidden');
+    }
+
+    openAdsModalBtn.addEventListener('click', openModal);
+    closeAdsModalBtn.addEventListener('click', closeModal);
+    adsModalBackdrop.addEventListener('click', closeModal);
+
+    saveAdsConfigBtn.addEventListener('click', async () => {
+        const newState = {
+            ads_enabled: adsEnabledToggle.checked,
+            adsterra_enabled: adsterraEnabledToggle.checked,
+            monetag_enabled: monetagEnabledToggle.checked,
+            richads_enabled: richadsEnabledToggle.checked
+        };
+
+        try {
+            saveAdsConfigBtn.disabled = true;
+            saveAdsConfigBtn.textContent = '保存中...';
+
+            const response = await fetch("{{ url_for('admin.save_ad_settings') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newState)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                // Update local state
+                adsState.enabled = result.settings.ads_enabled;
+                adsState.adsterra = result.settings.adsterra_enabled;
+                adsState.monetag = result.settings.monetag_enabled;
+                adsState.richads = result.settings.richads_enabled;
+
+                alert('✅ 设置已保存！');
+                closeModal();
+                // Optional: Reload to reflect changes if any ads are on admin page (unlikely)
+                // window.location.reload();
+            } else {
+                alert('保存失败: ' + (result.error || '未知错误'));
+            }
+        } catch (error) {
+            console.error('Error saving ads config:', error);
+            alert('保存出错，请检查网络。');
+        } finally {
+            saveAdsConfigBtn.disabled = false;
+            saveAdsConfigBtn.textContent = '保存更改';
         }
     });
 });

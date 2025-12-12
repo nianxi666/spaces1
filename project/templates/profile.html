@@ -28,10 +28,10 @@
                     <span class="bg-yellow-400 text-white text-xs px-2 py-0.5 rounded-full">ACTIVE</span>
                     {% endif %}
                 </h2>
-                {% if not user.is_pro %}
-                <a href="{{ url_for('main.pro_apply') }}" class="text-sm font-bold text-pumpkin-600 hover:text-pumpkin-700 transition-colors">
-                    {{ '查看申请状态' if user.pro_submission_status == 'pending' else '去申请' }} &rarr;
-                </a>
+                {% if user.is_pro and user.membership_expiry %}
+                <span class="text-sm font-bold text-gray-600">
+                    有效期至: {{ user.membership_expiry[:10] }}
+                </span>
                 {% endif %}
             </div>
             <div class="p-6">
@@ -40,10 +40,15 @@
                         <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
                         </div>
-                        <div>
+                        <div class="flex-1">
                             <h3 class="font-bold text-gray-900">尊贵的 Pro 会员</h3>
                             <p class="text-sm text-gray-500">您已解锁所有 Pro 会员权益。</p>
                         </div>
+                        {% if pro_settings.kofi_shop_link %}
+                        <a href="{{ pro_settings.kofi_shop_link }}" target="_blank" onclick="trackRechargeClick()" class="px-4 py-2 bg-gradient-to-r from-pumpkin-500 to-red-500 text-white text-xs font-bold rounded-lg hover:from-pumpkin-600 hover:to-red-600 transition-all shadow-md hover:shadow-lg">
+                            续费会员
+                        </a>
+                        {% endif %}
                     </div>
                 {% else %}
                     <div class="flex items-center gap-4">
@@ -52,16 +57,17 @@
                         </div>
                         <div class="flex-1">
                             <h3 class="font-bold text-gray-900">升级到 Pro</h3>
-                            <p class="text-sm text-gray-500">完成指定任务，免费升级 Pro 会员，解锁更多高级功能。</p>
+                            <p class="text-sm text-gray-500">{{ pro_settings.task_description | default('无限次推理，专用 GPU，更多高级功能。', true) | markdown | striptags }}</p>
                         </div>
-                        {% if user.pro_submission_status == 'pending' %}
-                            <span class="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full">审核中</span>
-                        {% elif user.pro_submission_status == 'rejected' %}
-                            <span class="px-3 py-1 bg-red-50 text-red-600 text-xs font-bold rounded-full">申请被拒</span>
+                        {% if pro_settings.kofi_shop_link %}
+                        <a href="{{ pro_settings.kofi_shop_link }}" target="_blank" onclick="trackRechargeClick()" class="px-4 py-2 bg-gradient-to-r from-pumpkin-500 to-red-500 text-white text-xs font-bold rounded-lg hover:from-pumpkin-600 hover:to-red-600 transition-all shadow-md hover:shadow-lg flex items-center gap-1">
+                            <span>充值会员</span>
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        </a>
                         {% else %}
-                            <a href="{{ url_for('main.pro_apply') }}" class="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black transition-colors shadow-md hover:shadow-lg">
-                                立即申请
-                            </a>
+                        <button disabled class="px-4 py-2 bg-gray-200 text-gray-500 text-xs font-bold rounded-lg cursor-not-allowed">
+                            暂未开放
+                        </button>
                         {% endif %}
                     </div>
                 {% endif %}
@@ -96,9 +102,33 @@
                 <div class="border-t border-gray-50"></div>
 
                 <!-- Username -->
-                <div class="flex justify-between items-center py-2">
+                <div class="flex justify-between items-center py-2 group">
                     <span class="text-sm font-medium text-gray-700">用户名</span>
-                    <span class="text-sm font-semibold text-gray-900">{{ session.username }}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-semibold text-gray-900" id="current-username-display">{{ session.username }}</span>
+                        <button onclick="document.getElementById('change-username-modal').classList.remove('hidden')" class="text-xs text-pumpkin-600 hover:text-pumpkin-700 font-medium px-2 py-1 bg-pumpkin-50 rounded transition-colors">修改</button>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-50"></div>
+
+                <!-- Email Binding -->
+                 <div class="py-2 group">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-medium text-gray-700">绑定邮箱</span>
+                        {% if user.email %}
+                            <span class="text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full">已绑定</span>
+                        {% else %}
+                            <span class="text-xs text-gray-400 font-medium">未绑定</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="email" id="bind-email-input" value="{{ user.email or '' }}" placeholder="输入邮箱地址" class="flex-1 text-sm border-gray-200 rounded-lg focus:ring-pumpkin-500 focus:border-pumpkin-500 bg-gray-50/50" {% if user.email %}readonly{% endif %}>
+                        <button onclick="bindEmail()" id="bind-email-btn" class="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" {% if user.email %}disabled{% endif %}>
+                            {{ '已绑定' if user.email else '绑定' }}
+                        </button>
+                    </div>
+                     <p class="text-xs text-gray-500 mt-1">每个账号只能绑定唯一的邮箱，绑定后可用于接收通知和充值验证。</p>
                 </div>
 
                 <div class="border-t border-gray-50"></div>
@@ -117,6 +147,60 @@
                 </div>
             </div>
         </div>
+
+        <!-- Daily Check-in Card -->
+        <div x-data="calendar()" x-init="init()" class="glass rounded-3xl overflow-hidden animate-fade-in-up delay-150">
+            <div class="p-6 border-b border-gray-100">
+                <h2 class="text-lg font-bold text-gray-900">每日签到</h2>
+            </div>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <button @click="prevMonth()" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <h3 class="text-lg font-semibold text-gray-800" x-text="monthYear"></h3>
+                    <button @click="nextMonth()" class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
+                <div class="grid grid-cols-7 gap-2 text-center text-sm text-gray-500 mb-2">
+                    <template x-for="day in weekDays" :key="day">
+                        <div x-text="day"></div>
+                    </template>
+                </div>
+                <div class="grid grid-cols-7 gap-2">
+                    <template x-for="day in daysInMonth" :key="day.date">
+                        <div class="flex items-center justify-center h-10 w-10 rounded-full"
+                             :class="{
+                                'bg-pumpkin-500 text-white shadow-lg': day.isToday && day.isChecked,
+                                'ring-2 ring-pumpkin-500': day.isToday && !day.isChecked,
+                                'bg-green-100 text-green-700': !day.isToday && day.isChecked,
+                                'text-gray-300': !day.isCurrentMonth,
+                                'text-gray-800': day.isCurrentMonth
+                             }">
+                            <span x-text="day.day"></span>
+                        </div>
+                    </template>
+                </div>
+                <div class="mt-6">
+                    <button @click="performCheckIn()"
+                            :disabled="isCheckedInToday && !adsEnabled"
+                            class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold transition-all active:scale-95"
+                            :class="{
+                                'text-white bg-gray-900 hover:bg-black': !(isCheckedInToday && !adsEnabled),
+                                'bg-gray-200 text-gray-500 cursor-not-allowed': isCheckedInToday && !adsEnabled
+                            }">
+                        <span x-show="!isLoading" x-text="isCheckedInToday ? '今日已签到' : '立即签到'"></span>
+                        <svg x-show="isLoading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </button>
+                    <p x-show="message" x-text="message" class="text-xs mt-2 text-center" :class="isError ? 'text-red-500' : 'text-green-600'"></p>
+                </div>
+            </div>
+        </div>
+
 
         <!-- Security Card -->
         <div class="glass rounded-3xl overflow-hidden animate-fade-in-up delay-200">
@@ -148,6 +232,43 @@
     </div>
 </div>
 
+<!-- Recharge Confirmation Modal -->
+<div id="recharge-confirm-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4" style="background-color: rgba(0,0,0,0.4); backdrop-filter: blur(4px);">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-fade-in-up">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">充值确认</h3>
+        <p class="text-sm text-gray-500 mb-6">您是否已经完成了付款？点击“是”我们将为您自动查询订单状态。</p>
+
+        <div class="flex gap-3 pt-2">
+            <button onclick="cancelRechargeCheck()" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors">取消</button>
+            <button onclick="checkRechargeStatus()" id="check-status-btn" class="flex-1 px-4 py-2 bg-pumpkin-500 text-white rounded-xl font-bold hover:bg-pumpkin-600 transition-colors flex justify-center items-center gap-2">
+                <span>是，已支付</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Change Username Modal -->
+<div id="change-username-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4" style="background-color: rgba(0,0,0,0.4); backdrop-filter: blur(4px);">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-fade-in-up">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">修改用户名</h3>
+        <p class="text-sm text-gray-500 mb-6">用户名每 30 天只能修改一次。修改后需要使用新用户名登录。</p>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">新用户名</label>
+                <input type="text" id="new-username-input" class="w-full border-gray-200 rounded-xl focus:ring-pumpkin-500 focus:border-pumpkin-500" placeholder="3-20个字符，仅限字母数字下划线">
+            </div>
+
+            <div id="username-change-error" class="text-xs text-red-500 hidden"></div>
+
+            <div class="flex gap-3 pt-2">
+                <button onclick="document.getElementById('change-username-modal').classList.add('hidden')" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors">取消</button>
+                <button onclick="submitUsernameChange()" class="flex-1 px-4 py-2 bg-pumpkin-500 text-white rounded-xl font-bold hover:bg-pumpkin-600 transition-colors">确认修改</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- File Browser Modal (Glassmorphism) -->
 <div id="file-browser-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 sm:p-6" style="background-color: rgba(0,0,0,0.4); backdrop-filter: blur(4px);">
     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden animate-fade-in-up">
@@ -172,6 +293,135 @@
 </div>
 
 <script>
+ function trackRechargeClick() {
+     localStorage.setItem('payment_pending', 'true');
+     localStorage.setItem('payment_timestamp', Date.now().toString());
+ }
+
+ function cancelRechargeCheck() {
+     localStorage.removeItem('payment_pending');
+     localStorage.removeItem('payment_timestamp');
+     document.getElementById('recharge-confirm-modal').classList.add('hidden');
+     document.getElementById('recharge-confirm-modal').classList.remove('flex');
+ }
+
+ async function checkRechargeStatus() {
+     const btn = document.getElementById('check-status-btn');
+     const originalText = btn.innerHTML;
+     btn.innerHTML = '<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 查询中...';
+     btn.disabled = true;
+
+     try {
+         // Add a small delay to simulate processing if needed, or just better UI feel
+         await new Promise(r => setTimeout(r, 1000));
+
+         const response = await fetch('{{ url_for("api.get_user_status") }}');
+         const data = await response.json();
+
+         if (data.success) {
+             // Logic to determine if success
+             // Since we don't track the *previous* state in JS easily without passing it,
+             // we can check if is_pro is true.
+             // Or, we could persist the previous state in localStorage too.
+             // For now, if is_pro is true, we assume success or they are already pro.
+             // If we really want to check "new" order, we'd need to poll for a specific order ID or time,
+             // but here we just check current status.
+
+             if (data.is_pro) {
+                 alert('充值成功！您的 Pro 会员已激活。');
+                 localStorage.removeItem('payment_pending');
+                 window.location.reload();
+             } else {
+                 alert('尚未收到充值成功的确认。可能有几分钟延迟，请稍后再试或检查您的邮箱。');
+                 btn.innerHTML = originalText;
+                 btn.disabled = false;
+             }
+         } else {
+             alert('查询失败: ' + data.error);
+             btn.innerHTML = originalText;
+             btn.disabled = false;
+         }
+     } catch (e) {
+         alert('网络错误，请稍后重试');
+         btn.innerHTML = originalText;
+         btn.disabled = false;
+     }
+ }
+
+ async function bindEmail() {
+    const input = document.getElementById('bind-email-input');
+    const btn = document.getElementById('bind-email-btn');
+    const email = input.value.trim();
+
+    if (!email) {
+        alert('请输入邮箱地址');
+        return;
+    }
+
+    if (!confirm('确定要绑定此邮箱吗？绑定后将无法轻易更改。')) {
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '处理中...';
+
+    try {
+        const formData = new FormData();
+        formData.append('email', email);
+
+        const response = await fetch('{{ url_for("main.bind_email") }}', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('邮箱绑定成功！');
+            window.location.reload();
+        } else {
+            alert('绑定失败: ' + result.error);
+            btn.disabled = false;
+            btn.textContent = '绑定';
+        }
+    } catch (e) {
+        alert('请求出错，请稍后重试');
+        btn.disabled = false;
+        btn.textContent = '绑定';
+    }
+ }
+
+async function submitUsernameChange() {
+    const input = document.getElementById('new-username-input');
+    const errorDiv = document.getElementById('username-change-error');
+    const newUsername = input.value.trim();
+
+    if (!newUsername) return;
+
+    try {
+        const formData = new FormData();
+        formData.append('new_username', newUsername);
+
+        const response = await fetch('{{ url_for("main.change_username") }}', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('用户名修改成功！');
+            window.location.reload();
+        } else {
+            errorDiv.textContent = result.error;
+            errorDiv.classList.remove('hidden');
+        }
+    } catch (e) {
+        errorDiv.textContent = '请求失败，请稍后重试';
+        errorDiv.classList.remove('hidden');
+    }
+}
+
 function copyToClipboard(text) {
     if (!text) return;
     navigator.clipboard.writeText(text).then(function() {
@@ -187,6 +437,25 @@ function copyToClipboard(text) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Check for payment pending
+    const paymentPending = localStorage.getItem('payment_pending');
+    const paymentTimestamp = localStorage.getItem('payment_timestamp');
+
+    if (paymentPending === 'true') {
+        const now = Date.now();
+        const pendingTime = parseInt(paymentTimestamp || '0');
+        // If pending for less than 1 hour (3600000 ms), show modal
+        if (now - pendingTime < 3600000) {
+            const rechargeModal = document.getElementById('recharge-confirm-modal');
+            rechargeModal.classList.remove('hidden');
+            rechargeModal.classList.add('flex');
+        } else {
+            // Expired, clear it
+            localStorage.removeItem('payment_pending');
+            localStorage.removeItem('payment_timestamp');
+        }
+    }
+
     const modal = document.getElementById('file-browser-modal');
     const changeAvatarBtn = document.getElementById('change-avatar-btn');
     const closeBtn = document.querySelector('.close-button');
@@ -300,5 +569,157 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+function calendar() {
+    return {
+        month: 0,
+        year: 0,
+        monthYear: '',
+        daysInMonth: [],
+        weekDays: ['日', '一', '二', '三', '四', '五', '六'],
+        checkInHistory: {{ user.check_in_history | default([]) | tojson }},
+        isCheckedInToday: false,
+        isLoading: false,
+        message: '',
+        isError: false,
+        today: '{{ today_str }}',
+        adsEnabled: {{ settings.ads_enabled | tojson }},
+        adUrl: 'https://www.effectivegatecpm.com/a3ytbz0m5?key=1c9add0be59c6b5d82f3baa7efd97980',
+
+        init() {
+            const serverToday = new Date(this.today + 'T00:00:00'); // Treat the server date as local
+            this.month = serverToday.getMonth();
+            this.year = serverToday.getFullYear();
+            this.generateCalendar();
+            this.checkIfCheckedInToday();
+        },
+
+        generateCalendar() {
+            const firstDay = new Date(this.year, this.month, 1);
+            const lastDay = new Date(this.year, this.month + 1, 0);
+            const today = new Date(this.today + 'T00:00:00');
+
+            this.monthYear = `${this.year}年${String(this.month + 1).padStart(2, '0')}月`;
+
+            let days = [];
+
+            // Add days from previous month
+            for (let i = firstDay.getDay(); i > 0; i--) {
+                const prevDate = new Date(this.year, this.month, 0 - i + 1);
+                days.push({
+                    day: prevDate.getDate(),
+                    date: prevDate.toISOString().slice(0, 10),
+                    isCurrentMonth: false,
+                    isToday: false,
+                    isChecked: false
+                });
+            }
+
+            // Add days for current month
+            for (let i = 1; i <= lastDay.getDate(); i++) {
+                const currentDate = new Date(this.year, this.month, i);
+                const dateStr = currentDate.toISOString().slice(0, 10);
+                days.push({
+                    day: i,
+                    date: dateStr,
+                    isCurrentMonth: true,
+                    isToday: today.getFullYear() === this.year && today.getMonth() === this.month && today.getDate() === i,
+                    isChecked: this.checkInHistory.includes(dateStr)
+                });
+            }
+
+            // Add days for next month
+            const remaining = 42 - days.length; // 6 rows * 7 days
+            for (let i = 1; i <= remaining; i++) {
+                const nextDate = new Date(this.year, this.month + 1, i);
+                 days.push({
+                    day: nextDate.getDate(),
+                    date: nextDate.toISOString().slice(0, 10),
+                    isCurrentMonth: false,
+                    isToday: false,
+                    isChecked: false
+                });
+            }
+
+            this.daysInMonth = days;
+        },
+
+        prevMonth() {
+            if (this.month === 0) {
+                this.month = 11;
+                this.year--;
+            } else {
+                this.month--;
+            }
+            this.generateCalendar();
+        },
+
+        nextMonth() {
+            if (this.month === 11) {
+                this.month = 0;
+                this.year++;
+            } else {
+                this.month++;
+            }
+            this.generateCalendar();
+        },
+
+        getTodayString() {
+            return this.today;
+        },
+
+        checkIfCheckedInToday() {
+            this.isCheckedInToday = this.checkInHistory.includes(this.today);
+        },
+
+        async performCheckIn() {
+            // If already checked in, just open the ad link if enabled
+            if (this.isCheckedInToday) {
+                if (this.adsEnabled) {
+                    window.open(this.adUrl, '_blank');
+                }
+                return;
+            }
+
+            // If not checked in, perform the check-in process
+            this.isLoading = true;
+            this.message = '';
+            this.isError = false;
+
+            try {
+                const response = await fetch('{{ url_for("main.check_in") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    this.message = data.message || '签到成功！';
+                    const todayStr = this.getTodayString();
+                    if (!this.checkInHistory.includes(todayStr)) {
+                        this.checkInHistory.push(todayStr);
+                    }
+                    this.checkIfCheckedInToday();
+                    this.generateCalendar(); // Re-render to show new check-in
+
+                    // Open ad link if ads are enabled
+                    if (this.adsEnabled) {
+                        window.open(this.adUrl, '_blank');
+                    }
+                } else {
+                    this.isError = true;
+                    this.message = data.error || '签到失败，请重试。';
+                }
+            } catch (error) {
+                this.isError = true;
+                this.message = '网络错误，请稍后重试。';
+            } finally {
+                this.isLoading = false;
+                 setTimeout(() => { this.message = '' }, 3000);
+            }
+        }
+    }
+}
 </script>
 {% endblock %}

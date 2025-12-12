@@ -6,7 +6,7 @@
         <a href="{{ url_for('admin.admin_panel') }}" class="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors text-gray-600">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
         </a>
-        <h1 class="text-2xl font-bold text-gray-900">Pro 会员系统设置</h1>
+        <h1 class="text-2xl font-bold text-gray-900">Pro 会员系统设置 (Ko-fi)</h1>
     </div>
 
     <div class="glass rounded-3xl overflow-hidden p-8">
@@ -25,11 +25,38 @@
 
             <div class="border-t border-gray-100"></div>
 
-            <!-- Task Description Editor -->
+            <div class="space-y-4">
+                <h3 class="text-lg font-medium text-gray-900">Ko-fi 支付配置</h3>
+
+                <div>
+                    <label for="kofi_shop_link" class="block text-sm font-medium text-gray-700 mb-1">Ko-fi 商店/充值链接</label>
+                    <input type="url" id="kofi_shop_link" name="kofi_shop_link" value="{{ settings.kofi_shop_link or '' }}" placeholder="https://ko-fi.com/..." class="w-full rounded-xl border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500">
+                </div>
+
+                <div>
+                    <label for="kofi_verification_token" class="block text-sm font-medium text-gray-700 mb-1">Verification Token (Webhook Secret)</label>
+                    <input type="text" id="kofi_verification_token" name="kofi_verification_token" value="{{ settings.kofi_verification_token or '' }}" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500">
+                    <p class="text-xs text-gray-500 mt-1">在 Ko-fi 的 Webhook 设置中找到此 Token。</p>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <h4 class="text-sm font-bold text-gray-800 mb-2">Webhook URL</h4>
+                    <div class="flex items-center gap-2">
+                        <code class="text-xs bg-white border border-gray-200 px-2 py-1 rounded text-gray-600 flex-1 overflow-x-auto">{{ url_for('payment.kofi_webhook', _external=True) }}</code>
+                        <button type="button" onclick="testWebhook()" id="test-webhook-btn" class="px-3 py-1 bg-white border border-gray-300 text-gray-700 text-xs font-bold rounded hover:bg-gray-50 transition-colors">
+                            测试连接
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">将此 URL 填入 Ko-fi 的 "Webhooks" > "Webhook URL"。</p>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-100"></div>
+
+            <!-- Task Description Editor (Legacy / Info) -->
             <div>
-                <label for="task_description" class="block text-sm font-medium text-gray-700 mb-2">申请任务说明</label>
-                <p class="text-sm text-gray-500 mb-2">请详细描述用户成为 Pro 会员需要完成的任务。支持 Markdown。</p>
-                <textarea id="task_description" name="task_description" rows="10" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500">{{ settings.task_description }}</textarea>
+                <label for="task_description" class="block text-sm font-medium text-gray-700 mb-2">会员权益说明 (Markdown)</label>
+                <textarea id="task_description" name="task_description" rows="5" class="w-full rounded-xl border-gray-300 shadow-sm focus:border-pumpkin-500 focus:ring-pumpkin-500">{{ settings.task_description }}</textarea>
             </div>
 
             <div class="flex justify-end">
@@ -40,4 +67,26 @@
         </form>
     </div>
 </div>
+
+<script>
+async function testWebhook() {
+    const btn = document.getElementById('test-webhook-btn');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '测试中...';
+
+    try {
+        const response = await fetch('{{ url_for("admin.test_kofi_webhook") }}', {
+            method: 'POST'
+        });
+        const result = await response.json();
+        alert(result.message);
+    } catch (e) {
+        alert('测试请求发送失败');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+</script>
 {% endblock %}

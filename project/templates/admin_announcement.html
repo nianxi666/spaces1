@@ -6,60 +6,163 @@
 <div class="admin-announcement-container">
     <div class="page-header">
         <h2>管理员公告设置</h2>
-        <p class="subtitle">设置全局消息公告，在首页和AI项目页面显示</p>
+        <p class="subtitle">管理全站及各个页面的公告信息</p>
     </div>
 
-    <form method="POST" class="announcement-form">
-        <div class="form-section">
-            <div class="form-group">
-                <label class="toggle-label">
-                    <input type="checkbox" name="enabled" {% if announcement.enabled %}checked{% endif %}>
-                    <span class="toggle-slider"></span>
-                    启用公告
-                </label>
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab(event, 'main-announcement')">全站公告</button>
+        <button class="tab-btn" onclick="openTab(event, 'chat-announcement')">聊天界面公告</button>
+        <button class="tab-btn" onclick="openTab(event, 'terminal-announcement')">云终端公告</button>
+    </div>
+
+    <!-- Main Announcement Form -->
+    <div id="main-announcement" class="tab-content" style="display: block;">
+        <form method="POST" class="announcement-form">
+            <input type="hidden" name="form_type" value="main">
+            <div class="form-section">
+                <h3>全站公告 (首页 & 项目页)</h3>
+                <div class="form-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" name="enabled" {% if announcement.enabled %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                        启用公告
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="title">公告标题</label>
+                    <input type="text" id="title" name="title" value="{{ announcement.title }}" placeholder="输入公告标题">
+                </div>
+
+                <div class="form-group">
+                    <label for="content">公告内容</label>
+                    <textarea id="content" name="content" rows="4" placeholder="输入公告内容">{{ announcement.content }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="type">公告类型</label>
+                    <select id="type" name="type">
+                        <option value="info" {% if announcement.type == 'info' %}selected{% endif %}>信息</option>
+                        <option value="success" {% if announcement.type == 'success' %}selected{% endif %}>成功</option>
+                        <option value="warning" {% if announcement.type == 'warning' %}selected{% endif %}>警告</option>
+                        <option value="error" {% if announcement.type == 'error' %}selected{% endif %}>错误</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="show_on_homepage" {% if announcement.show_on_homepage %}checked{% endif %}>
+                        在首页显示
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="show_on_projects" {% if announcement.show_on_projects %}checked{% endif %}>
+                        在AI项目页面显示
+                    </label>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="title">公告标题</label>
-                <input type="text" id="title" name="title" value="{{ announcement.title }}" placeholder="输入公告标题">
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">保存全站设置</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Chat Announcement Form -->
+    <div id="chat-announcement" class="tab-content" style="display: none;">
+        <form method="POST" class="announcement-form">
+            <input type="hidden" name="form_type" value="chat">
+            <div class="form-section">
+                <h3>聊天界面公告 (NetMind Chat)</h3>
+                <div class="form-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" name="chat_enabled" {% if chat_announcement.enabled %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                        启用公告
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="chat_content">公告内容</label>
+                    <textarea id="chat_content" name="chat_content" rows="4" placeholder="输入公告内容">{{ chat_announcement.content }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="chat_type">公告类型</label>
+                    <select id="chat_type" name="chat_type">
+                        <option value="info" {% if chat_announcement.type == 'info' %}selected{% endif %}>信息</option>
+                        <option value="success" {% if chat_announcement.type == 'success' %}selected{% endif %}>成功</option>
+                        <option value="warning" {% if chat_announcement.type == 'warning' %}selected{% endif %}>警告</option>
+                        <option value="error" {% if chat_announcement.type == 'error' %}selected{% endif %}>错误</option>
+                    </select>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="content">公告内容</label>
-                <textarea id="content" name="content" rows="4" placeholder="输入公告内容">{{ announcement.content }}</textarea>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">保存聊天公告</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Terminal Announcement Form -->
+    <div id="terminal-announcement" class="tab-content" style="display: none;">
+        <form method="POST" class="announcement-form">
+            <input type="hidden" name="form_type" value="terminal">
+            <div class="form-section">
+                <h3>云终端界面公告</h3>
+                <div class="form-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" name="terminal_enabled" {% if terminal_announcement.enabled %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                        启用公告
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="terminal_content">公告内容</label>
+                    <textarea id="terminal_content" name="terminal_content" rows="4" placeholder="输入公告内容">{{ terminal_announcement.content }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="terminal_type">公告类型</label>
+                    <select id="terminal_type" name="terminal_type">
+                        <option value="info" {% if terminal_announcement.type == 'info' %}selected{% endif %}>信息</option>
+                        <option value="success" {% if terminal_announcement.type == 'success' %}selected{% endif %}>成功</option>
+                        <option value="warning" {% if terminal_announcement.type == 'warning' %}selected{% endif %}>警告</option>
+                        <option value="error" {% if terminal_announcement.type == 'error' %}selected{% endif %}>错误</option>
+                    </select>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="type">公告类型</label>
-                <select id="type" name="type">
-                    <option value="info" {% if announcement.type == 'info' %}selected{% endif %}>信息</option>
-                    <option value="success" {% if announcement.type == 'success' %}selected{% endif %}>成功</option>
-                    <option value="warning" {% if announcement.type == 'warning' %}selected{% endif %}>警告</option>
-                    <option value="error" {% if announcement.type == 'error' %}selected{% endif %}>错误</option>
-                </select>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">保存终端公告</button>
             </div>
+        </form>
+    </div>
 
-            <div class="form-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" name="show_on_homepage" {% if announcement.show_on_homepage %}checked{% endif %}>
-                    在首页显示
-                </label>
-            </div>
-
-            <div class="form-group">
-                <label class="checkbox-label">
-                    <input type="checkbox" name="show_on_projects" {% if announcement.show_on_projects %}checked{% endif %}>
-                    在AI项目页面显示
-                </label>
-            </div>
-        </div>
-
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">保存设置</button>
-            <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-secondary">返回管理面板</a>
-        </div>
-    </form>
+    <div class="mt-4 text-center">
+        <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-secondary">返回管理面板</a>
+    </div>
 </div>
+
+<script>
+function openTab(evt, tabName) {
+    var i, tabcontent, tablinks;
+    tabcontent = document.getElementsByClassName("tab-content");
+    for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+    }
+    tablinks = document.getElementsByClassName("tab-btn");
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+    }
+    document.getElementById(tabName).style.display = "block";
+    evt.currentTarget.className += " active";
+}
+</script>
 
 <style>
 .admin-announcement-container {
@@ -85,15 +188,59 @@
     font-size: 16px;
 }
 
+/* Tabs */
+.tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    gap: 10px;
+}
+
+.tab-btn {
+    background-color: #f1f1f1;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 10px 20px;
+    transition: 0.3s;
+    font-size: 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    color: #555;
+}
+
+.tab-btn:hover {
+    background-color: #ddd;
+}
+
+.tab-btn.active {
+    background-color: #FF7518;
+    color: white;
+}
+
 .announcement-form {
     background: white;
     border-radius: 12px;
     padding: 30px;
     box-shadow: 0 4px 20px rgba(255, 117, 24, 0.1);
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .form-section {
     margin-bottom: 30px;
+}
+
+.form-section h3 {
+    font-size: 18px;
+    color: #333;
+    border-bottom: 2px solid #FF7518;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
 }
 
 .form-group {

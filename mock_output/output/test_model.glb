@@ -1,0 +1,6 @@
+{
+  "type": "mock_3d_model",
+  "prompt": "a 3d robot model",
+  "generated_at": "2025-12-12T17:33:02.340790",
+  "message": "This is a mock 3D file for testing purposes"
+}

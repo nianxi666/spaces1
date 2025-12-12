@@ -33,22 +33,20 @@ LINUXDO_CLIENT_SECRET = os.environ.get('LINUXDO_CLIENT_SECRET', 'your_linuxdo_cl
 # --- S3 Configuration ---
 import json
 S3_CONFIG_FILE = os.path.join(os.path.dirname(__file__), '..', 's3_config.json')
-S3_ENDPOINT_URL = None
-S3_ACCESS_KEY_ID = None
-S3_SECRET_ACCESS_KEY = None
-S3_BUCKET_NAME = None
-
-MODAL_DRIVE_BASE_URL = os.environ.get('MODAL_DRIVE_BASE_URL')
-MODAL_DRIVE_AUTH_TOKEN = os.environ.get('MODAL_DRIVE_AUTH_TOKEN')
+S3_ENDPOINT_URL = os.environ.get('S3_ENDPOINT_URL')
+S3_ACCESS_KEY_ID = os.environ.get('S3_ACCESS_KEY_ID')
+S3_SECRET_ACCESS_KEY = os.environ.get('S3_SECRET_ACCESS_KEY')
+S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME')
 
 if os.path.exists(S3_CONFIG_FILE):
     try:
         with open(S3_CONFIG_FILE, 'r') as f:
             s3_config = json.load(f)
-            S3_ENDPOINT_URL = s3_config.get('S3_ENDPOINT_URL')
-            S3_ACCESS_KEY_ID = s3_config.get('S3_ACCESS_KEY_ID')
-            S3_SECRET_ACCESS_KEY = s3_config.get('S3_SECRET_ACCESS_KEY')
-            S3_BUCKET_NAME = s3_config.get('S3_BUCKET_NAME')
+            # Only override env vars if s3_config.json values are present
+            S3_ENDPOINT_URL = S3_ENDPOINT_URL or s3_config.get('S3_ENDPOINT_URL')
+            S3_ACCESS_KEY_ID = S3_ACCESS_KEY_ID or s3_config.get('S3_ACCESS_KEY_ID')
+            S3_SECRET_ACCESS_KEY = S3_SECRET_ACCESS_KEY or s3_config.get('S3_SECRET_ACCESS_KEY')
+            S3_BUCKET_NAME = S3_BUCKET_NAME or s3_config.get('S3_BUCKET_NAME')
     except Exception:
         pass
 

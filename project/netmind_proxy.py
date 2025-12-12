@@ -2,7 +2,8 @@ import time
 import random
 import threading
 import json
-from openai import OpenAI, APIError, AuthenticationError, RateLimitError
+from openai import OpenAI, APIError, AuthenticationError, RateLimitError, BadRequestError
+from .database import save_db
 
 DEFAULT_NETMIND_BASE_URL = 'https://api.netmind.ai/inference-api/openai/v1'
 
@@ -26,7 +27,9 @@ class NetMindClient:
 
     def _get_valid_keys(self, db):
         settings = self._get_settings(db)
-        return [k for k in settings.get('keys', []) if k.strip()]
+        all_keys = settings.get('keys', [])
+        blacklist = settings.get('blacklist', [])
+        return [k for k in all_keys if k.strip() and k not in blacklist]
 
     def _get_next_key(self, db, exclude_key=None):
         keys = self._get_valid_keys(db)
@@ -108,6 +111,29 @@ class NetMindClient:
         return resolved or requested_model
 
     def chat_completion(self, db, messages, model, stream=False, max_tokens=None, extra_params=None):
+        # Inject Thinking System Prompt
+        THINKING_SYSTEM_PROMPT = """
+You are a profound thinking assistant.
+Before answering the user's request, you must perform a detailed step-by-step analysis.
+Enclose your internal thought process within <thinking>...</thinking> tags.
+After the thinking tags, provide your final response.
+"""
+        # Ensure messages is a list and make a copy to avoid side effects
+        if not isinstance(messages, list):
+            messages = []
+        messages = messages.copy()
+
+        # Check if there is already a system message
+        system_message_index = next((i for i, m in enumerate(messages) if m.get('role') == 'system'), None)
+
+        if system_message_index is not None:
+             # Append to existing system message
+             original_content = messages[system_message_index].get('content', '')
+             messages[system_message_index]['content'] = original_content + "\n\n" + THINKING_SYSTEM_PROMPT
+        else:
+             # Insert new system message at the beginning
+             messages.insert(0, {"role": "system", "content": THINKING_SYSTEM_PROMPT})
+
         settings = self._get_settings(db)
         base_url = self._normalize_base_url(settings.get('base_url'))
         fallback_base_url = None
@@ -161,6 +187,37 @@ class NetMindClient:
                         max_tokens=max_tokens,
                         extra_params=request_options
                     )
+
+            except BadRequestError as e:
+                # Check for "usd balance not enough" and blacklist the key
+                # Error code: 400 - {'detail': 'usd balance not enough...'}
+                # e.message usually contains the message
+                # e.response might have the JSON body
+
+                # Check message or body
+                error_msg = str(e).lower()
+                if 'usd balance not enough' in error_msg:
+                    print(f"NetMind Key {key[:4]}... exhausted (Balance insufficient). Blacklisting.")
+
+                    # Add to blacklist
+                    if 'blacklist' not in settings:
+                        settings['blacklist'] = []
+
+                    if key not in settings['blacklist']:
+                        settings['blacklist'].append(key)
+                        save_db(db) # Persist blacklist
+
+                    last_error = e
+                    attempts += 1
+                    key = self._get_next_key(db, exclude_key=key)
+                    if not key:
+                         break
+                    time.sleep(0.5)
+                    continue
+                else:
+                    # Other BadRequestError
+                    print(f"NetMind BadRequestError: {e}")
+                    raise e
 
             except (AuthenticationError, RateLimitError) as e:
                 print(f"NetMind API Error (Key: {key[:4]}...): {e}")
