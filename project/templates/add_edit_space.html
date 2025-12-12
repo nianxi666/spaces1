@@ -22,10 +22,13 @@
             {% set card_type = space.card_type if space else 'remote_inference' %}
             <select name="card_type"
                 style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-
+                <option value="standard" {% if card_type=='standard' %}selected{% endif %}>标准命令型 (Inferless/Modal)
+                </option>
                 <option value="remote_inference" {% if card_type=='remote_inference' %}selected{% endif %}>远程推理型 (Remote
                     Inference)</option>
+                <option value="cerebrium" {% if card_type=='cerebrium' %}selected{% endif %}>自定义 GPU API 型</option>
                 <option value="netmind" {% if card_type=='netmind' %}selected{% endif %}>模型代理聊天型</option>
+                <option value="websocket" {% if card_type=='websocket' %}selected{% endif %}>WebSocket 远程连接型</option>
             </select>
             <small style="color: #666;">远程推理型用于调用远程 GPU API 服务；聊天型会通过代理 API 转发聊天请求。</small>
         </div>
@@ -52,10 +55,9 @@
             {% endif %}
         </div>
 
-        {% set timeout_seconds = space.remote_inference_timeout_seconds if space and
-        space.remote_inference_timeout_seconds is not none else 300 %}
-        {% set timeout_minutes = (timeout_seconds / 60) | int %}
-        <div id="remote-inference-settings"
+        <<<<<<< HEAD {% set timeout_seconds=space.remote_inference_timeout_seconds if space and
+            space.remote_inference_timeout_seconds is not none else 300 %} {% set timeout_minutes=(timeout_seconds / 60)
+            | int %} <div id="remote-inference-settings"
             style="margin-bottom: 15px; {% if card_type != 'remote_inference' %}display: none;{% endif %}">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">推理超时时间（分钟）</label>
             <input type="number" name="remote_inference_timeout_minutes" min="1" value="{{ timeout_minutes }}"
@@ -114,64 +116,119 @@
                 </div>
             </div>
             <small style="color: #666;">使用下拉菜单强制覆盖配置。请选择"启用"或"禁用"。</small>
-        </div>
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">封面图片</label>
-            <div style="display: flex; flex-direction: column; gap: 5px;">
-                <input type="file" id="cover_file_input" accept="image/*,video/*"
-                    style="padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-                <button type="button" id="select-cover-btn" class="btn btn-secondary"
-                    style="width: fit-content;">从我的作品中选择</button>
-            </div>
-            <input type="hidden" name="cover" id="cover_url_input" value="{{ space.cover if space else '' }}">
-            <input type="hidden" name="cover_type" id="cover_type_input"
-                value="{{ space.cover_type if space else 'image' }}">
-            <div id="upload-status" style="margin-top: 10px; font-weight: bold;"></div>
-            <div id="cover-preview-container"
-                style="margin-top: 10px; {% if not space or not space.cover %}display: none;{% endif %}">
-                <p style="color: #666; margin: 0;">当前:</p>
-                {% if space and space.cover %}
-                {% set cover_url = space.cover if space.cover.startswith('http') else to_s3_url(space.cover) %}
-                {% if space.cover_type == 'video' %}
-                <video id="cover-preview-video" src="{{ cover_url }}"
-                    style="width: 150px; height: auto; vertical-align: middle; border-radius: 4px;" controls></video>
-                <img id="cover-preview-img" src=""
-                    style="display: none; width: 100px; height: 100px; object-fit: cover; vertical-align: middle; border-radius: 4px;">
-                {% else %}
-                <video id="cover-preview-video" src=""
-                    style="display: none; width: 150px; height: auto; vertical-align: middle; border-radius: 4px;"
-                    controls></video>
-                <img id="cover-preview-img" src="{{ cover_url }}"
-                    style="width: 100px; height: 100px; object-fit: cover; vertical-align: middle; border-radius: 4px;">
-                {% endif %}
-                {% endif %}
-            </div>
-        </div>
-        <hr style="margin-top: 20px; margin-bottom: 20px; border: 0; border-top: 1px solid #eee;">
 
-        {% if space %}
-        <div id="template-management" style="margin-bottom: 20px;">
-            <h3 style="color: #333; margin-bottom: 20px;">GPU (GPU)</h3>
-            <div id="template-list">
-                <p>此 Space 还没有GPU。</p>
+            <!-- WebSocket Settings -->
+            <div id="websocket-settings"
+                style="margin-bottom: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; {% if card_type != 'websocket' %}display: none;{% endif %}">
+                <h4 style="margin: 0 0 15px 0; color: #495057;">WebSocket 远程连接设置</h4>
+                <small style="color: #666; display: block; margin-bottom: 15px;">
+                    远程电脑运行 <code>python app.py --host 域名 --spaces {{ space.name if space else 'space名称' }}</code> 即可连接到此
+                    Space。
+                </small>
+
+                <div style="margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" name="ws_enable_prompt" {% if space and space.ws_enable_prompt
+                            %}checked{% endif %} style="width: auto;">
+                        <span style="font-weight: bold;">启用提示词输入</span>
+                    </label>
+                    <small style="color: #666; margin-left: 26px;">允许用户输入文本提示词发送给远程推理。</small>
+                </div>
+
+                <div style="margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" name="ws_enable_audio" {% if space and space.ws_enable_audio %}checked{%
+                            endif %} style="width: auto;">
+                        <span style="font-weight: bold;">启用音频上传</span>
+                    </label>
+                    <small style="color: #666; margin-left: 26px;">允许用户上传音频文件发送给远程推理。</small>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" name="ws_enable_video" {% if space and space.ws_enable_video %}checked{%
+                            endif %} style="width: auto;">
+                        <span style="font-weight: bold;">启用视频上传</span>
+                    </label>
+                    <small style="color: #666; margin-left: 26px;">允许用户上传视频文件发送给远程推理。</small>
+                </div>
+
+                <div style="margin-bottom: 10px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">最大排队人数</label>
+                    <input type="number" name="ws_max_queue_size" min="1" max="100"
+                        value="{{ space.ws_max_queue_size if space and space.ws_max_queue_size else 10 }}"
+                        style="width: 200px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                    <small style="color: #666; display: block; margin-top: 5px;">当队列达到此人数时，新用户将无法加入队列。</small>
+                </div>
             </div>
-            <button type="button" id="add-template-btn"
-                style="margin-top: 15px; background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">+
-                添加新GPU</button>
-        </div>
-        {% else %}
-        <div class="alert alert-info"
-            style="padding: 15px; background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; border-radius: 4px;">
-            请先保存 Space，然后您才能向其添加GPU。
-        </div>
-        {% endif %}
 
-        <br>
-        <button type="submit"
-            style="background: #dc3545; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            🚨 强制保存配置 (Force Save)
-        </button>
+            {% set timeout_seconds = space.cerebrium_timeout_seconds if space and space.cerebrium_timeout_seconds is not
+            none else 300 %}
+            {% set timeout_minutes = (timeout_seconds / 60) | int %}
+            <div id="custom-gpu-settings"
+                style="margin-bottom: 15px; {% if card_type != 'cerebrium' %}display: none;{% endif %}">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">推理超时时间（分钟）</label>
+                <input type="number" name="cerebrium_timeout_minutes" min="1" value="{{ timeout_minutes }}"
+                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                <small style="color: #666;">当用户发起自定义 GPU 推理后，在该时间内若未收到结果会提示超时，并允许重新发送。</small>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">封面图片</label>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <input type="file" id="cover_file_input" accept="image/*,video/*"
+                        style="padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <button type="button" id="select-cover-btn" class="btn btn-secondary"
+                        style="width: fit-content;">从我的作品中选择</button>
+                </div>
+                <input type="hidden" name="cover" id="cover_url_input" value="{{ space.cover if space else '' }}">
+                <input type="hidden" name="cover_type" id="cover_type_input"
+                    value="{{ space.cover_type if space else 'image' }}">
+                <div id="upload-status" style="margin-top: 10px; font-weight: bold;"></div>
+                <div id="cover-preview-container"
+                    style="margin-top: 10px; {% if not space or not space.cover %}display: none;{% endif %}">
+                    <p style="color: #666; margin: 0;">当前:</p>
+                    {% if space and space.cover %}
+                    {% set cover_url = space.cover if space.cover.startswith('http') else to_s3_url(space.cover) %}
+                    {% if space.cover_type == 'video' %}
+                    <video id="cover-preview-video" src="{{ cover_url }}"
+                        style="width: 150px; height: auto; vertical-align: middle; border-radius: 4px;"
+                        controls></video>
+                    <img id="cover-preview-img" src=""
+                        style="display: none; width: 100px; height: 100px; object-fit: cover; vertical-align: middle; border-radius: 4px;">
+                    {% else %}
+                    <video id="cover-preview-video" src=""
+                        style="display: none; width: 150px; height: auto; vertical-align: middle; border-radius: 4px;"
+                        controls></video>
+                    <img id="cover-preview-img" src="{{ cover_url }}"
+                        style="width: 100px; height: 100px; object-fit: cover; vertical-align: middle; border-radius: 4px;">
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            <hr style="margin-top: 20px; margin-bottom: 20px; border: 0; border-top: 1px solid #eee;">
 
+            {% if space %}
+            <div id="template-management" style="margin-bottom: 20px;">
+                <h3 style="color: #333; margin-bottom: 20px;">GPU (GPU)</h3>
+                <div id="template-list">
+                    <p>此 Space 还没有GPU。</p>
+                </div>
+                <button type="button" id="add-template-btn"
+                    style="margin-top: 15px; background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">+
+                    添加新GPU</button>
+            </div>
+            {% else %}
+            <div class="alert alert-info"
+                style="padding: 15px; background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; border-radius: 4px;">
+                请先保存 Space，然后您才能向其添加GPU。
+            </div>
+            {% endif %}
+
+            <br>
+            <button type="submit"
+                style="background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                保存 Space
+            </button>
     </form>
 </div>
 
@@ -213,12 +270,16 @@
         const cardTypeSelect = document.querySelector('select[name="card_type"]');
         const remoteInferenceSettings = document.getElementById('remote-inference-settings');
         const netmindSettings = document.getElementById('netmind-settings');
+        const customGpuSettings = document.getElementById('custom-gpu-settings');
+        const websocketSettings = document.getElementById('websocket-settings');
 
         if (cardTypeSelect) {
             const toggleSettings = () => {
                 const val = cardTypeSelect.value;
                 if (remoteInferenceSettings) remoteInferenceSettings.style.display = val === 'remote_inference' ? 'block' : 'none';
                 if (netmindSettings) netmindSettings.style.display = val === 'netmind' ? 'block' : 'none';
+                if (customGpuSettings) customGpuSettings.style.display = val === 'cerebrium' ? 'block' : 'none';
+                if (websocketSettings) websocketSettings.style.display = val === 'websocket' ? 'block' : 'none';
             };
             cardTypeSelect.addEventListener('change', toggleSettings);
             toggleSettings();
@@ -247,7 +308,6 @@
                 }
             }
         }
-
         if (coverFileInput) {
             coverFileInput.addEventListener('change', async function (event) {
                 const file = event.target.files[0];
@@ -824,13 +884,22 @@
                 </div>
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">命令运行器</label>
-                    <select name="command_runner" id="command_runner_select"
+                    <<<<<<< HEAD <select name="command_runner" id="command_runner_select"
                         style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
                         <option value="gradio_client">Remote Gradio (远程推理)</option>
                         <option value="custom">自定义命令</option>
-                    </select>
+                        </select>
                 </div>
                 <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
+                    =======
+                    <select name="command_runner"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        <option value="inferless">Inferless</option>
+                        <option value="modal">Modal</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    >>>>>>> @{-1}
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">入口脚本 (Entrypoint
                         Script)</label>
                     <input type="text" name="entrypoint_script"
@@ -838,71 +907,89 @@
                         placeholder="app.py">
                     <small style="color: #666;">运行命令时要执行的脚本文件，例如 `app.py` 或 `gradio.py`。</small>
                 </div>
-                <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">主命令前置 (可选)</label>
-                    <input type="text" name="pre_command"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
-                        placeholder="例如: cd flux &&">
-                </div>
-                <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">子命令前置 (可选)</label>
-                    <input type="text" name="sub_command"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
-                        placeholder="例如: cd workspace &&">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;"
-                        id="base_command_label">基础命令</label>
-                    <input type="text" name="base_command" required
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;">
-                    <small id="base_command_help" style="color: #666;"></small>
-                </div>
-                <div class="runner-field runner-field-inferless runner-field-modal" style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">预设参数 (管理员定义)</label>
-                    <input type="text" name="preset_params"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
-                        placeholder="例如: --height 720 --width 1280">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">预测输出文件名 (可选)</label>
-                    <input type="text" name="predicted_output_filename"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
-                        placeholder="例如: output.wav">
-                    <small style="color: #666;">如果留空，将根据prompt和seed自动生成文件名。可以包含路径，例如 `assets/output.glb`，否则将默认保存在
-                        `output/` 目录下。</small>
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">附加参数GPU</label>
-                    <div id="modal-params-container" style="display: flex; flex-direction: column; gap: 15px;"></div>
-                    <button type="button" id="modal-add-param"
-                        style="margin-top: 15px; background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">+
-                        添加参数</button>
-                    <input type="hidden" name="params" id="modal-params-hidden-input">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">超时时间 (秒)</label>
-                    <input type="number" name="timeout" value="300"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">强制上传文件</label>
-                    <input type="checkbox" name="force_upload" style="width: auto;">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">开启 Lora 上传</label>
-                    <input type="checkbox" name="enable_lora_upload" style="width: auto;">
-                    <small style="color: #666;">如果选中，将允许上传一个额外的 lora safetensors 文件。</small>
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">关闭提示词</label>
-                    <input type="checkbox" name="disable_prompt" style="width: auto;">
-                    <small style="color: #666;">如果选中，该模板将不再有提示词输入功能。</small>
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">需要邀请码</label>
-                    <input type="checkbox" name="requires_invitation_code" style="width: auto;">
-                    <small style="color: #666;">如果选中，只有拥有邀请码的用户才能使用此GPU。</small>
-                </div>
+                <<<<<<< HEAD <div class="runner-field runner-field-inferless runner-field-modal"
+                    style="margin-bottom: 15px;">
+                    =======
+                    <div style="margin-bottom: 15px;">
+                        >>>>>>> @{-1}
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">主命令前置 (可选)</label>
+                        <input type="text" name="pre_command"
+                            style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
+                            placeholder="例如: cd flux &&">
+                    </div>
+                    <<<<<<< HEAD <div class="runner-field runner-field-inferless runner-field-modal"
+                        style="margin-bottom: 15px;">
+                        =======
+                        <div style="margin-bottom: 15px;">
+                            >>>>>>> @{-1}
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">子命令前置 (可选)</label>
+                            <input type="text" name="sub_command"
+                                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
+                                placeholder="例如: cd workspace &&">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <<<<<<< HEAD <label style="display: block; margin-bottom: 5px; font-weight: bold;"
+                                id="base_command_label">基础命令</label>
+                                <input type="text" name="base_command" required
+                                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;">
+                                <small id="base_command_help" style="color: #666;"></small>
+                        </div>
+                        <div class="runner-field runner-field-inferless runner-field-modal"
+                            style="margin-bottom: 15px;">
+                            =======
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">基础命令</label>
+                            <input type="text" name="base_command" required
+                                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            >>>>>>> @{-1}
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">预设参数 (管理员定义)</label>
+                            <input type="text" name="preset_params"
+                                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
+                                placeholder="例如: --height 720 --width 1280">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">预测输出文件名 (可选)</label>
+                            <input type="text" name="predicted_output_filename"
+                                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"
+                                placeholder="例如: output.wav">
+                            <small style="color: #666;">如果留空，将根据prompt和seed自动生成文件名。可以包含路径，例如
+                                `assets/output.glb`，否则将默认保存在
+                                `output/` 目录下。</small>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 10px; font-weight: bold;">附加参数GPU</label>
+                            <div id="modal-params-container" style="display: flex; flex-direction: column; gap: 15px;">
+                            </div>
+                            <button type="button" id="modal-add-param"
+                                style="margin-top: 15px; background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">+
+                                添加参数</button>
+                            <input type="hidden" name="params" id="modal-params-hidden-input">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">超时时间 (秒)</label>
+                            <input type="number" name="timeout" value="300"
+                                style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">强制上传文件</label>
+                            <input type="checkbox" name="force_upload" style="width: auto;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">开启 Lora 上传</label>
+                            <input type="checkbox" name="enable_lora_upload" style="width: auto;">
+                            <small style="color: #666;">如果选中，将允许上传一个额外的 lora safetensors 文件。</small>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">关闭提示词</label>
+                            <input type="checkbox" name="disable_prompt" style="width: auto;">
+                            <small style="color: #666;">如果选中，该模板将不再有提示词输入功能。</small>
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">需要邀请码</label>
+                            <input type="checkbox" name="requires_invitation_code" style="width: auto;">
+                            <small style="color: #666;">如果选中，只有拥有邀请码的用户才能使用此GPU。</small>
+                        </div>
             </div> <!-- closes normal-editor -->
             <div id="advanced-editor" style="display: none;">
                 <div style="margin-bottom: 15px;">

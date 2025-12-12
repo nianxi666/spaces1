@@ -4,10 +4,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from flask import Flask, request, session
 from flask_babel import Babel
-from flask_socketio import SocketIO
 from datetime import datetime
-
-socketio = SocketIO()
 
 def format_datetime(value, format='%Y-%m-%d %H:%M'):
     if value:
@@ -56,7 +53,8 @@ def create_app(test_config=None):
         return 'en'
 
     babel = Babel(app, locale_selector=get_locale)
-    socketio.init_app(app)
+
+    # Ensure the instance folder exists
 
     # Ensure the instance folder exists
     try:
@@ -91,6 +89,12 @@ def create_app(test_config=None):
 
     from . import webhook_kofi
     app.register_blueprint(webhook_kofi.payment_bp)
+
+    # Register WebSocket blueprint and initialize SocketIO
+    from .websocket_server import ws_bp, init_socketio
+    app.register_blueprint(ws_bp)
+    socketio = init_socketio(app)
+    app.socketio = socketio  # Store reference for run.py
 
     # Register custom Jinja2 filters
     app.jinja_env.filters['format_datetime'] = format_datetime

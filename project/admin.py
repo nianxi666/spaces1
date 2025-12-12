@@ -316,6 +316,17 @@ def add_edit_space(space_id=None):
         if not netmind_settings.get('enable_alias_mapping'):
             netmind_upstream = netmind_alias
 
+        # WebSocket settings
+        ws_enable_prompt = request.form.get('ws_enable_prompt') == 'on'
+        ws_enable_audio = request.form.get('ws_enable_audio') == 'on'
+        ws_enable_video = request.form.get('ws_enable_video') == 'on'
+        try:
+            ws_max_queue_size = int(request.form.get('ws_max_queue_size', 10))
+            if ws_max_queue_size <= 0:
+                ws_max_queue_size = 10
+        except (ValueError, TypeError):
+            ws_max_queue_size = 10
+
         if space: # Editing an existing space
             space['name'] = request.form['name']
             space['description'] = request.form.get('description', '')
@@ -344,6 +355,17 @@ def add_edit_space(space_id=None):
             else:
                 space.pop('netmind_model', None)
                 space.pop('netmind_upstream_model', None)
+            # WebSocket settings
+            if card_type == 'websocket':
+                space['ws_enable_prompt'] = ws_enable_prompt
+                space['ws_enable_audio'] = ws_enable_audio
+                space['ws_enable_video'] = ws_enable_video
+                space['ws_max_queue_size'] = ws_max_queue_size
+            else:
+                space.pop('ws_enable_prompt', None)
+                space.pop('ws_enable_audio', None)
+                space.pop('ws_enable_video', None)
+                space.pop('ws_max_queue_size', None)
         else: # Creating a new space
             db['spaces'][new_id] = {
                 'id': new_id,
@@ -361,7 +383,13 @@ def add_edit_space(space_id=None):
                 'enable_prompt': request.form.get('enable_prompt') == 'true' if card_type == 'remote_inference' else True,
                 'enable_image_input': request.form.get('enable_image_input') == 'true' if card_type == 'remote_inference' else False,
                 'enable_audio_input': request.form.get('enable_audio_input') == 'true' if card_type == 'remote_inference' else False,
-                'enable_file_input': request.form.get('enable_file_input') == 'true' if card_type == 'remote_inference' else False
+                'enable_file_input': request.form.get('enable_file_input') == 'true' if card_type == 'remote_inference' else False,
+
+                # WebSocket settings
+                'ws_enable_prompt': ws_enable_prompt if card_type == 'websocket' else False,
+                'ws_enable_audio': ws_enable_audio if card_type == 'websocket' else False,
+                'ws_enable_video': ws_enable_video if card_type == 'websocket' else False,
+                'ws_max_queue_size': ws_max_queue_size if card_type == 'websocket' else 10
             }
         sync_netmind_aliases(db)
         save_db(db)
@@ -370,6 +398,7 @@ def add_edit_space(space_id=None):
 
     settings = db.get('settings', {})
     return render_template('add_edit_space.html', space=space, settings=settings, netmind_settings=netmind_settings)
+
 
 @admin_bp.route('/space/<space_id>/set_cover', methods=['POST'])
 def set_space_cover(space_id):
