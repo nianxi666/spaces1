@@ -516,11 +516,8 @@
 }
 </style>
 
-{% if space_card_type == 'cerebrium' or space_card_type == 'remote_inference' %}
+{% if space_card_type == 'cerebrium' %}
 <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1093.0.min.js"></script>
-<!-- Buffer Polyfill for Gradio Client in Browser -->
-<script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.min.js"></script>
-<script>window.Buffer = window.buffer.Buffer;</script>
 {% endif %}
 
 <script>
@@ -595,31 +592,6 @@ function initCustomGpuFlow() {
     let pendingJobKey = null;
     let pendingJobName = null;
     let isPendingLocked = false;
-
-    // Dynamic import for Gradio Client if needed
-    let GradioClient = null;
-    let handle_file = null;
-
-    async function loadGradioClient() {
-        if (GradioClient) return;
-        try {
-            const module = await import('https://cdn.jsdelivr.net/npm/@gradio/client@1.2.0/dist/index.min.js');
-            GradioClient = module.Client;
-            handle_file = module.handle_file;
-            console.log("Gradio Client loaded via CDN.");
-        } catch (e) {
-            console.error("Failed to load Gradio Client from CDN, trying fallback...", e);
-            // Fallback to latest
-            try {
-                const module = await import('https://cdn.jsdelivr.net/npm/@gradio/client/+esm');
-                GradioClient = module.Client;
-                handle_file = module.handle_file;
-            } catch (e2) {
-                setStatus("Error: Failed to load Gradio Client library.");
-                throw e2;
-            }
-        }
-    }
 
     function setStatus(message) {
         if (statusBox) {
@@ -1110,92 +1082,92 @@ function initCustomGpuFlow() {
         }
 
         if (isRemoteInference) {
-            // REMOTE INFERENCE FLOW
+            // REMOTE INFERENCE FLOW via Backend Proxy
             try {
                 isSubmitting = true;
                 updateButtonState();
 
-                await loadGradioClient();
-                if (!GradioClient) throw new Error("Gradio Client Library not loaded.");
+                setStatus('1. Preparing Inputs...');
 
-                setStatus('1. Connecting to Remote GPU...');
-                // The API URL from admin config
-                const client = await GradioClient.connect(remoteApiUrl, { hf_token: remoteApiToken });
-
-                setStatus('2. Preparing Inputs...');
-                // Get Audio Input (File/Blob)
-                let audioBlob;
+                // Get Audio Input URL
+                let audioUrl;
                 const modeInput = document.querySelector('input[name="audio-source"]:checked');
                 if (modeInput && modeInput.value === 'upload') {
-                    if (!audioUploadInput.files[0]) throw new Error("Audio input is missing.");
                     if (!uploadedAudioS3Url) throw new Error("请等待音频文件上传完成。");
-                    audioBlob = audioUploadInput.files[0];
+                    audioUrl = uploadedAudioS3Url;
                 } else {
-                    const audioBlobUrl = resolveMediaUrl('audio');
-                    if (!audioBlobUrl) throw new Error("Audio input is missing.");
-
-                    // Fetch the blob from the URL (which might be an S3 presigned URL or local)
-                    const audioResp = await fetch(audioBlobUrl);
-                    if (!audioResp.ok) throw new Error("Failed to fetch audio file for upload.");
-                    audioBlob = await audioResp.blob();
+                    audioUrl = resolveMediaUrl('audio');
+                    if (!audioUrl) throw new Error("Audio input is missing.");
                 }
 
-                // Get Text Inputs
-                const textToSynthesize = promptInput ? promptInput.value : "Hello World"; // Default if missing
-                const promptText = "Same as the voice reference"; // Hardcoded default based on user request/script
+                const textToSynthesize = promptInput ? promptInput.value : "Hello World";
+                const promptText = "Same as the voice reference";
 
-                setStatus('3. Sending Prediction Request...');
+                // Construct inputs array for backend proxy
+                const inputs = [
+                    promptText,                 // 1. emo_control_method
+                    audioUrl,                   // 2. prompt (Audio URL)
+                    textToSynthesize,           // 3. text
+                    audioUrl,                   // 4. emo_ref_path (Audio URL)
+                    0.8,                        // 5. emo_weight
+                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // 6-13. vectors
+                    "",                         // 14. emo_text
+                    false,                      // 15. emo_random
+                    120,                        // 16. max_text_tokens_per_segment
+                    true,                       // 17. param_16 (Enable flag)
+                    0.8, 30, 0.8, 0.0, 3, 10.0, 1500 // 18-24. Advanced params
+                ];
 
-                // Call predict with the specific signature from the user's python script
-                // Signature: prompt, ref_audio, text, ref_audio, ...
-                const result = await client.predict("/generate", [
-                    promptText,                 // Prompt (Ref Text)
-                    handle_file(audioBlob),     // Reference Audio (Original)
-                    textToSynthesize,           // Text to synthesize
-                    handle_file(audioBlob),     // Reference Audio (Target) - Script uses same file
-                    0.8,                        // Alpha
-                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // 8 floats
-                    "",                         // Extra prompt
-                    false,                      // Disable prompt
-                    120,                        // Speed
-                    true,                       // Enable flag
-                    0.8, 30, 0.8, 0.0, 3, 10.0, 1500 // Advanced params
-                ]);
+                setStatus('2. Sending Request to Backend Proxy...');
 
-                setStatus('4. Processing Result...');
-                console.log("Prediction Result:", result);
+                const response = await fetch('/api/proxy/gradio', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        api_url: remoteApiUrl,
+                        api_token: remoteApiToken,
+                        inputs: inputs
+                    })
+                });
 
-                // Result is likely an audio file path or URL from the Gradio server
-                // We need to display it and maybe upload to our S3?
-                // The result from client.predict usually returns the data directly or a URL.
-                // For audio, it is usually a URL.
-
-                const resultAudioUrl = result.data ? result.data[0].url : (Array.isArray(result) ? result[0].url : result);
-
-                // Prepare S3 upload for persistence
-                const s3Context = await ensureS3Context();
-                const outputKey = generateOutputKey(s3Context.username_prefix).replace('.mp4', '.wav');
-                const finalUrl = `${publicBaseUrl}/${outputKey}`;
-                const fileName = outputKey.split('/').pop();
-
-                renderResultPreview({ status: 'completed', filename: fileName, output_key: outputKey, public_url: resultAudioUrl, is_audio: true });
-
-                // Upload the result to OUR S3 for persistence
-                if (resultAudioUrl) {
-                    setStatus('5. Persisting Result...');
-                    const resFile = await fetch(resultAudioUrl);
-                    const resBlob = await resFile.blob();
-                    const uploadUrl = await s3Client.getSignedUrlPromise('putObject', {
-                        Bucket: s3Context.bucket_name,
-                        Key: outputKey,
-                        ContentType: 'audio/wav',
-                        Expires: 3600
-                    });
-                    await fetch(uploadUrl, { method: 'PUT', body: resBlob });
-                    await persistResult(outputKey, fileName, 'completed', finalUrl);
+                if (!response.ok) {
+                    let errMessage = `Proxy Error: ${response.status}`;
+                    try {
+                        const errData = await response.json();
+                        if (errData.error) errMessage = errData.error;
+                    } catch(e) {}
+                    throw new Error(errMessage);
                 }
 
-                setStatus('Completed! Audio generated successfully.');
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error(data.error || 'Unknown proxy error');
+                }
+
+                setStatus('3. Processing Result...');
+                const result = data.result;
+                console.log("Proxy Result:", result);
+
+                let resultAudioUrl, outputKey, fileName;
+
+                if (result && result.url) {
+                    // Result from our proxy which handled S3 upload
+                    resultAudioUrl = result.url;
+                    outputKey = result.key;
+                    fileName = result.filename;
+
+                    // Persist the result record in DB
+                    await persistResult(outputKey, fileName, 'completed', resultAudioUrl);
+
+                    renderResultPreview({ status: 'completed', filename: fileName, output_key: outputKey, public_url: resultAudioUrl, is_audio: true });
+                    setStatus('Completed! Audio generated successfully.');
+                } else {
+                    // Fallback for non-file results or unexpected structure
+                    setStatus('Completed (Non-file result).');
+                    resultContent.textContent = JSON.stringify(result);
+                }
 
             } catch (error) {
                 console.error('Remote Inference Error:', error);

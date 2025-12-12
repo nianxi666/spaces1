@@ -1146,6 +1146,89 @@ def api_upload_stream():
         current_app.logger.error(f"S3 Streaming Upload Failed: {e}")
         return jsonify({'error': f"Upload failed: {str(e)}"}), 500
 
+@api_bp.route('/proxy/gradio', methods=['POST'])
+def proxy_gradio_inference():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.json
+    api_url = data.get('api_url')
+    api_token = data.get('api_token')
+    inputs = data.get('inputs')
+
+    if not api_url or inputs is None:
+        return jsonify({'error': 'Missing api_url or inputs'}), 400
+
+    username = session['username']
+
+    try:
+        from gradio_client import Client
+        # Connect
+        client = Client(api_url, token=api_token if api_token else None)
+
+        # Predict
+        result = client.predict(*inputs, api_name="/generate")
+
+        # Result handling
+        if isinstance(result, str) and os.path.exists(result):
+            # It's a local file. Upload to S3.
+            filename = os.path.basename(result)
+            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+            s3_key = f"{username}/generated_{timestamp}_{filename}"
+
+            s3_config = get_s3_config()
+            import boto3
+            from botocore.client import Config
+            endpoint = s3_config['S3_ENDPOINT_URL']
+            if endpoint.startswith('https://'):
+                endpoint = endpoint.replace('https://', 'http://', 1)
+
+            s3_client = boto3.client(
+                's3',
+                endpoint_url=endpoint,
+                aws_access_key_id=s3_config['S3_ACCESS_KEY_ID'],
+                aws_secret_access_key=s3_config['S3_SECRET_ACCESS_KEY'],
+                config=Config(signature_version='s3v4'),
+                region_name='auto',
+                verify=False
+            )
+
+            # Determine content type
+            content_type = 'application/octet-stream'
+            if filename.endswith('.wav'):
+                content_type = 'audio/wav'
+            elif filename.endswith('.mp3'):
+                content_type = 'audio/mpeg'
+
+            s3_client.upload_file(
+                result,
+                s3_config['S3_BUCKET_NAME'],
+                s3_key,
+                ExtraArgs={'ContentType': content_type}
+            )
+
+            # Clean up local file
+            os.remove(result)
+
+            public_url = get_public_s3_url(s3_key)
+
+            return jsonify({
+                'success': True,
+                'result': {
+                    'url': public_url,
+                    'key': s3_key,
+                    'filename': filename,
+                    'orig_result': result
+                }
+            })
+
+        else:
+            return jsonify({'success': True, 'result': result})
+
+    except Exception as e:
+        current_app.logger.error(f"Proxy Inference Failed: {e}")
+        return jsonify({'error': str(e)}), 500
+
 def _require_admin_session():
     if not session.get('logged_in') or not session.get('is_admin'):
         return False
