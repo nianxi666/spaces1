@@ -69,15 +69,13 @@
                 {% if ai_project.websockets_config and ai_project.websockets_config.enable_audio %}
                 <div>
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">音频直链</label>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="url" name="audio_url" id="audio-input" placeholder="https://example.com/audio.wav"
-                            style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                        <button type="button" id="pick-file-btn"
-                            style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">
-                            📁 选择文件
-                        </button>
-                    </div>
-                    <small style="color: #666;">输入音频文件的直链地址，或点击按钮从网盘选择</small>
+                    <input type="url" name="audio_url" id="audio-input" placeholder="https://example.com/audio.wav"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; margin-bottom: 8px;">
+                    <button type="button" id="pick-file-btn"
+                        style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        📁 从网盘选择文件
+                    </button>
+                    <small style="color: #666; display: block; margin-top: 5px;">输入音频文件的直链地址，或点击按钮从网盘选择</small>
                 </div>
                 {% endif %}
 
@@ -170,6 +168,7 @@
         function openFilePicker() {
             // 创建模态框
             const modal = document.createElement('div');
+            modal.className = 'file-picker-modal';
             modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;';
 
             const modalContent = document.createElement('div');
@@ -189,24 +188,27 @@
             });
 
             // 加载文件列表
-            fetch('/api/list_files')
+            fetch('/api/my_s3_files')
                 .then(res => res.json())
                 .then(data => {
                     const fileList = document.getElementById('file-list');
                     if (data.success && data.files && data.files.length > 0) {
                         fileList.innerHTML = data.files.map(file => `
-                            <div style="padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 4px; cursor: pointer; hover:background: #f8f9fa;" 
-                                 onclick="selectFile('${file.url}', this.parentElement.parentElement.parentElement)">
+                            <div style="padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 4px; cursor: pointer;" 
+                                 onclick="selectFile('${file.url}', this.closest('.file-picker-modal'))"
+                                 onmouseover="this.style.background='#f8f9fa'" 
+                                 onmouseout="this.style.background='white'">
                                 <strong>${file.filename}</strong><br>
                                 <small style="color: #666;">${(file.size / 1024).toFixed(2)} KB</small>
                             </div>
                         `).join('');
                     } else {
-                        fileList.innerHTML = '<p style="color: #666;">暂无文件</p>';
+                        fileList.innerHTML = '<p style="color: #666;">暂无文件，请先上传文件到网盘</p>';
                     }
                 })
                 .catch(err => {
-                    document.getElementById('file-list').innerHTML = '<p style="color: red;">加载失败</p>';
+                    console.error('加载文件失败:', err);
+                    document.getElementById('file-list').innerHTML = '<p style="color: red;">加载失败: ' + err.message + '</p>';
                 });
         }
 
