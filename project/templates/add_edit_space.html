@@ -19,10 +19,37 @@
             {% set card_type = space.card_type if space else 'standard' %}
             <select name="card_type" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
                 <option value="standard" {% if card_type == 'standard' %}selected{% endif %}>标准命令型 (Inferless/Modal)</option>
+                <option value="ws_shell" {% if card_type == 'ws_shell' %}selected{% endif %}>WebSocket Shell 型（远程执行命令白名单）</option>
                 <option value="cerebrium" {% if card_type == 'cerebrium' %}selected{% endif %}>自定义 GPU API 型</option>
                 <option value="netmind" {% if card_type == 'netmind' %}selected{% endif %}>模型代理聊天型</option>
             </select>
-            <small style="color: #666;">该类型会通过代理 API 转发聊天请求，可将对外模型名称与真实上游解耦。</small>
+            <small style="color: #666;">“模型代理聊天型”会通过代理 API 转发聊天请求，可将对外模型名称与真实上游解耦。</small>
+        </div>
+
+        <div id="ws-shell-settings" style="margin-bottom: 15px; {% if card_type != 'ws_shell' %}display: none;{% endif %}">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">被控端 WebSocket 地址</label>
+            <input type="text"
+                   name="ws_shell_target_url"
+                   value="{{ space.ws_shell_target_url if space and space.ws_shell_target_url else '' }}"
+                   placeholder="例如：ws://127.0.0.1:9002"
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            <small style="color: #666;">网站会通过该 WebSocket 向远程机器发送命令并获取输出。</small>
+
+            <label style="display: block; margin: 15px 0 5px; font-weight: bold;">允许执行的命令（每行一条）</label>
+            <textarea name="ws_shell_commands_text"
+                      placeholder="示例：\n查看系统信息::uname -a\n列出目录::ls -la"
+                      style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; height: 140px;">{% if space and space.ws_shell_commands %}{% for cmd in space.ws_shell_commands %}{{ cmd.label }}::{{ cmd.command }}
+{% endfor %}{% endif %}</textarea>
+            <small style="color: #666;">格式：显示名::实际命令。用户只能从这些命令中选择执行。</small>
+
+            {% if space and space.ws_shell_token %}
+            <label style="display: block; margin: 15px 0 5px; font-weight: bold;">被控端校验 Token</label>
+            <input type="text"
+                   value="{{ space.ws_shell_token }}"
+                   readonly
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; background: #f5f5f5; color: #666;">
+            <small style="color: #666;">被控端可校验该 Token，拒绝未授权的命令请求。</small>
+            {% endif %}
         </div>
 
         <div id="netmind-settings" style="margin-bottom: 15px; {% if card_type != 'netmind' %}display: none;{% endif %}">
@@ -116,12 +143,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const cardTypeSelect = document.querySelector('select[name="card_type"]');
     const customGpuSettings = document.getElementById('custom-gpu-settings');
     const netmindSettings = document.getElementById('netmind-settings');
+    const wsShellSettings = document.getElementById('ws-shell-settings');
 
     if (cardTypeSelect) {
         const toggleSettings = () => {
             const val = cardTypeSelect.value;
             if (customGpuSettings) customGpuSettings.style.display = val === 'cerebrium' ? 'block' : 'none';
             if (netmindSettings) netmindSettings.style.display = val === 'netmind' ? 'block' : 'none';
+            if (wsShellSettings) wsShellSettings.style.display = val === 'ws_shell' ? 'block' : 'none';
         };
         cardTypeSelect.addEventListener('change', toggleSettings);
         toggleSettings();

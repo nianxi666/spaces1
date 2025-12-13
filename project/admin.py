@@ -18,6 +18,7 @@ from .netmind_config import (
     sanitize_rate_limit_max_requests,
     sanitize_rate_limit_window
 )
+from .ws_shell_utils import ensure_ws_shell_token, parse_ws_shell_commands
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -605,21 +606,36 @@ def add_edit_space(space_id=None):
         if not netmind_settings.get('enable_alias_mapping'):
             netmind_upstream = netmind_alias
 
-        if space: # Editing an existing space
+        ws_shell_target_url = request.form.get('ws_shell_target_url', '').strip()
+        ws_shell_commands_text = request.form.get('ws_shell_commands_text', '')
+        ws_shell_commands = parse_ws_shell_commands(ws_shell_commands_text)
+
+        if space:  # Editing an existing space
             space['name'] = request.form['name']
             space['description'] = request.form.get('description', '')
             space['cover'] = cover_filename
             space['cover_type'] = cover_type
             space['card_type'] = card_type
             space['cerebrium_timeout_seconds'] = timeout_seconds
+
             if card_type == 'netmind':
                 space['netmind_model'] = netmind_alias
                 space['netmind_upstream_model'] = netmind_upstream or ''
             else:
                 space.pop('netmind_model', None)
                 space.pop('netmind_upstream_model', None)
-        else: # Creating a new space
-            db['spaces'][new_id] = {
+
+            if card_type == 'ws_shell':
+                space['ws_shell_target_url'] = ws_shell_target_url
+                space['ws_shell_commands'] = ws_shell_commands
+                ensure_ws_shell_token(space)
+            else:
+                space.pop('ws_shell_target_url', None)
+                space.pop('ws_shell_token', None)
+                space.pop('ws_shell_commands', None)
+
+        else:  # Creating a new space
+            new_space = {
                 'id': new_id,
                 'name': request.form['name'],
                 'description': request.form.get('description', ''),
@@ -627,10 +643,20 @@ def add_edit_space(space_id=None):
                 'cover_type': cover_type,
                 'card_type': card_type,
                 'cerebrium_timeout_seconds': timeout_seconds,
-                'templates': {}, # Initialize with an empty templates dict
-                'netmind_model': netmind_alias if card_type == 'netmind' else '',
-                'netmind_upstream_model': netmind_upstream if card_type == 'netmind' else ''
+                'templates': {},  # Initialize with an empty templates dict
             }
+
+            if card_type == 'netmind':
+                new_space['netmind_model'] = netmind_alias
+                new_space['netmind_upstream_model'] = netmind_upstream
+
+            if card_type == 'ws_shell':
+                new_space['ws_shell_target_url'] = ws_shell_target_url
+                new_space['ws_shell_commands'] = ws_shell_commands
+                ensure_ws_shell_token(new_space)
+
+            db['spaces'][new_id] = new_space
+
         sync_netmind_aliases(db)
         save_db(db)
         flash(f"Space '{request.form['name']}' 已保存。", 'success')

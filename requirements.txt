@@ -7,3 +7,4 @@ Markdown>=3.3
 boto3>=1.20
 openai>=1.0.0
 Flask-Babel>=3.0.0
+websockets>=12.0
