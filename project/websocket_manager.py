@@ -116,6 +116,22 @@ class WebSocketManager:
             if connection:
                 return len(connection.request_queue)
             return 0
+    
+    def get_queue_list(self, space_id):
+        """Get list of requests in queue with usernames"""
+        with self.lock:
+            connection = self.connections.get(space_id)
+            if not connection:
+                return []
+            queue_list = []
+            for i, req in enumerate(connection.request_queue):
+                queue_list.append({
+                    'position': i + 1,
+                    'username': req.get('username', 'anonymous'),
+                    'request_id': req.get('request_id', '')[:8],
+                    'status': req.get('status', 'queued')
+                })
+            return queue_list
 
 # Global instance
 ws_manager = WebSocketManager()

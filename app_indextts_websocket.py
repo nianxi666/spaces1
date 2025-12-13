@@ -28,7 +28,7 @@ sys.path.append(os.path.join(current_dir, "indextts"))
 import socketio
 
 # ============== 配置 ==============
-DEFAULT_SERVER_URL = "http://localhost:5001"
+SERVER_URL = "https://pumpkinai.space"
 DEFAULT_SPACE_NAME = "IndexTTS"
 
 # WebSocket 重连配置
@@ -328,8 +328,8 @@ def main():
         description="IndexTTS WebSocket Client",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--server", type=str, default=DEFAULT_SERVER_URL, 
-                        help="WebSocket 服务器地址")
+    parser.add_argument("--server", type=str, default=SERVER_URL,
+                        help="WebSocket 服务器地址 (可选，默认使用域名)")
     parser.add_argument("--space", type=str, default=DEFAULT_SPACE_NAME,
                         help="Space 名称 (必须与服务器上创建的 Space 名称一致)")
     parser.add_argument("--model_dir", type=str, default="/gemini/pretrain/IndexTTS-2",
@@ -344,6 +344,11 @@ def main():
                         help="详细输出")
     
     args = parser.parse_args()
+    
+    # 处理 server URL - 如果没有协议前缀，自动添加 http://
+    server_url = args.server
+    if not server_url.startswith("http://") and not server_url.startswith("https://"):
+        server_url = f"http://{server_url}"
     
     # 检查模型目录
     if not os.path.exists(args.model_dir):
@@ -367,13 +372,15 @@ def main():
     
     # 创建 WebSocket 客户端
     client = IndexTTSWebSocketClient(
-        server_url=args.server,
+        server_url=server_url,
         space_name=args.space,
         model=model
     )
     
     # 连接（自动重连循环）
     try:
+        log('INFO', f"服务器地址: {server_url}")
+        log('INFO', f"Space 名称: {args.space}")
         log('INFO', "按 Ctrl+C 停止")
         client.connect()
     except KeyboardInterrupt:

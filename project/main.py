@@ -682,11 +682,13 @@ def ai_project_view(ai_project_id):
         from .websocket_manager import ws_manager
         is_connected = ws_manager.is_space_connected(ai_project_id)
         queue_size = ws_manager.get_queue_size(ai_project_id) if is_connected else 0
+        queue_list = ws_manager.get_queue_list(ai_project_id) if is_connected else []
         return render_template(
             'space_websockets.html',
             ai_project=ai_project,
             is_connected=is_connected,
             queue_size=queue_size,
+            queue_list=queue_list,
             announcement=announcement,
             current_username=username,
             server_domain=effective_server_domain
@@ -1322,16 +1324,19 @@ def submit_websockets_request(ai_project_id):
         'timestamp': datetime.utcnow().isoformat()
     }
 
-    if request.files.get('audio_file'):
-        # TODO: Handle audio file upload
-        pass
+    # Handle audio URL from form input
+    audio_url = request.form.get('audio_url', '').strip()
+    if audio_url:
+        payload['audio'] = audio_url
+    else:
+        return jsonify({'error': '缺少音频直链'}), 400
 
+    # Handle video file upload (TODO)
     if request.files.get('video_file'):
-        # TODO: Handle video file upload
         pass
 
+    # Handle other file upload (TODO)
     if request.files.get('other_file'):
-        # TODO: Handle other file upload
         pass
 
     success, result = ws_manager.queue_inference_request(ai_project_id, request_id, username, payload)
