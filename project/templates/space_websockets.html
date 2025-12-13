@@ -69,9 +69,15 @@
                 {% if ai_project.websockets_config and ai_project.websockets_config.enable_audio %}
                 <div>
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">音频直链</label>
-                    <input type="url" name="audio_url" id="audio-input" placeholder="https://example.com/audio.wav"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-                    <small style="color: #666;">输入音频文件的直链地址</small>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="url" name="audio_url" id="audio-input" placeholder="https://example.com/audio.wav"
+                            style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        <button type="button" id="pick-file-btn"
+                            style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">
+                            📁 选择文件
+                        </button>
+                    </div>
+                    <small style="color: #666;">输入音频文件的直链地址，或点击按钮从网盘选择</small>
                 </div>
                 {% endif %}
 
@@ -152,6 +158,65 @@
         const form = document.getElementById('inference-form');
         if (!form) return;
 
+        // 文件选择器按钮
+        const pickFileBtn = document.getElementById('pick-file-btn');
+        if (pickFileBtn) {
+            pickFileBtn.addEventListener('click', function () {
+                openFilePicker();
+            });
+        }
+
+        // 打开文件选择器弹窗
+        function openFilePicker() {
+            // 创建模态框
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;';
+
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = 'background: white; padding: 30px; border-radius: 8px; max-width: 800px; max-height: 80vh; overflow-y: auto; width: 90%;';
+            modalContent.innerHTML = `
+                <h3 style="margin-top: 0;">选择文件</h3>
+                <div id="file-list" style="margin: 20px 0;">加载中...</div>
+                <button id="close-modal" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">关闭</button>
+            `;
+
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+
+            // 关闭按钮
+            document.getElementById('close-modal').addEventListener('click', function () {
+                document.body.removeChild(modal);
+            });
+
+            // 加载文件列表
+            fetch('/api/list_files')
+                .then(res => res.json())
+                .then(data => {
+                    const fileList = document.getElementById('file-list');
+                    if (data.success && data.files && data.files.length > 0) {
+                        fileList.innerHTML = data.files.map(file => `
+                            <div style="padding: 10px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 4px; cursor: pointer; hover:background: #f8f9fa;" 
+                                 onclick="selectFile('${file.url}', this.parentElement.parentElement.parentElement)">
+                                <strong>${file.filename}</strong><br>
+                                <small style="color: #666;">${(file.size / 1024).toFixed(2)} KB</small>
+                            </div>
+                        `).join('');
+                    } else {
+                        fileList.innerHTML = '<p style="color: #666;">暂无文件</p>';
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('file-list').innerHTML = '<p style="color: red;">加载失败</p>';
+                });
+        }
+
+        // 选择文件
+        window.selectFile = function (url, modal) {
+            document.getElementById('audio-input').value = url;
+            document.body.removeChild(modal);
+        };
+
+
         form.addEventListener('submit', async function (e) {
             e.preventDefault();
 
@@ -202,7 +267,29 @@
                             clearInterval(pollResult);
                             statusDiv.style.display = 'none';
                             resultDiv.style.display = 'block';
-                            document.getElementById('result-content').textContent = JSON.stringify(statusData.result, null, 2);
+
+                            // 显示结果
+                            const result = statusData.result;
+                            const resultContent = document.getElementById('result-content');
+
+                            if (result.audio_url) {
+                                // 音频结果 - 显示播放器
+                                resultContent.innerHTML = `
+                                    <audio controls src="${result.audio_url}" style="width: 100%; margin-bottom: 10px;"></audio>
+                                    <p><strong>耗时:</strong> ${result.duration?.toFixed(2) || '-'}秒</p>
+                                    <a href="${result.audio_url}" download style="color: #007bff;">下载音频</a>
+                                `;
+                            } else if (result.image_url) {
+                                // 图片结果 - 显示图片
+                                resultContent.innerHTML = `
+                                    <img src="${result.image_url}" style="max-width: 100%; border-radius: 8px; margin-bottom: 10px;">
+                                    <p><strong>耗时:</strong> ${result.duration?.toFixed(2) || '-'}秒</p>
+                                    <a href="${result.image_url}" download style="color: #007bff;">下载图片</a>
+                                `;
+                            } else {
+                                // 其他结果 - 显示 JSON
+                                resultContent.textContent = JSON.stringify(result, null, 2);
+                            }
                         } else if (statusData.status === 'failed') {
                             clearInterval(pollResult);
                             statusDiv.style.display = 'none';

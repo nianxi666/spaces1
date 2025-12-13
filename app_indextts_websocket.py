@@ -235,16 +235,16 @@ class IndexTTSWebSocketClient:
             elapsed = time.time() - start_time
             log('INFO', f"推理完成 [{request_id[:8]}...] 耗时: {elapsed:.2f}s")
             
-            # 读取并编码音频
-            with open(output_path, 'rb') as f:
-                audio_data = base64.b64encode(f.read()).decode('utf-8')
+            # 上传结果到网站服务器（服务器会转存到 S3）
+            audio_url = self._upload_to_server(output_path, request_id, username)
+            log('INFO', f"已上传: {audio_url}")
             
             # 发送成功结果
             self.sio.emit('inference_result', {
                 'request_id': request_id,
                 'status': 'completed',
                 'result': {
-                    'audio': audio_data,
+                    'audio_url': audio_url,
                     'audio_format': 'wav',
                     'duration': elapsed
                 }
@@ -277,6 +277,29 @@ class IndexTTSWebSocketClient:
         
         urllib.request.urlretrieve(url_or_path, temp_path)
         return temp_path
+    
+    def _upload_to_server(self, file_path, request_id, username):
+        """上传文件到网站服务器（服务器会转存到 S3）"""
+        import requests
+        
+        # 上传到网站服务器的 API
+        upload_url = f"{self.server_url}/api/upload"
+        
+        with open(file_path, 'rb') as f:
+            files = {'file': (f'result_{request_id[:8]}.wav', f, 'audio/wav')}
+            data = {
+                'username': username,
+                'folder': 'ws_results'
+            }
+            
+            response = requests.post(upload_url, files=files, data=data)
+            response.raise_for_status()
+            
+            result = response.json()
+            if result.get('success'):
+                return result.get('url')
+            else:
+                raise Exception(result.get('error', '上传失败'))
     
     def connect(self):
         """连接到服务器（带自动重连）"""
