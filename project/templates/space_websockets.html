@@ -40,7 +40,7 @@
             <h3 style="margin-top: 0; color: #333;">发送推理请求</h3>
             
             <form id="inference-form" style="display: flex; flex-direction: column; gap: 15px;">
-                {% if ai_project.websockets_config.enable_prompt %}
+                {% if ai_project.websockets_config and ai_project.websockets_config.enable_prompt %}
                 <div>
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">提示词</label>
                     <textarea name="prompt" id="prompt-input" rows="4" placeholder="输入你的提示词..." 
@@ -48,7 +48,7 @@
                 </div>
                 {% endif %}
 
-                {% if ai_project.websockets_config.enable_audio %}
+                {% if ai_project.websockets_config and ai_project.websockets_config.enable_audio %}
                 <div>
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">音频文件</label>
                     <input type="file" name="audio_file" id="audio-input" accept="audio/*" 
@@ -57,7 +57,7 @@
                 </div>
                 {% endif %}
 
-                {% if ai_project.websockets_config.enable_video %}
+                {% if ai_project.websockets_config and ai_project.websockets_config.enable_video %}
                 <div>
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">视频文件</label>
                     <input type="file" name="video_file" id="video-input" accept="video/*" 
@@ -66,7 +66,7 @@
                 </div>
                 {% endif %}
 
-                {% if ai_project.websockets_config.enable_file_upload %}
+                {% if ai_project.websockets_config and ai_project.websockets_config.enable_file_upload %}
                 <div>
                     <label style="display: block; margin-bottom: 5px; font-weight: bold;">其他文件</label>
                     <input type="file" name="other_file" id="file-input" 
