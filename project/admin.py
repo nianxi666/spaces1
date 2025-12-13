@@ -605,6 +605,15 @@ def add_edit_space(space_id=None):
         if not netmind_settings.get('enable_alias_mapping'):
             netmind_upstream = netmind_alias
 
+        websockets_config = None
+        if card_type == 'websockets':
+            websockets_config = {
+                'enable_prompt': request.form.get('ws_enable_prompt') == 'on',
+                'enable_audio': request.form.get('ws_enable_audio') == 'on',
+                'enable_video': request.form.get('ws_enable_video') == 'on',
+                'enable_file_upload': request.form.get('ws_enable_file_upload') == 'on'
+            }
+
         if space: # Editing an existing space
             space['name'] = request.form['name']
             space['description'] = request.form.get('description', '')
@@ -618,6 +627,10 @@ def add_edit_space(space_id=None):
             else:
                 space.pop('netmind_model', None)
                 space.pop('netmind_upstream_model', None)
+            if card_type == 'websockets':
+                space['websockets_config'] = websockets_config
+            else:
+                space.pop('websockets_config', None)
         else: # Creating a new space
             db['spaces'][new_id] = {
                 'id': new_id,
@@ -629,7 +642,8 @@ def add_edit_space(space_id=None):
                 'cerebrium_timeout_seconds': timeout_seconds,
                 'templates': {}, # Initialize with an empty templates dict
                 'netmind_model': netmind_alias if card_type == 'netmind' else '',
-                'netmind_upstream_model': netmind_upstream if card_type == 'netmind' else ''
+                'netmind_upstream_model': netmind_upstream if card_type == 'netmind' else '',
+                'websockets_config': websockets_config if card_type == 'websockets' else None
             }
         sync_netmind_aliases(db)
         save_db(db)

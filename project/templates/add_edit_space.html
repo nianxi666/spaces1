@@ -21,6 +21,7 @@
                 <option value="standard" {% if card_type == 'standard' %}selected{% endif %}>标准命令型 (Inferless/Modal)</option>
                 <option value="cerebrium" {% if card_type == 'cerebrium' %}selected{% endif %}>自定义 GPU API 型</option>
                 <option value="netmind" {% if card_type == 'netmind' %}selected{% endif %}>模型代理聊天型</option>
+                <option value="websockets" {% if card_type == 'websockets' %}selected{% endif %}>WebSocket 远程连接型</option>
             </select>
             <small style="color: #666;">该类型会通过代理 API 转发聊天请求，可将对外模型名称与真实上游解耦。</small>
         </div>
@@ -51,13 +52,53 @@
 {% set timeout_seconds = space.cerebrium_timeout_seconds if space and space.cerebrium_timeout_seconds is not none else 300 %}
 {% set timeout_minutes = (timeout_seconds / 60) | int %}
 <div id="custom-gpu-settings" style="margin-bottom: 15px; {% if card_type != 'cerebrium' %}display: none;{% endif %}">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">推理超时时间（分钟）</label>
-            <input type="number"
-                   name="cerebrium_timeout_minutes"
-                   min="1"
-                   value="{{ timeout_minutes }}"
-                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
-    <small style="color: #666;">当用户发起自定义 GPU 推理后，在该时间内若未收到结果会提示超时，并允许重新发送。</small>
+             <label style="display: block; margin-bottom: 5px; font-weight: bold;">推理超时时间（分钟）</label>
+             <input type="number"
+                    name="cerebrium_timeout_minutes"
+                    min="1"
+                    value="{{ timeout_minutes }}"
+                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+     <small style="color: #666;">当用户发起自定义 GPU 推理后，在该时间内若未收到结果会提示超时，并允许重新发送。</small>
+         </div>
+
+        <div id="websockets-settings" style="margin-bottom: 15px; {% if card_type != 'websockets' %}display: none;{% endif %}">
+            <label style="display: block; margin-bottom: 10px; font-weight: bold;">WebSocket 配置</label>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #dee2e6;">
+                <p style="color: #666; margin-top: 0;">选择用户可以向远程app.py发送的功能：</p>
+
+                <div style="margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" name="ws_enable_prompt" {% if space and space.websockets_config and space.websockets_config.enable_prompt %}checked{% elif not space %}checked{% endif %} style="width: auto;">
+                        <span style="font-weight: 500;">启用提示词输入</span>
+                    </label>
+                    <small style="color: #666; margin-left: 24px;">用户可以输入文本提示词</small>
+                </div>
+
+                <div style="margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" name="ws_enable_audio" {% if space and space.websockets_config and space.websockets_config.enable_audio %}checked{% endif %} style="width: auto;">
+                        <span style="font-weight: 500;">启用音频上传</span>
+                    </label>
+                    <small style="color: #666; margin-left: 24px;">用户可以上传音频文件</small>
+                </div>
+
+                <div style="margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" name="ws_enable_video" {% if space and space.websockets_config and space.websockets_config.enable_video %}checked{% endif %} style="width: auto;">
+                        <span style="font-weight: 500;">启用视频上传</span>
+                    </label>
+                    <small style="color: #666; margin-left: 24px;">用户可以上传视频文件</small>
+                </div>
+
+                <div style="margin-bottom: 0;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" name="ws_enable_file_upload" {% if space and space.websockets_config and space.websockets_config.enable_file_upload %}checked{% endif %} style="width: auto;">
+                        <span style="font-weight: 500;">启用文件上传</span>
+                    </label>
+                    <small style="color: #666; margin-left: 24px;">用户可以上传其他类型的文件</small>
+                </div>
+            </div>
+            <small style="color: #999; display: block; margin-top: 10px;">远程应用需通过以下命令连接：<br><code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">python app.py --host 网站域名 --spaces {{ space.name if space else 'space_name' }}</code></small>
         </div>
         <div style="margin-bottom: 15px;">
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">封面图片</label>
@@ -116,12 +157,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const cardTypeSelect = document.querySelector('select[name="card_type"]');
     const customGpuSettings = document.getElementById('custom-gpu-settings');
     const netmindSettings = document.getElementById('netmind-settings');
+    const websocketsSettings = document.getElementById('websockets-settings');
 
     if (cardTypeSelect) {
         const toggleSettings = () => {
             const val = cardTypeSelect.value;
             if (customGpuSettings) customGpuSettings.style.display = val === 'cerebrium' ? 'block' : 'none';
             if (netmindSettings) netmindSettings.style.display = val === 'netmind' ? 'block' : 'none';
+            if (websocketsSettings) websocketsSettings.style.display = val === 'websockets' ? 'block' : 'none';
         };
         cardTypeSelect.addEventListener('change', toggleSettings);
         toggleSettings();

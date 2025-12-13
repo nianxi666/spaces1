@@ -194,6 +194,14 @@ def init_db():
             upstream_key = space_data.get('netmind_upstream_model')
             if not upstream_key:
                 db['spaces'][space_id]['netmind_upstream_model'] = space_data.get('netmind_model', '') or ''
+        if space_data.get('card_type') == 'websockets':
+            if 'websockets_config' not in space_data:
+                db['spaces'][space_id]['websockets_config'] = {
+                    'enable_prompt': True,
+                    'enable_audio': False,
+                    'enable_video': False,
+                    'enable_file_upload': False
+                }
 
     # Ensure all users have an avatar and last_chat_read_time
     for username, user_data in db.get('users', {}).items():
