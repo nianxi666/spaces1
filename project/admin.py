@@ -1188,3 +1188,51 @@ def save_ad_settings():
         },
         'message': '广告设置已更新'
     })
+
+# --- WebSocket Status API ---
+
+@admin_bp.route('/websockets/status')
+def websocket_status():
+    """Get status of all WebSocket connections"""
+    from .websocket_manager import ws_manager
+    
+    db = load_db()
+    connections = []
+    
+    # Get all connected spaces
+    connected_space_ids = ws_manager.get_connected_spaces()
+    
+    # Build connection details
+    for space_id in connected_space_ids:
+        connection = ws_manager.get_connection(space_id)
+        space = db.get('spaces', {}).get(space_id, {})
+        
+        connections.append({
+            'space_id': space_id,
+            'space_name': space.get('name', connection.space_name if connection else 'Unknown'),
+            'connection_id': connection.connection_id if connection else None,
+            'connected_at': connection.connected_at if connection else None,
+            'queue_size': ws_manager.get_queue_size(space_id),
+            'is_processing': connection.is_processing if connection else False
+        })
+    
+    # Get all WebSocket spaces (including disconnected)
+    all_ws_spaces = []
+    for space_id, space in db.get('spaces', {}).items():
+        if space.get('card_type') == 'websockets':
+            is_connected = space_id in connected_space_ids
+            all_ws_spaces.append({
+                'space_id': space_id,
+                'space_name': space.get('name'),
+                'is_connected': is_connected,
+                'queue_size': ws_manager.get_queue_size(space_id) if is_connected else 0
+            })
+    
+    return jsonify({
+        'success': True,
+        'connected_count': len(connections),
+        'total_ws_spaces': len(all_ws_spaces),
+        'connections': connections,
+        'all_spaces': all_ws_spaces
+    })
+

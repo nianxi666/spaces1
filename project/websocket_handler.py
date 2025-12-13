@@ -16,32 +16,53 @@ socketio = None
 def init_websocket(app):
     """Initialize WebSocket support for the Flask app"""
     global socketio
-    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+    print("[WS INIT] === Initializing WebSocket support ===")
+    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+    print(f"[WS INIT] SocketIO created with eventlet mode: {socketio}")
     
     # Store mapping of session IDs to space IDs
     app.ws_connections = {}
     
+    @socketio.on('connect')
+    def handle_connect():
+        print(f"[WS] === CLIENT CONNECTED: sid={request.sid} ===")
+    
     @socketio.on('register')
     def handle_register(data):
         """Handle registration of a remote app"""
-        space_name = data.get('space_name')
-        
-        if not space_name:
-            emit('register_response', {
-                'success': False,
-                'message': 'space_name is required'
-            })
+        try:
+            space_name = data.get('space_name')
+            print(f"[WS] === REGISTER REQUEST: space_name='{space_name}' ===")
+            
+            if not space_name:
+                emit('register_response', {
+                    'success': False,
+                    'message': 'space_name is required'
+                })
+                return
+            
+            # Find space by name in database
+            db = load_db()
+            space_id = None
+            space_count = 0
+            
+            # Debug logging with print for visibility
+            all_spaces = db.get('spaces', {})
+            print(f"[WS] Total spaces in DB: {len(all_spaces)}")
+            for sid, space in all_spaces.items():
+                print(f"[WS]   - name='{space.get('name')}' type='{space.get('card_type')}'")
+            
+            for sid, space in db.get('spaces', {}).items():
+                if space.get('name') == space_name and space.get('card_type') == 'websockets':
+                    space_id = sid
+                    space_count += 1
+                    print(f"[WS] MATCH FOUND: space_id={sid}")
+        except Exception as e:
+            print(f"[WS] ERROR in handle_register: {e}")
+            import traceback
+            traceback.print_exc()
+            emit('register_response', {'success': False, 'message': f'Server error: {e}'})
             return
-        
-        # Find space by name in database
-        db = load_db()
-        space_id = None
-        space_count = 0
-        
-        for sid, space in db.get('spaces', {}).items():
-            if space.get('name') == space_name and space.get('card_type') == 'websockets':
-                space_id = sid
-                space_count += 1
         
         if space_count > 1:
             emit('register_response', {

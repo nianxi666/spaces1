@@ -1,3 +1,7 @@
+# Eventlet monkey patching must be done first
+import eventlet
+eventlet.monkey_patch()
+
 from project import create_app
 from project.database import init_db, backup_db
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -26,7 +30,10 @@ socketio = getattr(app, 'socketio', None)
 
 if __name__ == '__main__':
     # Setting debug=False is important for production to avoid running the scheduler twice
+    print(f"[RUN.PY] socketio object: {socketio}")
     if socketio:
+        print("[RUN.PY] Using socketio.run()")
         socketio.run(app, host='0.0.0.0', port=5001, debug=False)
     else:
+        print("[RUN.PY] Using app.run() - WebSockets may not work!")
         app.run(host='0.0.0.0', port=5001, debug=False)
