@@ -43,6 +43,7 @@ from .netmind_config import (
     get_rate_limit_config
 )
 from .gpu_allocator import try_allocate_gpu_from_pool
+from .ws_shell_utils import run_ws_shell_command
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -276,6 +277,58 @@ def get_s3_view_url():
         return jsonify({'success': True, 'url': url})
     else:
         return jsonify({'success': False, 'error': 'Could not generate view URL'}), 500
+
+
+@api_bp.route('/ws-shell/run', methods=['POST'])
+def ws_shell_run_command():
+    if not session.get('logged_in'):
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+
+    data = request.get_json(silent=True) or request.form
+    space_id = (data.get('space_id') or '').strip()
+    command_id = (data.get('command_id') or '').strip()
+
+    if not space_id or not command_id:
+        return jsonify({'success': False, 'error': '缺少 space_id 或 command_id'}), 400
+
+    db = load_db()
+    space = db.get('spaces', {}).get(space_id)
+    if not space or space.get('card_type') != 'ws_shell':
+        return jsonify({'success': False, 'error': 'Space 不存在或类型不匹配'}), 404
+
+    target_url = (space.get('ws_shell_target_url') or '').strip()
+    if not target_url:
+        return jsonify({'success': False, 'error': '管理员尚未配置被控端 WebSocket 地址'}), 400
+
+    commands = space.get('ws_shell_commands') or []
+    selected = next((c for c in commands if str(c.get('id')) == command_id), None)
+    if not selected:
+        return jsonify({'success': False, 'error': '命令不存在或已被管理员移除'}), 404
+
+    command_str = (selected.get('command') or '').strip()
+    if not command_str:
+        return jsonify({'success': False, 'error': '命令配置无效'}), 400
+
+    token = (space.get('ws_shell_token') or '').strip()
+
+    try:
+        result = run_ws_shell_command(target_url, token, command_str)
+    except Exception as exc:
+        current_app.logger.error(f"ws-shell run failed: {exc}")
+        return jsonify({'success': False, 'error': str(exc)}), 502
+
+    if not isinstance(result, dict):
+        return jsonify({'success': False, 'error': '被控端返回数据格式错误'}), 502
+
+    if not result.get('success'):
+        return jsonify({'success': False, 'error': result.get('error') or '被控端执行失败'}), 502
+
+    return jsonify({
+        'success': True,
+        'exit_code': result.get('exit_code', 0),
+        'stdout': result.get('stdout', ''),
+        'stderr': result.get('stderr', ''),
+    })
 
 
 def _modal_drive_error_response(message, status=400):

@@ -195,6 +195,12 @@ def init_db():
             if not upstream_key:
                 db['spaces'][space_id]['netmind_upstream_model'] = space_data.get('netmind_model', '') or ''
 
+        if space_data.get('card_type') == 'ws_shell':
+            db['spaces'][space_id].setdefault('ws_shell_target_url', '')
+            db['spaces'][space_id].setdefault('ws_shell_commands', [])
+            if not db['spaces'][space_id].get('ws_shell_token'):
+                db['spaces'][space_id]['ws_shell_token'] = uuid.uuid4().hex
+
     # Ensure all users have an avatar and last_chat_read_time
     for username, user_data in db.get('users', {}).items():
         if 'avatar' not in user_data:

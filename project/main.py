@@ -667,6 +667,14 @@ def ai_project_view(ai_project_id):
                     except ValueError:
                         pass
 
+    if space_card_type == 'ws_shell':
+        return render_template(
+            'space_ws_shell.html',
+            ai_project=ai_project,
+            announcement=announcement,
+            ws_shell_commands=ai_project.get('ws_shell_commands') or []
+        )
+
     if space_card_type == 'netmind':
         chat_announcement = db.get('chat_announcement', {})
         return render_template(
@@ -870,6 +878,9 @@ def run_inference(ai_project_id):
     ai_project = db["spaces"].get(ai_project_id)
     if not ai_project:
         return jsonify({'error': 'AI Project 未找到'}), 404
+
+    if ai_project.get('card_type', 'standard') != 'standard':
+        return jsonify({'error': '该 Space 类型不支持运行推理任务'}), 400
 
     template_id = request.form.get('template_id')
     if not template_id:
